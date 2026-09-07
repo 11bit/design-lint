@@ -46,8 +46,9 @@ truth. It stops feeding a custom loader and starts feeding rule `options`.
   semantics, numeric range lookups, or filesystem-derived component sets. Revisit if
   Biome ships a JS plugin API.
 - **Plain ESLint v9 + `@eslint/css`** — the safe fallback. One tool, both file types,
-  mature custom-rule API. Slower. Take this if the Oxlint alpha proves unstable in
-  Phase 0; nothing else in this plan changes.
+  mature custom-rule API. Slower. Was to be taken if the Oxlint alpha proved unstable in
+  Phase 0; **Phase 0 returned GO, so this is no longer the active path.** Retained as the
+  contingency if the alpha API breaks under us mid-migration.
 
 ### Known constraints
 
@@ -56,7 +57,15 @@ truth. It stops feeding a custom loader and starts feeding rule `options`.
 - **No TypeScript type-awareness** in Oxlint plugins yet. None of our nine rules need it —
   all are syntactic.
 - **JS plugins are alpha** (March 2026) and not semver-stable. Mitigated by the
-  ESLint-compatible rule shape.
+  ESLint-compatible rule shape. Phase 0 found the API materially ESLint-shaped in
+  practice: every verified name behaved as the ESLint docs for that name predict.
+- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss` since its
+  v1.0.0 — entry-point auto-detection was removed. `colorTokenFiles[0]` in `colors.json`
+  already holds `src/styles.css` and can feed both this setting and Stylelint's
+  `ignoreFiles`.
+- **Suggestions are invisible in every CLI output format.** They surface only in the
+  editor or via `oxlint --fix-suggestions`. Any information carried in a suggestion must
+  *also* appear in the message text via `data`.
 - **This repo is not runnable.** It is an extraction of two directories from a larger app.
   `src/`, `styles.css`, `src/components/ui`, and the `tailwindcss` dependency live in the
   app repo. All verification work happens there.
@@ -76,10 +85,33 @@ their contract before deletion, not adopted on faith** (see Phase 4).
 | 9 | `no-dark-variant` | Restricted-classes regex on the `dark:` variant. |
 | 2 | `no-raw-css-color` | Split: the `.css` half → `stylelint-declaration-strict-value` (`"scale-unlimited/declaration-strict-value": ["/color/", { ignoreValues: ["transparent", "inherit", "currentColor"] }]`, with `colorTokenFiles` as `ignoreFiles`). The Tailwind arbitrary-value half (`bg-[#ff0000]`) → restricted-classes regex. |
 
-Additional coverage we gain for free from `oxlint-tailwindcss` (~24 rules): conflicting
+All five replacements were **verified working in Phase 0** against a Tailwind v4 `@theme`
+file, including per-pattern custom messages, `hover:`-variant spectral classes,
+`md:dark:` compound variants, and `bg-[--my-var]` correctly *not* being treated as a raw
+arbitrary color.
+
+Additional coverage we gain for free from `oxlint-tailwindcss` (24 rules): conflicting
 classes, deprecated classes, duplicate classes, concatenated classes, canonical class
 names, class ordering. **Do not enable these during the migration** — adopt them
 afterwards as a separate, deliberate decision, or they will bury the signal in Phase 4.
+Three exceptions are directly relevant and must be evaluated *in* Phase 4:
+`no-hardcoded-colors`, `no-arbitrary-value`, `prefer-theme-tokens`. The first may subsume
+the hand-written arbitrary-value regex for rule 2 entirely.
+
+### Coverage regression to resolve
+
+`oxlint-tailwindcss` **fully extracts `cva()`** — base, variants, and compoundVariants —
+which is better than assumed. But it does **not** see color classes in object-literal maps
+in `.ts` constants files:
+
+```ts
+const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
+```
+
+The current line-wise scanner catches these because it extracts every string literal in
+the file. This is a real coverage loss, not a wash. It needs a Phase 4 verdict under this
+plan's own "do not quietly ship the gap" standard — narrow the contract, or keep a thin
+custom rule for the `.ts` surface.
 
 ---
 
@@ -101,12 +133,24 @@ why they benefit most from the move to a real AST.
   replacement map. Discovery (filesystem reads, Tailwind resolution) happens **once at
   plugin-module load**, never inside `create()`. This keeps `RuleTester` usable and avoids
   a per-file filesystem hit. It also preserves the property the current system has: adding
-  a token to `styles.css` requires no manual sync.
+  a token to `styles.css` requires no manual sync. Phase 0 confirmed the plugin module is
+  loaded exactly once across a 200-file run (9 ms), and that `meta.schema` is enforced.
+- **Use plain `create`, not `createOnce`.** `createOnce` is Oxlint's faster alternative,
+  but it requires `eslintCompatPlugin()` to run under ESLint — which weakens the
+  portability mitigation that justifies this whole approach. Phase 0 measured no benefit
+  worth that trade (200 files, 4 rules, both plugins: 0.10 s total).
 - **`messageId` + `data`, never pre-formatted strings.** The entire `ansi` indirection
   layer (rules building ANSI escape codes, tests passing a no-op stub to strip them) is
   deleted. Oxlint owns formatting.
+- **Anything carried in a suggestion must also be in the message text.** Suggestions do
+  not render in any CLI format. A suggestion is an editor affordance, never the only
+  channel for information the developer needs.
+- **Suggestion order is load-bearing.** `oxlint --fix-suggestions` applies index 0 without
+  prompting. Never list a destructive suggestion (e.g. "remove the class") first.
 - **Suppression comes from the host.** `color-lint-ignore` is dropped in favour of
-  `// oxlint-disable-next-line` and `/* stylelint-disable */`.
+  `// oxlint-disable-next-line` and `/* stylelint-disable */`. Phase 0 confirmed Oxlint
+  also honours `eslint-disable-next-line`, so existing disables would survive the
+  fallback path.
 
 ---
 
@@ -164,15 +208,31 @@ supersedes them as the coverage instrument.
 
 ## Revised phases
 
-### Phase 0 — De-risk the alpha
+### Phase 0 — De-risk the alpha ✅ DONE — **GO**
 
-*Half a day, throwaway, in the app repo.*
+*Executed as a throwaway spike. All eight required capabilities verified by execution,
+with no workarounds.*
 
-Install `oxlint` + `oxlint-tailwindcss`, wire one trivial custom rule, confirm it runs
-over the real `.tsx` corpus and surfaces in the editor.
+Versions proved against: `oxlint` 1.81.0 · `oxlint-tailwindcss` 1.10.2 ·
+`tailwindcss` 4.3.3 · `vitest` 5.0.0 · node 24.18.0.
 
-**Exit:** a go/no-go on the alpha JS plugin API. On no-go, switch the target to
-ESLint v9 + `@eslint/css`; nothing else in this plan changes.
+| Capability | Result |
+| --- | --- |
+| JSX AST traversal (`JSXOpeningElement` / `JSXAttribute`) | works, ESTree-shaped nodes |
+| Rule `options` + `meta.schema` | works, schema enforced; `defaultOptions` deep-merged |
+| `messageId` + `data` interpolation | works, in both CLI and `RuleTester` |
+| Suggestions (`context.report({ suggest })`) | works — **invisible in CLI output** |
+| Autofix + `oxlint --fix` | works |
+| Module-load-once init | works — module loaded once for 200 files (9 ms) |
+| `RuleTester` under Vitest | works — **columns 0-based without `eslintCompat: true`** |
+| Inline disable directives | works, incl. `eslint-disable-next-line` |
+
+**Not verified, and deferred to Phase 5:** editor/LSP integration. It needs the
+application repo, which this repo is an extraction from. It is the only unverified
+assumption left on the critical path.
+
+**Exit criterion met** for the API question. The fallback to ESLint v9 + `@eslint/css` is
+retired to a contingency.
 
 ### Phase 1 — Write the nine contracts
 
@@ -190,7 +250,13 @@ Section 3 is what makes "sure it lints what it promises" achievable.
 
 Open questions this phase must resolve:
 
-- Does `token-constraints` apply inside `cva()` / `tv()` variant maps?
+- **Does `token-constraints` apply inside `cva()` / `tv()` variant maps?** Phase 0 forced
+  this one: `oxlint-tailwindcss` *does* extract `cva()`, so the off-the-shelf half already
+  fires there. The only remaining choice is whether the custom rules match that behavior
+  or deliberately diverge. It can no longer be deferred.
+- **Do the rules cover color classes in `.ts` object-literal maps?** Phase 0 found
+  `oxlint-tailwindcss` does not see them, while the current scanner does. Deciding this at
+  contract time determines whether Phase 4 records a narrowed contract or a custom rule.
 - Should `no-component-color-override` see through `cn(className, "bg-primary")` where
   `className` is a prop?
 - Is excluding Storybook files intent, or convenience?
@@ -201,6 +267,14 @@ Open questions this phase must resolve:
   conservative everywhere. Prioritising completeness pushes the other way — toward
   aggressive flagging with `oxlint-disable` as the escape hatch. This must be an explicit
   line in each contract, not an emergent property.
+- For any rule offering suggestions: **what order are they in, and does the message text
+  stand alone without them?** Both are consequences of Phase 0 findings, and both are
+  cheaper to decide once here than nine times during implementation.
+
+Contracts live in `docs/rules/<name>.md` — prose and test corpus in one file, with
+`caught` / `allowed` / `blindspot` fenced blocks extracted and executed by the harness, so
+declared blind spots are asserted rather than aspirational. See
+[`no-style-color.md`](./rules/no-style-color.md) for the format.
 
 **Exit:** nine contracts reviewed and agreed.
 
@@ -242,23 +316,46 @@ against *our* contract — including `cva` handling and dynamic classes — befo
 anything. Where an off-the-shelf rule covers 90% of a contract, the honest options are to
 narrow the contract or keep a custom rule. Not to quietly ship the gap.
 
-Enable only the five rules being replaced. Nothing else from `oxlint-tailwindcss` yet.
+Phase 0 already established the baseline: all four restricted-class patterns work,
+`@theme` resolution works, and `cva()` is covered. Two items carry into this phase:
 
-**Exit:** each of the five has a documented verdict: adopted / adopted-with-narrowed-contract / kept custom.
+- **The `.ts` object-literal gap** — resolve it under the standard above. This is the one
+  known regression against the current implementation.
+- **Three omitted rules to evaluate** — `no-hardcoded-colors`, `no-arbitrary-value`,
+  `prefer-theme-tokens`. `no-hardcoded-colors` may subsume the hand-written
+  arbitrary-value regex for rule 2; if so, rule 2 shrinks to Stylelint config alone.
+
+Enable only the five rules being replaced, plus any of the three above that survive
+evaluation. Nothing else from `oxlint-tailwindcss` yet.
+
+**Exit:** each of the five has a documented verdict — adopted /
+adopted-with-narrowed-contract / kept custom — and the `.ts` gap has a decision.
 
 ### Phase 5 — Write the four rules, wire the suggestions, cut over
 
 By now this is mechanical; the thinking happened in Phases 1–3.
 
+0. **Verify editor/LSP integration** (~1 hour, in the app repo). Carried over from
+   Phase 0, which could not run it. Confirm custom-rule diagnostics *and* suggestions
+   appear in the editor. Suggestions are invisible on the CLI, so if the editor path is
+   broken they are invisible everywhere — and step 4 below is built on them. Do this
+   before writing rule code, not after.
 1. Port the 72 tests to `RuleTester` against empty stubs. Watch them fail.
+   Two Phase 0 gotchas govern this step:
+   - `new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "tsx" } } })`
+     is **mandatory**. Without `eslintCompat` columns are 0-based and all 72 ported column
+     assertions are off by one; without the `tsx` lang, nothing parses.
+   - `ruleTester.run()` must be called at **top level**. The port is therefore not
+     find-and-replace over the existing `describe` / `it` nesting — budget for restructuring.
 2. Add the Phase 2 corpus cases for these four rules.
 3. Implement in risk order: `no-style-color` (smallest, no config) → `token-constraints` →
    `no-useless-hover` → `no-component-color-override` (needs component discovery).
 4. Wire the spectral→semantic replacement map from `colors.json` into
-   `context.report({ suggest })`. This is the one genuine upgrade rather than a port: a
-   console hint becomes an editor quick-fix. If Phase 4 confirms `oxlint-tailwindcss`
-   cannot carry the replacement map, this is where a thin custom `no-spectral-color`
-   comes back to hold it.
+   `context.report({ suggest })` — **and into the message text via `data`**. Suggestions
+   do not render on the CLI, so a suggestion-only hint is strictly worse than today's
+   console output. The upgrade is the editor quick-fix on top of the message, not instead
+   of it. If Phase 4 confirms `oxlint-tailwindcss` cannot carry the replacement map, this
+   is where a thin custom `no-spectral-color` comes back to hold it.
 5. Delete `lint-color/`. Fix the stale `scripts/lint-color/rules/` reference in
    `colors.schema.json`.
 

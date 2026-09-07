@@ -4,7 +4,7 @@ legacy-id: 1
 status: draft
 disposition: custom
 bias: false-positives
-files: ["*.tsx", "*.ts"]
+files: ["*.tsx"]
 ---
 
 # no-style-color
@@ -289,8 +289,16 @@ Each blocks `status: agreed`.
    where ad-hoc inline color is most tempting and least harmful.
 
 5. **Does this rule apply to `.ts` files at all?** The current runner scans them, but a
-   `style` prop only exists in JSX. Constants files holding style objects fall under
-   open question 3 rather than here.
+   `style` prop only exists in JSX, so for *this* rule the answer is almost certainly no.
+   Style objects declared in `.ts` constants files fall under open question 3.
+
+   The question matters project-wide, though, and Phase 0 sharpened it:
+   `oxlint-tailwindcss` does **not** see color classes in `.ts` object-literal maps
+   (`const badgeColor = { danger: "bg-red-500" }`), while the current line-wise scanner
+   does. That is a real regression for `token-constraints`, `no-spectral-color`, and
+   `no-component-color-override`. It does not affect `no-style-color`, but the file-scope
+   decision should be made once across all nine contracts rather than nine times.
+   *Recommendation for this rule: `.tsx` only.*
 
 ## Deltas from the current implementation
 
