@@ -14,6 +14,13 @@ decision below:
   A rule that promises less but delivers completely is acceptable. A rule that implies
   total coverage and has silent holes is not.
 
+> **This document is disposable.** It exists to get from a proof of concept to a working
+> linter, and it is deleted in [Phase 6](#phase-6--extract-and-delete) along with the PoC
+> itself. Anything written here that should outlive the migration is listed in that
+> phase's extraction table and must be moved to `docs/linting.md` or
+> `docs/rules/README.md` before this file goes. Do not add durable knowledge here without
+> adding it to that table.
+
 ---
 
 ## Migration target
@@ -364,45 +371,66 @@ No parallel-run period is needed — nothing depends on the old output.
 
 **Exit:** CI green on the new linters, contracts and corpus in the repo next to the rules.
 
-### Phase 6 — Decommission
+### Phase 6 — Extract and delete
 
-The migration is judged by what it leaves behind, not only by what it ships. Everything
-below is written *for* the migration and becomes noise the moment it is over: a reader a
-year from now should find nine rules and nine contracts, with no archaeology.
+`lint-color/` is an experimental proof of concept whose purpose was to demonstrate intent.
+Once that intent lives in nine contracts and nine working rules, the PoC has no residual
+value — and neither does this document. **Both are deleted, not archived.**
 
-**Strip the contracts of migration scaffolding.** Every reference to the old system is a
-comparison that stops being true once the comparison target is deleted. Per contract:
+The only risk in deleting them is losing knowledge that is genuinely about the *new*
+system and happens to be written down here. So this phase is extraction first, deletion
+second.
+
+#### 1. Extract what outlives the migration
+
+Everything below is rewritten **as if the new system had always existed** — no mention of
+a predecessor, a migration, a PoC, or a rule that "used to" do something. If a sentence
+only makes sense as a comparison, it does not survive the move.
+
+| What | Where it goes |
+| --- | --- |
+| The three-component architecture, and what each component owns | `docs/linting.md` |
+| Tool-choice rationale — why Oxlint, why not Biome, why Stylelint for CSS | `docs/linting.md` |
+| Operational constraints — JS/TS-only plugins, no type-awareness, mandatory `settings.tailwindcss.entryPoint`, suggestions invisible in CLI output | `docs/linting.md` |
+| `colors.json` as the designer-owned policy file, and the rule that policy *values* live there while rule *semantics* live in contracts | `docs/linting.md` |
+| Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` |
+| `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
+| The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
+| Index of the nine rules with their dispositions, and *why* each is custom or off-the-shelf | `docs/rules/README.md` |
+| Any coverage gap accepted rather than closed — including the `.ts` object-literal question if it resolves that way | The affected contracts, as **Declared blind spots** |
+
+Written this way, `docs/linting.md` and `docs/rules/README.md` are permanent
+documentation of a linter, not residue of a migration.
+
+#### 2. Strip the contracts of scaffolding
+
+Every reference to the PoC is a comparison that stops being true once the comparison
+target is gone. Per contract:
 
 - Delete the **Deltas from the current implementation** section outright.
-- Remove inline annotations in the case blocks that describe old behavior —
-  `// shorthand, currently missed` and similar. They are comments inside executed fixtures,
-  so removal is safe, but they will read as false claims once nothing is missing it.
-- Rewrite **Open questions** that were phrased against the old implementation
-  ("currently allowed and explicitly tested as allowed"). Resolved questions move into the
-  prose as decisions with their rationale; the section is deleted when empty.
-- Drop the `legacy-id` frontmatter field — it maps to a rule numbering that no longer
-  exists — and set `status: implemented`.
+- Remove inline annotations in the case blocks describing old behavior —
+  `// shorthand, currently missed` and similar. They are comments inside executed
+  fixtures, so removal is safe, but they read as false claims once nothing is missing it.
+- Rewrite **Open questions** phrased against the old implementation ("currently allowed
+  and explicitly tested as allowed"). Resolved questions become prose decisions carrying
+  their rationale; the section is deleted when empty.
+- Drop the `legacy-id` frontmatter field and set `status: implemented`.
 
-**Delete the old system.**
+#### 3. Delete
 
 - `lint-color/` in full.
+- **This document.**
 - The `scripts/lint-color/rules/` reference in `colors.schema.json`.
 - Any `package.json` script, CI step, or hook invoking the old runner.
-- Any remaining `color-lint-ignore` comments in the application codebase, converted to
-  `oxlint-disable` / `stylelint-disable` during Phase 5 and easy to leave stranded.
+- Any `color-lint-ignore` comments left in the application codebase — they were converted
+  to `oxlint-disable` / `stylelint-disable` in Phase 5 and are easy to strand.
 
-**Verify by search, not by memory.** `lint-color`, `color-lint-ignore`, `colorTokenFiles`,
-and the old rule id numbers should each return only intended hits across both repos.
+**Verify by search, not by memory.** `lint-color`, `color-lint-ignore`, `migration`,
+`legacy`, and the old rule id numbers should each return zero hits across both repos.
 
-**Decide what happens to this document.** It is a migration plan; once executed it is
-history, not guidance. Recommendation: move it to `docs/archive/` with a dated note rather
-than deleting it — the *reasoning* behind rule dispositions stays useful, and the
-contracts deliberately do not carry it. Its **Known gaps in the current implementation**
-section should be deleted either way; those gaps are closed and the section only makes
-sense next to code that no longer exists.
-
-**Exit:** `lint-color/` gone, every contract free of migration references, searches clean,
-and this plan archived.
+**Exit:** `lint-color/` and this plan are gone; `docs/linting.md` and
+`docs/rules/README.md` stand on their own; every contract reads as a specification rather
+than a comparison; searches are clean.
 
 ---
 
