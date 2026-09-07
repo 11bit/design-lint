@@ -302,6 +302,9 @@ Each blocks `status: agreed`.
 
 ## Deltas from the current implementation
 
+> **Migration scaffolding — delete in Phase 6.** This section, and any `currently missed`
+> annotations in the case blocks above, exist only while the old linter does.
+
 For migration reference. The current rule is a line-oriented regex
 (`\b(color|backgroundColor)\s*:`) with manual brace-depth tracking.
 

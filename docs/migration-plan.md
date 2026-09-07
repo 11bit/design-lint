@@ -356,12 +356,53 @@ By now this is mechanical; the thinking happened in Phases 1–3.
    console output. The upgrade is the editor quick-fix on top of the message, not instead
    of it. If Phase 4 confirms `oxlint-tailwindcss` cannot carry the replacement map, this
    is where a thin custom `no-spectral-color` comes back to hold it.
-5. Delete `lint-color/`. Fix the stale `scripts/lint-color/rules/` reference in
-   `colors.schema.json`.
+5. Switch CI to the new linters and confirm green. Removal of the old system happens in
+   Phase 6, not here — keep `lint-color/` on disk until the new rules have run against
+   the real codebase at least once.
 
 No parallel-run period is needed — nothing depends on the old output.
 
-**Exit:** `lint-color/` deleted, CI green, contracts and corpus in the repo next to the rules.
+**Exit:** CI green on the new linters, contracts and corpus in the repo next to the rules.
+
+### Phase 6 — Decommission
+
+The migration is judged by what it leaves behind, not only by what it ships. Everything
+below is written *for* the migration and becomes noise the moment it is over: a reader a
+year from now should find nine rules and nine contracts, with no archaeology.
+
+**Strip the contracts of migration scaffolding.** Every reference to the old system is a
+comparison that stops being true once the comparison target is deleted. Per contract:
+
+- Delete the **Deltas from the current implementation** section outright.
+- Remove inline annotations in the case blocks that describe old behavior —
+  `// shorthand, currently missed` and similar. They are comments inside executed fixtures,
+  so removal is safe, but they will read as false claims once nothing is missing it.
+- Rewrite **Open questions** that were phrased against the old implementation
+  ("currently allowed and explicitly tested as allowed"). Resolved questions move into the
+  prose as decisions with their rationale; the section is deleted when empty.
+- Drop the `legacy-id` frontmatter field — it maps to a rule numbering that no longer
+  exists — and set `status: implemented`.
+
+**Delete the old system.**
+
+- `lint-color/` in full.
+- The `scripts/lint-color/rules/` reference in `colors.schema.json`.
+- Any `package.json` script, CI step, or hook invoking the old runner.
+- Any remaining `color-lint-ignore` comments in the application codebase, converted to
+  `oxlint-disable` / `stylelint-disable` during Phase 5 and easy to leave stranded.
+
+**Verify by search, not by memory.** `lint-color`, `color-lint-ignore`, `colorTokenFiles`,
+and the old rule id numbers should each return only intended hits across both repos.
+
+**Decide what happens to this document.** It is a migration plan; once executed it is
+history, not guidance. Recommendation: move it to `docs/archive/` with a dated note rather
+than deleting it — the *reasoning* behind rule dispositions stays useful, and the
+contracts deliberately do not carry it. Its **Known gaps in the current implementation**
+section should be deleted either way; those gaps are closed and the section only makes
+sense next to code that no longer exists.
+
+**Exit:** `lint-color/` gone, every contract free of migration references, searches clean,
+and this plan archived.
 
 ---
 
