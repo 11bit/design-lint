@@ -163,30 +163,62 @@ why they benefit most from the move to a real AST.
 
 ## Known gaps in the current implementation
 
-Found in a brief review. Each is a case where a rule's stated intent and its actual
-behavior diverge, **with no test in either direction**. These are listed here as evidence
-for why the contracts in Phase 1 come before any code — not as a bug backlog.
+**Per-rule detail now lives in each contract's *Deltas from the current implementation*
+table**, written against the source rather than inferred. This section keeps only the
+gaps that are *systemic* — shared machinery, affecting several rules at once, and
+therefore load-bearing for the target design rather than for any single rule.
 
-- **`no-style-color` checks exactly two properties.** The regex is
-  `\b(color|backgroundColor)\s*:`. The stated promise is "no color in `style=`", but
-  `background`, `borderColor`, `outlineColor`, `caretColor`, `textDecorationColor`,
-  `fill`, `stroke`, and `boxShadow` pass through untouched.
-- **`no-style-color` misses ES6 shorthand.** The regex requires a trailing colon, so
-  `style={{ color }}` is invisible.
-- **`no-useless-hover` false-positives on `group-hover:`.** It does
-  `str.indexOf("hover:")`, which matches `group-hover:` and `peer-hover:`. A
-  non-interactive `<div className="group-hover:bg-primary">` inside an interactive parent
-  is the correct Tailwind idiom, and this rule reports it. `token-constraints` has the
-  identical bug via `rawTok.includes("hover:")`. Neither string appears anywhere in the
-  repo, tests included.
-- **`cva()` is untested across all nine rules.** Behavior differs by rule family: token
-  rules scan every string literal in the file (so they would catch it), JSX-scoped rules
-  only scan opening tags (so they would not). That split is arguably correct intent —
-  variant maps are where colors are *defined*, not overridden — but it is currently an
-  accident rather than a decision.
+They are evidence for why the contracts come before code. They are not a bug backlog:
+`lint-color/` is a proof of concept and none of these will be fixed in place.
 
-Working as intended, for the record: `@apply` directives in CSS **are** handled, and
-`cn()` / `clsx()` string arguments **are** caught.
+- **Template literals are never extracted.** `extractStringLiterals`
+  (`shared.js:91`) matches `"` and `'` only. Every class inside a backtick string —
+  `` className={`bg-red-500 ${x}`} `` — is invisible to *all* token rules today. This is
+  the single largest hole in the current implementation, and it is why the class-string
+  extractor in Phase 3 is a component with its own test suite rather than a helper.
+- **The colour-prefix list is hand-maintained and incomplete.**
+  `TAILWIND_COLOR_PREFIXES` (`shared.js:11`) omits every per-side and per-axis border
+  family (`border-t-`, `border-x-`, `border-inline-start-`) plus `inset-ring`,
+  `inset-shadow`, and `text-shadow`. Any rule gating on the prefix list inherits the hole.
+  Derive the set from Tailwind instead of maintaining a constant.
+- **Token normalization splits on the last `:`.** `normalizeTwToken` mangles
+  `bg-[image:var(--x)]` into `var(--x)]`. Variant parsing must be segment-aware, which is
+  the same fix the `group-hover:` family needs.
+- **`hover:` is matched as a substring, not a segment.** `str.indexOf("hover:")` in
+  `no-useless-hover` and `rawTok.includes("hover:")` in `token-constraints` both match
+  `group-hover:`, `peer-hover:`, and `[@media(hover:hover)]:`. `no-useless-hover`
+  additionally scans *every* quoted string in the opening tag, so `title="hover: to
+  preview"` reports too.
+- **`no-undefined-token` fails silent, and gates another rule.** `index.js` builds the
+  Tailwind resolver with `.catch(() => null)` and the rule returns `null` when it is
+  absent — a load failure disables it with no output and no exit code. Because
+  `token-constraints` returns early unless the class body is a known semantic token, a
+  silent resolver failure quietly weakens two rules. The contracts make this a hard error.
+- **Rules do not short-circuit, despite comments saying they do.** The `checkToken`
+  headers claim a returned message "signals the orchestrator to stop checking this token
+  further". It does not; every rule runs on every token, so `dark:bg-red-500/50` produces
+  three reports. Report multiplicity per token needs to be a decision, not an accident.
+
+### Regressions the target architecture would introduce
+
+Found independently by three of the four contract authors. These are **not** current
+bugs — they are things that work today and that nothing in the three-component design
+covers. Each needs a Phase 4 verdict under this plan's own "do not quietly ship the gap"
+standard.
+
+- **`@apply` in component stylesheets.** `linter.js:154` runs the full token pipeline over
+  `@apply` lines, so `@apply bg-red-500`, `dark:`, `/50`, and undefined tokens are all
+  linted today. Nothing in the target can carry this: Oxlint JS plugins are JS/TS only,
+  and `stylelint-declaration-strict-value` inspects declaration *values*, not Tailwind
+  class lists. Affects `token-constraints`, `no-spectral-color`, `no-opacity-modifier`,
+  and `no-undefined-token` identically. The contracts keep the `.css` promise and
+  recommend a small Stylelint rule reading the same policy module; if that is rejected,
+  the promise must be explicitly demoted to a declared blind spot in all four.
+- **Colour classes in `.ts` object-literal maps.** Covered above under
+  [Coverage regression to resolve](#coverage-regression-to-resolve).
+- **SVG presentation attributes and `.ts` / `.tsx` string constants.** Promised by
+  `no-raw-css-color`, caught today, covered by nothing in the replacement. Its contract
+  recommends keeping the promise and budgeting a thin custom rule.
 
 ---
 
@@ -283,6 +315,23 @@ Contracts live in `docs/rules/<name>.md` — prose and test corpus in one file, 
 declared blind spots are asserted rather than aspirational. See
 [`no-style-color.md`](./rules/no-style-color.md) for the format.
 
+#### Status: all nine drafted
+
+All nine contracts exist at `status: draft`, with ~190 tagged case blocks between them.
+None is `agreed` — each carries open questions that block it.
+
+**Cross-rule questions must be reconciled before any contract is agreed.** They are marked
+`[cross-rule]` in the contracts and cannot be settled inside a single one:
+
+| Question | Contracts affected | State |
+| --- | --- | --- |
+| Does a `hover:` token policy bind `group-hover:` / `peer-hover:`? | `token-constraints`, `no-useless-hover` | **Contracts disagree.** Both agree variants must match by *segment*, not substring. They differ on whether `group-hover:bg-primary` must still satisfy `allowed["hover:"]`. Turns on whether the `-hover` suffix rule is about *this element's* hover state or about hover-triggered colour generally. |
+| Do rules apply to `.ts` as well as `.tsx`? | All nine | Raised everywhere, settled nowhere. `no-style-color` and the JSX-scoped rules say `.tsx` only; the token rules say both. That may be correct — but it must be a decision. |
+| Do rules apply to `.css`? | The four token rules, `no-raw-css-color` | Bound to the `@apply` regression above. |
+| Are Storybook files excluded? | Several | Currently excluded wholesale by `isStorybookFile`. Intent or convenience, still unknown. |
+| Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | `no-raw-css-color`, `no-dark-variant` | Same family as the `.dark &` / `prefers-color-scheme` question. |
+| Does `cva()` fall inside each rule's scope? | `token-constraints`, `no-component-color-override`, the token rules | Forced by Phase 0: the off-the-shelf half already fires there. |
+
 **Exit:** nine contracts reviewed and agreed.
 
 ### Phase 2 — Build the evasion corpus
@@ -326,11 +375,24 @@ narrow the contract or keep a custom rule. Not to quietly ship the gap.
 Phase 0 already established the baseline: all four restricted-class patterns work,
 `@theme` resolution works, and `cva()` is covered. Two items carry into this phase:
 
-- **The `.ts` object-literal gap** — resolve it under the standard above. This is the one
-  known regression against the current implementation.
+- **Three coverage regressions to resolve** — the `.ts` object-literal gap, `@apply` in
+  component stylesheets, and SVG attributes / string constants. See
+  [Regressions the target architecture would introduce](#regressions-the-target-architecture-would-introduce).
+  Each ends in one of: covered by a small Stylelint rule, covered by a thin custom rule,
+  or explicitly demoted to a declared blind spot in every affected contract. Silence is
+  not an option.
 - **Three omitted rules to evaluate** — `no-hardcoded-colors`, `no-arbitrary-value`,
   `prefer-theme-tokens`. `no-hardcoded-colors` may subsume the hand-written
   arbitrary-value regex for rule 2; if so, rule 2 shrinks to Stylelint config alone.
+- **Does `oxlint-tailwindcss` put its typo candidate in the message text?**
+  `no-undefined-token`'s contract records this as an *acceptance criterion*, not a
+  preference: suggestions do not render on the CLI, so a suggestion-only candidate makes
+  the terminal experience worse than today's.
+- **Can the `replacement` map survive as generated config?** `no-spectral-color`'s contract
+  argues `off-the-shelf` still stands — the map is 27 entries expanding mechanically to 27
+  restricted-class patterns, and Phase 0 proved per-pattern custom messages work. The
+  trade is a build step regenerating `.oxlintrc` from `colors.json`, replacing today's
+  read-at-runtime. Decide the trade, not the disposition.
 
 Enable only the five rules being replaced, plus any of the three above that survive
 evaluation. Nothing else from `oxlint-tailwindcss` yet.
