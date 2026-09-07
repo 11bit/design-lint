@@ -1,0 +1,19 @@
+docs/rules/no-style-color.md
+  s_7e8ab0bd95e6ad::t_9d801c6d06517d 1-313
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "447c78a980b378097bb1c2763885f292d4609132",
+  "prompts": {},
+  "sessions": {
+    "s_7e8ab0bd95e6ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba6a48db-5481-4c8f-b9b0-3fdf59bad159",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
