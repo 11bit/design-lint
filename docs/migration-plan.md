@@ -98,6 +98,41 @@ So **rules carry mechanism and no policy.** The current `colors.json` contents b
 package's `recommended` preset: a project shaped like this one gets value immediately, and
 a project shaped differently overrides without forking a rule.
 
+### What a consumer writes
+
+Verified in Phase 0b. The package exports a **factory** returning a complete config, which
+the consumer spreads at top level — it cannot be an `extends`-able preset, for reasons
+below.
+
+```ts
+// oxlint.config.ts — auto-discovered.
+// .oxlintrc.json must NOT also exist; having both is a hard error.
+import { defineConfig } from "oxlint";
+import { designLint } from "@evil-martians/design-lint/preset";
+
+export default defineConfig(
+  designLint({
+    tokenFiles: ["src/styles.css"],
+    componentsDirectory: "src/components/ui",
+  }),
+);
+```
+
+Three findings force this shape, and none is fixable by renaming keys:
+
+- **`plugins` is reserved for Oxlint's built-in Rust plugins** and rejects a JS package
+  outright. JS plugins load under **`jsPlugins`**.
+- **`extends` in `.oxlintrc.json` is pure filesystem path resolution** — no `node_modules`
+  lookup, no `exports` support. Oxlint states it does not support ESLint shared configs.
+  Only a literal `./node_modules/…/recommended.json` path works.
+- **`settings` is not inherited through `extends`** in either JSON or TS. A preset can
+  therefore never ship the settings its own rules need — proven concretely:
+  `settings.tailwindcss.entryPoint` inside a preset yields `entryPoint is required`, and
+  works only when hoisted into the consumer's own config.
+
+A JSON-only fallback exists but requires the consumer to restate every setting the preset
+needs, so the factory is the supported path.
+
 ### Package shape
 
 One package, several entry points. Not three packages — `/oxlint` and `/stylelint` share
@@ -106,12 +141,18 @@ rule's coverage, which is the worst failure mode available here.
 
 ```
 @evil-martians/design-lint
-├── /oxlint      plugin for .oxlintrc.json
+├── /preset      the factory a consumer imports
+├── /oxlint      plugin object, loaded via jsPlugins
 ├── /eslint      the same rules, ESLint v9 flat config
 ├── /stylelint   the CSS surface (@apply, raw values)
 └── /policy      shared: config resolution, variant segmentation,
                  colour-prefix derivation, token parsing
 ```
+
+**The factory resolves its own peer specifiers with `import.meta.resolve`.** Bare
+specifiers inside an *imported* config object resolve relative to the consumer's config,
+not the package — so without this, a nested `oxlint-tailwindcss` fails to load. With it,
+`oxlint-tailwindcss` becomes a plain dependency the consumer never names.
 
 Because rules are authored ESLint-v9-shaped, one rule module serves both runners. What
 began as a portability hedge against the Oxlint alpha becomes a distribution feature: a
@@ -133,6 +174,14 @@ and where does it deliberately not look?" gets a real answer, and the declared b
 become a support document rather than an internal note. The harness runs in this
 package's CI, never the consumer's.
 
+But **`meta.docs.url` is dead under Oxlint** — absent from all six CLI formats, and SARIF
+emits an empty `rules` array. This is structural, not a bug to wait out: Oxlint's
+`registerPlugin()` reads only `fixable` / `hasSuggestions` / `schema` / `defaultOptions` /
+`messages`, and `docs` appears nowhere else in its JS runtime. ESLint *does* surface it.
+So a rule cannot link a developer to its own contract on the Oxlint path, and the
+**message text is the only channel** — the same conclusion Phase 0 reached about
+suggestions, now for a second reason.
+
 ### Consequences to design around
 
 - **The five off-the-shelf rules become a peer dependency.** The `recommended` preset
@@ -145,6 +194,16 @@ package's CI, never the consumer's.
 - **`componentsDirectory` cannot stay a filesystem convention.** It is the shadcn
   assumption baked into `no-component-color-override`. Distribution needs a fallback — an
   explicit component list, or a glob — for projects without that directory.
+- **Rule options replace, they do not merge — and failure is silent.** A consumer writing
+  `"design/no-component-color-override": "error"` to bump a severity **wipes the preset's
+  options and produces zero diagnostics, exit 0.** The rule appears enabled and catches
+  nothing. This diverges from ESLint flat config, so it will surprise people. Mitigate in
+  three places: rules must fail loudly on absent required options rather than returning
+  early, `defaultOptions` should carry a usable baseline, and the README must document the
+  footgun explicitly.
+- **The rule namespace comes from `plugin.meta.name`, not the package name.** Pick it
+  deliberately and treat it as public API — it appears in every diagnostic and every
+  `oxlint-disable` comment a consumer writes.
 - **Nothing may derive paths from its own location.** The proof of concept sets
   `ROOT = join(__dirname, "../..")` and assumes it lives at `<app>/scripts/lint-color/`.
   Every path must arrive as input. This constrains Phase 3 most, which is why
@@ -349,35 +408,33 @@ assumption left on the critical path.
 **Exit criterion met** for the API question. The fallback to ESLint v9 + `@eslint/css` is
 retired to a contingency.
 
-### Phase 0b — De-risk distribution
+### Phase 0b — De-risk distribution ✅ DONE — **GO WITH CHANGES**
 
-*Queued. Runs in parallel with Phase 1; must land before Phase 3.*
+A distributable package works, but the originally assumed consumer config was wrong in
+three independent ways. The corrected config, and the design it forces, are in
+[What a consumer writes](#what-a-consumer-writes).
 
-Phase 0 proved a **local** plugin file works. It proved nothing about a plugin arriving
-from `node_modules`, which is what [Distribution](#distribution) rests on. Eight questions:
+| # | Question | Result |
+| --- | --- | --- |
+| 1 | `node_modules` resolution by package name and subpath export | **works** — under `jsPlugins`, not `plugins` |
+| 2 | Package presets via `extends` | **partial** — JSON `extends` is path-only; the real mechanism is `oxlint.config.ts` importing the preset |
+| 3 | `settings` reaching rules | **works from the consumer's own config, broken through `extends`** |
+| 4 | Config discovery at module load | **works** — `cwd` is the invocation directory; find-up fine; loaded exactly once for 200 files |
+| 5 | Options merging | **full replace, silently** — see the footgun in Distribution |
+| 6 | Cross-package rule composition | **works**, given `import.meta.resolve` in the factory |
+| 7 | Dual-runner from one package | **works** — identical line:column, messages and severities from both linters |
+| 8 | `meta.docs.url` | **broken** under Oxlint, structurally. Works under ESLint |
 
-1. Does `.oxlintrc.json` resolve a plugin by **package name**, and by **subpath export**
-   (`@acme/design-lint/oxlint`)? If it needs a path, the ergonomics are badly hurt.
-2. Can a package ship a reusable preset a consumer `extends`? Does Oxlint support
-   `extends` from a package at all — and if not, what *is* the mechanism for shipping
-   "recommended"?
-3. Does a top-level `settings` block reach a custom rule via `context.settings`? This is
-   the primary per-project config channel; a negative result forces a redesign.
-4. What is `process.cwd()` when Oxlint loads a plugin module — can the module discover a
-   consumer's config file by walking up, and does it still load exactly once?
-5. When a preset sets rule options and the consumer overrides one rule, is that replace or
-   deep-merge?
-6. Can a preset in package A enable and configure rules from package B? **Load-bearing:**
-   if it cannot, the meta-package design collapses and consumers must configure
-   `oxlint-tailwindcss` themselves.
-7. Can one rule module be exported at two entry points and consumed by **both** Oxlint and
-   ESLint v9 flat config, running over the same fixture?
-8. Does Oxlint surface `meta.docs.url` anywhere — CLI, JSON formatter, LSP?
+Method note: verified with `npm pack` + tarball install, and that mattered — a `file:`
+symlink install breaks the factory's `import.meta.resolve`, because the package then
+resolves through a real path with no `node_modules`. A local-development caveat only;
+registry installs are unaffected. Phase 5 must adopt via a real install, not a link.
 
-**Exit:** either the consumer config in [Distribution](#distribution) is confirmed
-achievable as written, or it is replaced by the config a consumer would actually write.
-A negative on 3 or 6 changes the package design, not just its packaging — which is why
-this cannot wait until Phase 5.
+**Open risks carried forward:** editor/LSP remains unverified and now blocks two things —
+suggestions from Phase 0, and `meta.docs.url` here; pnpm and Yarn PnP untested, with the
+JSON `./node_modules/…` extends path the fragile one; `oxlint.config.ts` is self-described
+as experimental, so the recommended path rests on an experimental feature of an alpha API;
+and nothing validates `settings`, so a typo there fails silently.
 
 ### Phase 1 — Write the nine contracts
 
@@ -528,6 +585,9 @@ By now this is mechanical; the thinking happened in Phases 1–3.
      assertions are off by one; without the `tsx` lang, nothing parses.
    - `ruleTester.run()` must be called at **top level**. The port is therefore not
      find-and-replace over the existing `describe` / `it` nesting — budget for restructuring.
+   - **Author the corpus ESLint-first.** Phase 0b found ESLint's `RuleTester` *requires*
+     suggestion assertions where Oxlint's does not, so a corpus written against Oxlint
+     will not port to ESLint, while one written against ESLint runs under both.
 2. Add the Phase 2 corpus cases for these four rules.
 3. Implement in risk order: `no-style-color` (smallest, no config) → `token-constraints` →
    `no-useless-hover` → `no-component-color-override` (needs component discovery).
@@ -580,6 +640,7 @@ only makes sense as a comparison, it does not survive the move.
 | Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` |
 | `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
 | The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
+| The options-replace-not-merge footgun, and the `jsPlugins` / factory config shape | `README.md` |
 | Index of the nine rules with their dispositions, and *why* each is custom or off-the-shelf | `docs/rules/README.md` |
 | Any coverage gap accepted rather than closed — including the `.ts` object-literal question if it resolves that way | The affected contracts, as **Declared blind spots** |
 
