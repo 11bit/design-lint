@@ -17,7 +17,7 @@ decision below:
 > **This document is disposable.** It exists to get from a proof of concept to a working
 > linter, and it is deleted in [Phase 6](#phase-6--extract-and-delete) along with the PoC
 > itself. Anything written here that should outlive the migration is listed in that
-> phase's extraction table and must be moved to `docs/linting.md` or
+> phase's extraction table and must be moved to `README.md` or
 > `docs/rules/README.md` before this file goes. Do not add durable knowledge here without
 > adding it to that table.
 
@@ -33,9 +33,14 @@ Three components replace one bespoke runner:
 | Local Oxlint JS plugin (4 rules) | The rules no off-the-shelf tool provides |
 | `stylelint` + [`stylelint-declaration-strict-value`](https://github.com/AndyOGo/stylelint-declaration-strict-value) | Raw color values in `.css` files |
 
-**`design-system/lint/colors.json` survives unchanged** as the designer-owned source of
-truth. It stops feeding a custom loader and starts feeding rule `options`.
-`lint-color/` is deleted at the end of the migration.
+**The deliverable is a published package**, not configuration embedded in one
+application — see [Distribution](#distribution). `lint-color/` is deleted at the end of
+the migration.
+
+`design-system/lint/colors.json` keeps its role as the designer-owned policy file, but
+changes address: its *contents* become the package's default preset, and a consuming
+project supplies its own equivalent. Rules read policy through `options` and `settings`
+rather than by reading a path.
 
 ### Why Oxlint
 
@@ -73,6 +78,77 @@ truth. It stops feeding a custom loader and starts feeding rule `options`.
 - **Suggestions are invisible in every CLI output format.** They surface only in the
   editor or via `oxlint --fix-suggestions`. Any information carried in a suggestion must
   *also* appear in the message text via `data`.
+
+---
+
+## Distribution
+
+The linter is built to be adopted by other projects, not embedded in one application.
+That is a constraint on the design, not a packaging step at the end: it decides where
+policy lives, what the extractor may assume, and what a rule is allowed to read from disk.
+
+### Mechanism ships; policy is supplied
+
+The single organising principle. Almost everything in `colors.json` today is an opinion
+that will not survive contact with a second project — the allow/deny lists, the
+replacement map, the interactive component names, the components directory, even whether
+`dark:` is banned at all.
+
+So **rules carry mechanism and no policy.** The current `colors.json` contents become the
+package's `recommended` preset: a project shaped like this one gets value immediately, and
+a project shaped differently overrides without forking a rule.
+
+### Package shape
+
+One package, several entry points. Not three packages — `/oxlint` and `/stylelint` share
+`/policy`, and splitting them invites version skew between the two halves of a single
+rule's coverage, which is the worst failure mode available here.
+
+```
+@evil-martians/design-lint
+├── /oxlint      plugin for .oxlintrc.json
+├── /eslint      the same rules, ESLint v9 flat config
+├── /stylelint   the CSS surface (@apply, raw values)
+└── /policy      shared: config resolution, variant segmentation,
+                 colour-prefix derivation, token parsing
+```
+
+Because rules are authored ESLint-v9-shaped, one rule module serves both runners. What
+began as a portability hedge against the Oxlint alpha becomes a distribution feature: a
+consumer on either runner installs the same package.
+
+```
+src/
+  policy/          config resolution, variant parsing, prefix derivation
+  extract/         class-string extractor, with its own test suite
+  rules/           the four custom rules
+  presets/         recommended, minimal  ← today's colors.json lives here
+  stylelint/
+docs/rules/        the nine contracts — shipped, meta.docs.url points at them
+test/harness/      extracts caught/allowed/blindspot blocks, runs RuleTester
+```
+
+**The contracts ship with the package.** A consumer asking "what does this rule promise,
+and where does it deliberately not look?" gets a real answer, and the declared blind spots
+become a support document rather than an internal note. The harness runs in this
+package's CI, never the consumer's.
+
+### Consequences to design around
+
+- **The five off-the-shelf rules become a peer dependency.** The `recommended` preset
+  configures `oxlint-tailwindcss` on the consumer's behalf, which makes this a
+  meta-package. Cost: coupling to that package's rule names and version range, and its
+  diagnostics appear under its rule ids rather than ours. Accepted — reimplementing five
+  working rules is worse — but it must be a stated dependency, not a surprise.
+- **New rules ship disabled.** Adding a rule to `recommended` breaks builds on
+  `npm update`. New rules land off by default and join `recommended` only on a major.
+- **`componentsDirectory` cannot stay a filesystem convention.** It is the shadcn
+  assumption baked into `no-component-color-override`. Distribution needs a fallback — an
+  explicit component list, or a glob — for projects without that directory.
+- **Nothing may derive paths from its own location.** The proof of concept sets
+  `ROOT = join(__dirname, "../..")` and assumes it lives at `<app>/scripts/lint-color/`.
+  Every path must arrive as input. This constrains Phase 3 most, which is why
+  distribution is settled before it.
 - **This repo is not runnable.** It is an extraction of two directories from a larger app.
   `src/`, `styles.css`, `src/components/ui`, and the `tailwindcss` dependency live in the
   app repo. All verification work happens there.
@@ -273,6 +349,36 @@ assumption left on the critical path.
 **Exit criterion met** for the API question. The fallback to ESLint v9 + `@eslint/css` is
 retired to a contingency.
 
+### Phase 0b — De-risk distribution
+
+*Queued. Runs in parallel with Phase 1; must land before Phase 3.*
+
+Phase 0 proved a **local** plugin file works. It proved nothing about a plugin arriving
+from `node_modules`, which is what [Distribution](#distribution) rests on. Eight questions:
+
+1. Does `.oxlintrc.json` resolve a plugin by **package name**, and by **subpath export**
+   (`@acme/design-lint/oxlint`)? If it needs a path, the ergonomics are badly hurt.
+2. Can a package ship a reusable preset a consumer `extends`? Does Oxlint support
+   `extends` from a package at all — and if not, what *is* the mechanism for shipping
+   "recommended"?
+3. Does a top-level `settings` block reach a custom rule via `context.settings`? This is
+   the primary per-project config channel; a negative result forces a redesign.
+4. What is `process.cwd()` when Oxlint loads a plugin module — can the module discover a
+   consumer's config file by walking up, and does it still load exactly once?
+5. When a preset sets rule options and the consumer overrides one rule, is that replace or
+   deep-merge?
+6. Can a preset in package A enable and configure rules from package B? **Load-bearing:**
+   if it cannot, the meta-package design collapses and consumers must configure
+   `oxlint-tailwindcss` themselves.
+7. Can one rule module be exported at two entry points and consumed by **both** Oxlint and
+   ESLint v9 flat config, running over the same fixture?
+8. Does Oxlint surface `meta.docs.url` anywhere — CLI, JSON formatter, LSP?
+
+**Exit:** either the consumer config in [Distribution](#distribution) is confirmed
+achievable as written, or it is replaced by the config a consumer would actually write.
+A negative on 3 or 6 changes the package design, not just its packaging — which is why
+this cannot wait until Phase 5.
+
 ### Phase 1 — Write the nine contracts
 
 *No code.*
@@ -363,7 +469,13 @@ exactly why coverage differs between rules.
 Solve it once against the AST and the four rules become thin predicates over a
 trustworthy input.
 
-**Exit:** extractor passes the extraction-shaped subset of the Phase 2 corpus.
+**Phase 0b must have landed first.** The extractor is where an app-embedded assumption
+would get baked in hardest: it takes paths and policy as arguments, derives nothing from
+its own location, and touches the filesystem never. Building it before the config channel
+is known risks an interface that only works in one repo.
+
+**Exit:** extractor passes the extraction-shaped subset of the Phase 2 corpus, and its
+public interface names every input it needs rather than discovering any.
 
 ### Phase 4 — Audit the off-the-shelf rules against the contracts
 
@@ -425,13 +537,21 @@ By now this is mechanical; the thinking happened in Phases 1–3.
    console output. The upgrade is the editor quick-fix on top of the message, not instead
    of it. If Phase 4 confirms `oxlint-tailwindcss` cannot carry the replacement map, this
    is where a thin custom `no-spectral-color` comes back to hold it.
-5. Switch CI to the new linters and confirm green. Removal of the old system happens in
-   Phase 6, not here — keep `lint-color/` on disk until the new rules have run against
-   the real codebase at least once.
+5. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
+   from today's `colors.json` contents, `oxlint-tailwindcss` declared as a peer
+   dependency, and the versioning policy that new rules ship disabled and join
+   `recommended` only on a major.
+6. Adopt it in one real application via `npm install` — not a path reference — and
+   confirm green. Installing it the way a consumer would is the only test that the
+   packaging works; a `file:` link would hide exactly the resolution problems Phase 0b
+   exists to find.
+7. Removal of the old system happens in Phase 6, not here — keep `lint-color/` on disk
+   until the new rules have run against a real codebase at least once.
 
 No parallel-run period is needed — nothing depends on the old output.
 
-**Exit:** CI green on the new linters, contracts and corpus in the repo next to the rules.
+**Exit:** the package is published, installed from the registry by one real application,
+and CI is green there. Contracts and corpus ship inside the package.
 
 ### Phase 6 — Extract and delete
 
@@ -451,17 +571,19 @@ only makes sense as a comparison, it does not survive the move.
 
 | What | Where it goes |
 | --- | --- |
-| The three-component architecture, and what each component owns | `docs/linting.md` |
-| Tool-choice rationale — why Oxlint, why not Biome, why Stylelint for CSS | `docs/linting.md` |
-| Operational constraints — JS/TS-only plugins, no type-awareness, mandatory `settings.tailwindcss.entryPoint`, suggestions invisible in CLI output | `docs/linting.md` |
-| `colors.json` as the designer-owned policy file, and the rule that policy *values* live there while rule *semantics* live in contracts | `docs/linting.md` |
+| The three-component architecture, and what each component owns | `README.md` |
+| Installation, the `exports` map, the consumer config, the presets | `README.md` |
+| Tool-choice rationale — why Oxlint, why not Biome, why Stylelint for CSS | `README.md` |
+| Operational constraints — JS/TS-only plugins, no type-awareness, mandatory `settings.tailwindcss.entryPoint`, suggestions invisible in CLI output | `README.md` |
+| Policy *values* are supplied by the consuming project; rule *semantics* live in contracts | `README.md` |
+| The mechanism-ships-policy-is-supplied principle, and the versioning policy | `CONTRIBUTING.md` |
 | Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` |
 | `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
 | The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
 | Index of the nine rules with their dispositions, and *why* each is custom or off-the-shelf | `docs/rules/README.md` |
 | Any coverage gap accepted rather than closed — including the `.ts` object-literal question if it resolves that way | The affected contracts, as **Declared blind spots** |
 
-Written this way, `docs/linting.md` and `docs/rules/README.md` are permanent
+Written this way, `README.md` and `docs/rules/README.md` are permanent
 documentation of a linter, not residue of a migration.
 
 #### 2. Strip the contracts of scaffolding
@@ -490,7 +612,7 @@ target is gone. Per contract:
 **Verify by search, not by memory.** `lint-color`, `color-lint-ignore`, `migration`,
 `legacy`, and the old rule id numbers should each return zero hits across both repos.
 
-**Exit:** `lint-color/` and this plan are gone; `docs/linting.md` and
+**Exit:** `lint-color/` and this plan are gone; `README.md` and
 `docs/rules/README.md` stand on their own; every contract reads as a specification rather
 than a comparison; searches are clean.
 
