@@ -1,0 +1,25 @@
+docs/migration-plan.md
+  s_fc5904053908ce::t_a6693a21f38edd 411-437
+  s_fc5904053908ce::t_2a837cb5184a76 643
+  s_fc5904053908ce::t_118b626ac11612 101-135,144-145,152-155
+  s_fc5904053908ce::t_1727b7efcb528b 177-184
+  s_fc5904053908ce::t_89a6896df551ee 197-206
+  s_fc5904053908ce::t_754bbdfa3f1841 588-590
+  s_fc5904053908ce::t_48191a40d1c4df 156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "1e7b8b04a232c47aea974f5623881d518bd484f5",
+  "prompts": {},
+  "sessions": {
+    "s_fc5904053908ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a550137-f2c5-4e61-b9fe-8272cc8f449e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
