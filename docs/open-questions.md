@@ -12,12 +12,16 @@ supplied — changed what most of them *mean*:
 
 | Class | Count | Who decides | Blocks |
 | --- | --- | --- | --- |
-| **Mechanism** | 11 | You, now | Phase 3 (the extractor and `/policy`) |
-| **Scope** | 6 | You, now | Phase 4 |
+| **Mechanism** | 11 → **4 left** | You, now | Phase 3 (the extractor and `/policy`) |
+| **Scope** | 6 → **5 left** | You, now | Phase 4 |
 | **Policy** | 11 | Nobody — becomes a preset default | Nothing |
 | **Settled or deferred** | 2 | Already answered | Nothing |
 
 **You need to answer 17, not 50.** Every one carries a recommendation.
+
+**Progress: 9 resolved, 9 open.** A1, A6 and B2 were already settled by the plan's own
+package shape. A2 and A3 are answered below. Resolved questions keep their heading and are
+marked **ANSWERED**.
 
 ---
 
@@ -36,20 +40,20 @@ currently disagree.*
 `peer-hover:`, and `[@media(hover:hover)]:`. `normalizeTwToken` separately splits on the
 **last** `:`, mangling `bg-[image:var(--x)]`. One fix, four symptoms.
 
-**Recommendation: segment-aware variant parsing in `/policy`, used by every rule.** This
-part is not really contestable — the disagreement between the two contracts is *not*
-about this, it is about A2.
+**ANSWERED — already settled by the plan.** The package shape lists *variant segmentation*
+as a `/policy` responsibility. Segment-aware parsing lives there and every rule consumes
+it. Parsing must strip named-group suffixes (`group-hover/sidebar` → `group-hover`) and
+respect bracket depth so `[@media(hover:hover)]:` is one segment.
 
 ### A2. Does a `hover:` policy bind `group-hover:` / `peer-hover:`?
 
 *The contracts disagree: `token-constraints` says no, `no-useless-hover` says the token
 should still need a `-hover` suffix.*
 
-**Recommendation: the disagreement dissolves — reclassify as policy.** `token-constraints`
-generalises the config so *any key ending in `:` is a variant policy* (A3). Under that
-mechanism, whether `group-hover:bg-primary` must satisfy a `-hover` suffix rule is simply
-whether the preset ships a `group-hover:` key. Ship it without one; a project that wants it
-adds the key. Confirm this and both contracts become consistent without either conceding.
+**ANSWERED — both contracts were wrong, in opposite directions.** `group-hover:` **is**
+covered by a `hover:` policy, and not by shipping a second key: `hover:` names a *family*.
+See A3. The constraint is about which token a hover-triggered colour may use; *which*
+element is hovered is irrelevant to that. Both contracts need rewriting.
 
 ### A3. Generalise the variant mechanism beyond `hover:`
 
@@ -58,22 +62,48 @@ adds the key. Confirm this and both contracts become consistent without either c
 Today `hover:` is a hardcoded special case. The proposal: any config key ending in `:` is a
 variant policy, `hover:` stops being special.
 
-**Recommendation: yes.** It is what makes A2 dissolve, and it costs nothing — the current
-behaviour is the same config with one key.
+**ANSWERED — yes, and by variant *family*, not exact segment.** A config key ending in `:`
+names a family. A variant segment joins the `hover` family when it is `hover` or ends in
+`-hover`; named-group suffixes are stripped first; stacked variants are tested per segment.
+
+```
+"hover:": ["*-hover"]
+
+✓ hover:bg-primary-hover          ✗ hover:bg-primary
+✓ group-hover:bg-primary-hover    ✗ group-hover:bg-primary
+✓ peer-hover:bg-primary-hover
+✓ group-hover/nav:bg-primary-hover
+✓ md:group-hover:bg-primary-hover
+
+— [@media(hover:hover)]:flex      ignored: device capability, not an element state
+— not-hover:bg-primary            ignored: the inverse; a -hover token reads backwards
+```
+
+This generalises with no new code — `"focus:"` would cover `focus`, `group-focus`,
+`peer-focus`. The two exclusions are the only carve-outs and both are deliberate.
 
 ### A4. A prefix appearing in both `allowed` and `denied`
 
 *Contract: `token-constraints` 1. Today the deny list is silently discarded.*
 
-**Recommendation: `colors.schema.json` validation error.** Silently discarding half a
-policy is the worst option; picking a winner invites a rule nobody can predict.
+**ANSWERED — a `colors.schema.json` validation error.** A prefix may appear in `allowed`
+or `denied`, never both. An allow list already denies everything not on it, so a deny list
+beside it is either redundant or contradictory — both are bugs in the policy, not intent,
+and the designer should hear about it at config-load time.
 
 ### A5. Does `denied` need a variant fallback key?
 
 *Contract: `token-constraints` 8. `"*"` is a prefix fallback only; there is no `"*:"`.*
 
-**Recommendation: no.** Add it when a real policy needs it. Two fallback axes interacting
-is a rule nobody will be able to reason about.
+**ANSWERED — no.** Variant keys are explicit only. `"*"` works as a *prefix* fallback
+because the same pattern is meaningful across prefixes (`*-foreground` is wrong on `bg-`
+and `ring-` alike); variants do not share that property, since each one's correct pattern
+differs (`*-hover` vs `*-focus`). One fallback axis keeps resolution readable:
+
+    allowed[prefix] → denied[prefix] → denied["*"]
+
+Add a variant fallback only if a real policy needs it. Adding later is easy; removing is
+not.
 
 ### A6. Derive the colour-prefix set instead of hand-maintaining it
 
@@ -83,9 +113,9 @@ is a rule nobody will be able to reason about.
 `inset-shadow`, and `text-shadow`. It also causes a live false positive: `text-sm/6` is
 reported as an opacity modifier because `text-sm` starts with `text-`.
 
-**Recommendation: derive from the Tailwind design system.** A hand-maintained constant is
-a permanent source of silent holes in every token-shaped rule, and Phase 0 already proved
-the resolver loads once per run at negligible cost.
+**ANSWERED — already settled by the plan.** The package shape lists *colour-prefix
+derivation* as a `/policy` responsibility. Deriving from the Tailwind design system fixes
+both the missing prefix families and the live `text-sm/6` false positive.
 
 ### A7. What must the class-string extractor see?
 
@@ -94,11 +124,49 @@ the resolver loads once per run at negligible cost.
 Today: `"` and `'` string literals only — **template literals are entirely invisible**, so
 `` className={`bg-red-500 ${x}`} `` is unlinted by every token rule.
 
-**Recommendation — the extractor sees all of:** string literals, static template literals,
-`cn()` / `clsx()` / `twMerge()` arguments in any position (today only the first is
-scanned), `cva()` base + variants + compoundVariants, and `.ts` object-literal maps.
-Dynamic interpolation is a declared blind spot. *What the extractor can see* is mechanism;
-*which of those surfaces each rule opts into* is B1–B3.
+**ANSWERED — two extractors, not one.** The rule families ask different questions and want
+opposite failure modes, so `/policy` provides both:
+
+**Broad sweep — the five token rules.** `no-spectral-color`, `no-opacity-modifier`,
+`no-dark-variant`, `no-undefined-token`, `token-constraints` are *context-free*: they ask
+"is this string a forbidden class?" and never need to know which element it lands on. They
+get every string literal and every static template literal in the file, regardless of
+context. False-positive protection comes from the rules' own gates — a declared colour
+prefix plus a declared `--color-*` token body — not from extraction precision. A random
+string cannot accidentally match.
+
+**Precise AST walk — the two JSX rules.** `no-component-color-override` and
+`no-useless-hover` are *context-dependent*: a class on `<Button>` means something different
+from the same class on `<div>`. They resolve `className` on a specific element, unwrapping
+`cn()` / `clsx()` / `twMerge()` arguments in any position.
+
+Consequences:
+
+- **Template literals are fixed for the token family** — the largest hole in the PoC.
+- **`cva()`, `cn()` arguments and `.ts` object-literal maps fall in for free** for the token
+  rules. No special-case plumbing, because the strings are simply there. This settles half
+  of B3 and the whole `.ts` object-literal regression.
+- **Today's breadth is preserved.** A single precise walk would have been a *regression*:
+  `cn("p-2", "bg-red-500")` and `const m = { danger: "bg-red-500" }` are caught today
+  precisely because the current scanner does not care where a string lives.
+
+### A7b. Dynamically interpolated class names
+
+**ANSWERED — flag the prefix.** A colour prefix immediately preceding an interpolation is a
+violation even though the value is unknowable. Dynamically assembled class names defeat
+every static guarantee the token system offers, so this is the one hole it cannot tolerate.
+
+```
+✗ className={`bg-${tone}-500`}     ✓ className={`p-${size}`}   (not a colour prefix)
+✗ className={`text-${x}`}
+
+✓ const CLASSES = { danger: "bg-danger", ok: "bg-success" };
+  className={CLASSES[tone]}         ← the sanctioned pattern: full class names,
+                                      statically visible to the linter
+```
+
+The message must name that escape hatch — a lookup of complete class names, or a
+`--color-*` custom property — rather than only reporting the violation.
 
 ### A8. Should one level of variable indirection be resolved?
 
@@ -167,9 +235,10 @@ The plan's *Regressions* section still says nothing in the target can carry `@ap
 the new package shape lists `/stylelint` as "the CSS surface (`@apply`, raw values)". That
 section is now stale and contradicts the design above it.
 
-**Recommendation: confirm `/stylelint` owns `@apply`,** reading the same `/policy` module
-so one policy governs both surfaces, and fix the stale text. This closes the largest
-coverage regression in the migration.
+**ANSWERED — already settled by the plan.** The package shape scopes `/stylelint` to
+"the CSS surface (`@apply`, raw values)", reading the same `/policy` module so one policy
+governs both surfaces. This closes the largest coverage regression in the migration. The
+plan's *Regressions* section is stale and must be corrected.
 
 ### B3. Are `cva()` / `tv()` variant maps in scope, per rule?
 
