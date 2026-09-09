@@ -1,7 +1,7 @@
 ---
 rule: token-constraints
 legacy-id: 5
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -40,6 +40,10 @@ is not a declared `--color-*` token is somebody else's problem; see
 **Baseline options** assumed by every block that does not name its own. A block that needs
 different policy names a fixture defined the same way — `options=deny-all`, and so on — so
 the configuration a case runs under is executed rather than described.
+
+A fixture is the **whole** configuration, exactly as a consumer's `options` are: a fixture that
+names only `denied` leaves every prefix without an allow list. See
+[Configuration](#configuration) for why the `recommended` policy does not leak into one.
 
 ```json options=baseline
 {
@@ -190,6 +194,16 @@ consumer-supplied `tokenFiles`, the prefixes from the resolved Tailwind design s
 handed to the rule already parsed. Paths are the consumer's, interpreted relative to the
 consumer's project, never to the package.
 
+**Options reach a rule as JSON.** Oxlint sends every rule's options over from Rust as a JSON
+string — in `RuleTester` exactly as in a real lint run — so a rule can be handed *data* and
+nothing else. Neither resolved input can therefore travel as the object `/policy` builds: the
+token set arrives as `tokens`, a list of `--color-*` names, and the derived colour-prefix set
+as `designSystem.colorPrefixes`, a list of utility roots. Both are still resolved once, before
+any rule runs, and both are still the consumer's `tokenFiles` and Tailwind design system
+rather than a hand-maintained list; only the shape they arrive in is fixed by the linter.
+This rule reads two sets and asks the design system nothing further, so JSON is enough for it;
+a rule that needs to *ask* it a question at lint time cannot be configured this way at all.
+
 **`tokenFiles` is an input, not a linted surface, and it stays required.** The files it names
 are usually CSS, and CSS being out of scope as a *linted* surface changes nothing about them:
 they are read to derive the semantic-token set and, with the resolved Tailwind design system,
@@ -237,12 +251,22 @@ wipes the preset's options and the rule reports **nothing**, at exit 0, while ap
 enabled. This rule is the most option-dependent of the nine and therefore the most exposed.
 Two mitigations belong to the rule itself:
 
-- **`defaultOptions` carries the `recommended` policy**, so a severity-only override degrades
-  to that policy rather than to nothing. This covers `allowed`, `denied` and `exclude`, which
-  all have defensible defaults.
+- **A default configuration carries the `recommended` policy**, so a severity-only override
+  degrades to that policy rather than to nothing. This covers `allowed`, `denied` and
+  `exclude`, which all have defensible defaults.
+
+  It is applied when the whole options object is absent, and **not** through
+  `meta.defaultOptions`, which is the obvious mechanism and the wrong one: Oxlint merges
+  `defaultOptions` into a consumer's options *deeply*, so `allowed: { text: [] }` beside the
+  preset's `allowed` would come out carrying the preset's `border` and `hover:` keys as well.
+  That per-prefix merge is the one *Overriding replaces* above rules out — an allow list is
+  only readable if it is complete in one place — and a rule cannot tell a merged key from a
+  written one after the fact. So the default is a default for the *configuration*, not for
+  each key inside it, and "overriding replaces" stays true of every key in it.
 - **Fail loudly on `tokenFiles`.** It has no defensible default — it is the one option only
   the consumer can supply — so its absence raises a configuration error rather than an early
-  return. The CSS scope change does not soften this: the option is an input, and a rule with
+  return. The rule enforces this on what `tokenFiles` resolves to, since that is what reaches
+  it: a missing `tokens` list, or a missing `designSystem.colorPrefixes`, throws. The CSS scope change does not soften this: the option is an input, and a rule with
   no token set is a rule with no first gate. Without it there is no semantic-token set, the rule's first gate always fails, and
   the rule would report nothing while appearing to work. Silence is exactly the failure mode
   this rule cannot afford, since a rule that finds no violations looks identical to a codebase
@@ -427,17 +451,24 @@ the semantic token set, which arrives through `tokenFiles` rather than through `
 
 ### The full colour-prefix surface
 
-Every Tailwind utility family that takes a colour is in scope, including the per-side and
-per-axis border families that share the `border-` stem. The prefix set is derived from the
-resolved Tailwind design system, not hand-maintained — see
+Every Tailwind utility family that takes a colour is in scope, including the per-side, per-axis
+and logical-side border families that share the `border-` stem. The prefix set is derived from
+the resolved Tailwind design system, not hand-maintained — see
 [Configuration](#configuration).
+
+The logical-side family is spelled `border-s-` / `border-e-` (and `border-bs-` / `border-be-`),
+which is what Tailwind generates; `border-inline-start-` is the CSS property's name and not a
+utility, so it splits as the `border-` prefix against the colour part
+`inline-start-muted-foreground`, which no design system declares. Naming it here would have
+asserted a catch the derived prefix set cannot make — and should not, since the class does not
+exist.
 
 ```tsx caught
 <div className="border-t-muted-foreground" />
 
 <div className="border-x-muted-foreground" />
 
-<div className="border-inline-start-muted-foreground" />
+<div className="border-s-muted-foreground" />
 
 <div className="divide-muted-foreground" />
 
@@ -957,9 +988,16 @@ part this rule cannot resolve to a declared token is not this rule's business.
 
 ## Message
 
-Three diagnostics, one per policy kind. All of them are this plugin's own — the ids below are
+Four diagnostics, one per policy kind. All of them are this plugin's own — the ids below are
 the ones a developer sees, under our namespace, with no foreign rule id anywhere in the
 output.
+
+There are four rather than three because there are four kinds: a prefix key and a variant key
+may each sit in `allowed` or in `denied`, and [Resolution](#resolution) says so explicitly —
+`"hover:"` in `allowed` beside `"group-hover:"` in `denied` validates, and both apply. An
+earlier draft of this section listed only three and left a denied variant family with no
+diagnostic to emit, which would have meant enforcing it silently or not at all. Neither is
+acceptable, so the fourth id is named here rather than invented at the call site.
 
 **The message text is the only channel.** `meta.docs.url` is inert under Oxlint — absent from
 every CLI format — so a message cannot link a developer to this contract, and suggestions do
@@ -984,6 +1022,13 @@ messageId: variantNotAllowed
 data:      { className, colorPart, variant, family, allowed, suggestion }
 text:      "{{className}} — a {{family}} colour must use a token matching
             {{allowed}}{{suggestion}}"
+```
+
+```
+messageId: variantDenied
+data:      { className, colorPart, variant, family, pattern }
+text:      "{{className}} — {{colorPart}} matches the forbidden pattern {{pattern}}
+            for a {{family}} colour (token-constraints policy)"
 ```
 
 `allowed` renders the pattern list verbatim, because the patterns are the policy and a
@@ -1024,7 +1069,7 @@ For migration reference. The current rule is `checkToken` in
 | `` className={`text-muted`} `` (template literal) | missed | caught |
 | `` className={`text-muted ${x}`} `` | missed | caught |
 | `border-t-muted-foreground` (per-side border) | missed | caught |
-| `border-x-`, `border-inline-start-` | missed | caught |
+| `border-x-`, `border-s-` (logical side) | missed | caught |
 | `` className={`text-${tone}`} `` | missed | caught, by `no-spectral-color` — not by this rule |
 | `` className={"text-" + tone} `` | missed | declared blind spot |
 | `group-hover:bg-primary` | caught, by substring accident | caught, by family membership |
@@ -1043,7 +1088,7 @@ For migration reference. The current rule is `checkToken` in
 | `@apply text-muted` in CSS | caught | deferred — CSS is not a linted surface yet; a regression against today's linter, and a tracked one |
 | Storybook files | skipped by a hardcoded check | skipped by a configurable glob |
 | Prefix or variant key in both `allowed` and `denied` | deny silently ignored | config error |
-| Severity-only override wipes options | n/a | `defaultOptions` restores the policy |
+| Severity-only override wipes options | n/a | the `recommended` policy is the default configuration |
 | `tokenFiles` absent | config file always present | configuration error, not silence |
 | `allowed: { text: [] }` | bans all `text-` | bans all `text-` |
 | `denied: { bg: [] }` | exempts `bg-` from `"*"` | exempts `bg-` from `"*"` |

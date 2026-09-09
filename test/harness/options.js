@@ -57,8 +57,38 @@ export const tokens = resolveTokenSet({ css });
  * Only options the corpus actually depends on are listed. A contract that needs to vary one
  * of these per case defines its own `options=` fixture block, which is layered on top.
  */
+/**
+ * The `--color-*` names `token-constraints`' corpus is written against.
+ *
+ * Its contract names them in prose, under "Baseline semantic tokens", because every one of
+ * its cases turns on whether a colour part is one of them — and `theme.css` above declares a
+ * deliberately smaller, differently-named handful, since it exists to be a *probe surface*
+ * rather than an application's palette. These names stand in for that rule's `tokenFiles`,
+ * which is why they live here rather than in one of the contract's `options=` fixtures: a
+ * fixture varies *policy* per case, and the token set is not policy. Supplied as JSON, it
+ * wins over the bound token set the way a consumer's own configuration would.
+ */
+const TOKEN_CONSTRAINTS_TOKENS = [
+  "primary",
+  "primary-hover",
+  "primary-focus",
+  "primary-foreground",
+  "muted",
+  "muted-foreground",
+  "foreground",
+  "border",
+  "input",
+  "ring",
+  "link",
+  "link-hover",
+  "warning",
+  "warning-foreground",
+  "danger",
+];
+
 const OPTIONS = {
   "no-component-color-override": [{ componentSources: ["@/components/ui/*"] }],
+  "token-constraints": [{ tokens: TOKEN_CONSTRAINTS_TOKENS }],
 };
 
 /**

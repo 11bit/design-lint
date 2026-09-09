@@ -59,6 +59,36 @@ export const FIXTURES = {
       ],
     },
   ],
+  "token-constraints": [
+    {
+      name: "each offending class, at the class and not at the string that carries it",
+      options: [
+        {
+          ...optionsFor("token-constraints")[0],
+          allowed: {
+            text: ["*foreground*", "primary", "link*"],
+            border: ["border*", "input", "ring"],
+            "hover:": ["*-hover"],
+          },
+          denied: { "*": ["*-foreground"] },
+        },
+      ],
+      code: [
+        'const base = "rounded-md p-2";',
+        'const tone = { warn: "text-warning" };',
+        '<div className="text-muted bg-muted-foreground" />;',
+        "<div",
+        '  className="hover:bg-primary"',
+        "/>;",
+      ].join("\n"),
+      errors: [
+        { messageId: "prefixNotAllowed", line: 2, column: 23, endLine: 2, endColumn: 35 },
+        { messageId: "prefixNotAllowed", line: 3, column: 17, endLine: 3, endColumn: 27 },
+        { messageId: "prefixDenied", line: 3, column: 28, endLine: 3, endColumn: 47 },
+        { messageId: "variantNotAllowed", line: 5, column: 14, endLine: 5, endColumn: 30 },
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",
