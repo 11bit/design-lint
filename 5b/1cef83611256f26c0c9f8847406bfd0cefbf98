@@ -1,0 +1,36 @@
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_77133ca01f053b 165-194
+docs/rules/no-component-color-override.md
+  s_5c54fd76d4025e::t_5ddcca2934e740 153-156,158
+  s_5c54fd76d4025e::t_9a2d679661d94e 4
+  s_5c54fd76d4025e::t_0176e553a8b0ff 252-259
+test/harness/baseline.json
+  s_5c54fd76d4025e::t_9b8ab74ea1b404 4
+src/rules/no-component-color-override.js
+  s_5c54fd76d4025e::t_cf6b61d9ad2cf5 181
+  s_5c54fd76d4025e::t_1f0969f53f0c3b 1-5,7,9-60,65-97,99-115,117-174,177-180,182-185,187-251,253-258,260-270,272-296,299-301,303,306-307,309-344
+  s_5c54fd76d4025e::t_95018609ce07f9 186
+  s_5c54fd76d4025e::t_94f66a3ec156a1 252,259,271,297-298
+  s_5c54fd76d4025e::t_ff90d6f057937c 116
+  s_5c54fd76d4025e::t_a4c45482236770 302,304-305,308
+test/harness/options.js
+  s_5c54fd76d4025e::t_64e76d315f7bab 136
+  s_5c54fd76d4025e::t_66d199a8b83bdc 57-92
+  s_5c54fd76d4025e::t_edaaee236deb96 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "5b1cef83611256f26c0c9f8847406bfd0cefbf98",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
