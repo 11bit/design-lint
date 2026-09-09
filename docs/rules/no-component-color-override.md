@@ -254,6 +254,25 @@ The literal argument is caught; what the incoming `className` prop happens to ho
 <Button className={cn(className, "bg-primary")} />
 ```
 
+### Multi-line elements
+
+Where the attribute sits is irrelevant — the walk resolves `className` on the element, not
+on the line.
+
+```tsx caught
+<Card
+  className="bg-primary"
+/>
+
+<Card
+  variant="outline"
+  className={cn(
+    "text-danger",
+    className,
+  )}
+/>
+```
+
 ### Template literals
 
 Static template literals are treated exactly like string literals. In a template with

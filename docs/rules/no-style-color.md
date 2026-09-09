@@ -114,6 +114,10 @@ The property must be found regardless of how the object literal or the prop is w
 
 <div style={{ transform: active ? { scale: 1 } : {}, color: "red" }} />
 
+<div style={{ color: `#${hex}` }} />
+
+<div style={{ color: "r" + "ed" }} />
+
 <div
   style={{
     fontWeight: "bold",
@@ -132,6 +136,19 @@ Every offending property in a single block is reported separately:
   }}
 />
 ```
+
+## Routes that cannot reach this rule
+
+The corpus enumerates the routes a *class string* travels — `cn()` / `clsx()` / `twMerge()`
+arguments, `cva()` / `tv()` variant maps, joined arrays, `.ts` constants files. None of them
+can carry a `style` prop: a composition helper returns a class string, and a `style` object
+reaches an element only as a JSX attribute in a `.tsx` or `.jsx` file. They are not blind
+spots here, they are unreachable — the same reason this rule's `files` scope excludes `.ts`.
+
+The value written into a colour property is likewise not this rule's subject. `color: "red"`
+and `color: computeColor()` are the same violation, because the property is what defeats the
+token system; the literal inside it belongs to
+[`no-raw-color`](./no-raw-color.md).
 
 ## Deliberately allows
 

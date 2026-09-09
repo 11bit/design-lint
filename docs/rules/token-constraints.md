@@ -498,6 +498,18 @@ const CLASSES = ["text-muted", "p-2"];
 export const dangerText = "bg-muted-foreground";
 ```
 
+The last three routes on the corpus list are wrappers the sweep never opens: a `tv()` slot,
+an array joined at runtime, and a props object spread onto an element.
+
+```tsx caught
+<div className={tv({ base: "text-muted" })} />
+
+const joined = ["text-muted", "p-2"].join(" ");
+
+const spreadProps = { className: "text-muted" };
+<div {...spreadProps} />;
+```
+
 ### Every occurrence reports
 
 There is **one report per class token per occurrence**. A class that fails both its prefix

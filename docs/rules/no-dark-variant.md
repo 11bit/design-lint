@@ -138,6 +138,28 @@ const panel = cva("rounded", {
 const themeClass = { night: "dark:bg-black", day: "bg-white" };
 ```
 
+The remaining routes on the corpus list are the same string in a different wrapper, and the
+sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+runtime, a props object spread onto an element, and an attribute on a line of its own are
+one string literal each.
+
+```tsx caught
+<div className={`dark:bg-card`} />
+
+<div className={twMerge("p-2", "dark:bg-card")} />
+
+<div className={tv({ base: "dark:bg-card" })} />
+
+const joined = ["dark:bg-card", "p-2"].join(" ");
+
+const spreadProps = { className: "dark:bg-card" };
+<div {...spreadProps} />;
+
+<div
+  className="dark:bg-card"
+/>
+```
+
 ### The variant interpolated
 
 `dark:` is statically present. Nothing about the interpolation makes the theme fork less
@@ -261,6 +283,8 @@ The broad sweep catches the string where it is written, not where it is used.
 
 ```tsx blindspot
 <div className={THEME_CLASSES[mode]} />;
+
+<div className={themeClass} />;
 ```
 
 ### Theme branching in JavaScript

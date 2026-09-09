@@ -153,6 +153,28 @@ const scrimClass = { light: "bg-white/60", dark: "bg-black/60" };
 const scrim = "bg-black/50";
 ```
 
+The remaining routes on the corpus list are the same string in a different wrapper, and the
+sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+runtime, a props object spread onto an element, and an attribute on a line of its own are
+one string literal each.
+
+```tsx caught
+<div className={`bg-primary/50`} />
+
+<div className={twMerge("p-2", "bg-primary/50")} />
+
+<div className={tv({ base: "bg-primary/50" })} />
+
+const joined = ["bg-primary/50", "p-2"].join(" ");
+
+const spreadProps = { className: "bg-primary/50" };
+<div {...spreadProps} />;
+
+<div
+  className="bg-primary/50"
+/>
+```
+
 ### The modifier interpolated
 
 The `/` is statically present and it sits on a class the rule has already established is a
@@ -284,6 +306,8 @@ The broad sweep catches the string where it is written, not where it is used.
 
 ```tsx blindspot
 <div className={SCRIMS[mode]} />;
+
+<div className={scrimClass} />;
 ```
 
 ### Alpha reached by another mechanism

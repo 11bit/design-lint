@@ -556,6 +556,11 @@ A route that lands in *Deliberately allows* or *Declared blind spots* is as comp
 answer as one that lands in *Promises to catch*. What is not acceptable is a cell with no
 block and no sentence.
 
+The audit trail is [`evasion-matrix.md`](./evasion-matrix.md) — route × rule, one
+disposition each, with the divergences between the two families explained rather than
+tabulated. It is scaffolding and goes in Phase 6; the dispositions it records live in the
+contracts as executed blocks.
+
 #### 2. Build the harness
 
 The corpus is prose until something runs it. The harness — `test/harness/`, listed in the
@@ -747,6 +752,8 @@ target is gone. Per contract:
 - **This document.**
 - `docs/open-questions.md` — the triage that got the contracts from `draft` to `agreed`.
   Its decisions live in the contracts and the `recommended` preset by then.
+- `docs/evasion-matrix.md` — the Phase 2 audit trail. Every cell it records is a case block
+  in a contract by then, and the contracts ship.
 - The `scripts/lint-color/rules/` reference in `colors.schema.json`.
 - Any `package.json` script, CI step, or hook invoking the old runner.
 - Any `color-lint-ignore` comments left in the application codebase — they were converted

@@ -206,6 +206,28 @@ const button = cva("rounded", {
 const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 ```
 
+The remaining routes on the corpus list are the same string in a different wrapper, and the
+sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+runtime, a props object spread onto an element, and an attribute on a line of its own are
+one string literal each.
+
+```tsx caught
+<div className={`bg-red-500`} />
+
+<div className={twMerge("p-2", "bg-red-500")} />
+
+<div className={tv({ base: "bg-red-500" })} />
+
+const joined = ["bg-red-500", "p-2"].join(" ");
+
+const spreadProps = { className: "bg-red-500" };
+<div {...spreadProps} />;
+
+<div
+  className="bg-red-500"
+/>
+```
+
 ### Dynamically assembled class names
 
 A colour-carrying prefix immediately preceding an interpolation is a violation even though

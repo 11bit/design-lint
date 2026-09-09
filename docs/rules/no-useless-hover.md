@@ -202,6 +202,11 @@ depth.
 <div className={cn({ "hover:bg-primary": isOpen })} />
 
 <div className={cn(["p-2", "hover:bg-primary"])} />
+
+<div
+  data-testid="card"
+  className="hover:bg-primary"
+/>
 ```
 
 Recognised composition helpers: `cn`, `clsx`, `classNames`, `cx`, `twMerge`, `twJoin`,
@@ -498,6 +503,28 @@ const cls = "hover:bg-primary";
 One level of variable indirection is deliberately not resolved, consistently with the other
 JSX-scoped rules: bounded and honest beats the slide toward dataflow analysis, where "how
 many levels, which scopes" has no non-arbitrary answer.
+
+### Class strings assembled outside a recognised helper
+
+The walk unwraps the composition helpers listed above, plus conditionals, arrays and object
+keys inside them. It does not evaluate arbitrary expressions, so a runtime `join`, a
+concatenation, or a `className` arriving through a spread leaves nothing to resolve against
+this element — the literal exists, but its landing site does not.
+
+```tsx blindspot
+<div className={["p-2", "hover:bg-primary"].join(" ")} />;
+
+<div className={"hover:" + "bg-primary"} />;
+
+const spreadProps = { className: "hover:bg-primary" };
+<div {...spreadProps} />;
+```
+
+The first and third strings are still checked against token policy: the broad sweep reads
+literals without caring where they land, so `hover:bg-primary` is not unlinted, it is only
+unattributed — what is lost is the question *this* rule asks, whether the element under it is
+interactive. The concatenation is invisible to both halves, and is the token family's
+declared string-concatenation blind spot rather than a second hole here.
 
 ### `group` / `peer` markers on a non-interactive ancestor
 

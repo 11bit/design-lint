@@ -144,6 +144,28 @@ an undefined colour token, in a position where it may never reach a `className`.
 anyway. The alternative — a precise walk — would cost the `.ts` constants surface, which is
 the more valuable half; `oxlint-disable` is the escape hatch.
 
+The remaining routes on the corpus list are the same string in a different wrapper, and the
+sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+runtime, a props object spread onto an element, and an attribute on a line of its own are
+one string literal each.
+
+```tsx caught
+<div className={`text-secondary`} />
+
+<div className={twMerge("p-2", "text-secondary")} />
+
+<div className={tv({ base: "text-secondary" })} />
+
+const joined = ["text-secondary", "p-2"].join(" ");
+
+const spreadProps = { className: "text-secondary" };
+<div {...spreadProps} />;
+
+<div
+  className="text-secondary"
+/>
+```
+
 ### Every offending class reports separately
 
 ```tsx caught count=2
@@ -268,6 +290,8 @@ appears there.
 
 ```tsx blindspot
 <div className={TONES[kind]} />;
+
+<div className={tone} />;
 ```
 
 ### Undefined variants

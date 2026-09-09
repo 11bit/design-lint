@@ -244,6 +244,28 @@ a second path to de-duplicate against: with the arbitrary-value half implemented
 one matcher covers it and the Phase 4 audit that would have compared ours against
 `oxlint-tailwindcss` has nothing left to compare.
 
+The remaining routes on the corpus list are the same string in a different wrapper, and the
+sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+runtime, a props object spread onto an element, and an attribute on a line of its own are
+one string literal each.
+
+```tsx caught
+<div className={`bg-[#ff0000]`} />
+
+<div className={twMerge("p-2", "bg-[#ff0000]")} />
+
+<div className={tv({ base: "bg-[#ff0000]" })} />
+
+const joined = ["bg-[#ff0000]", "p-2"].join(" ");
+
+const spreadProps = { className: "bg-[#ff0000]" };
+<div {...spreadProps} />;
+
+<div
+  className="bg-[#ff0000]"
+/>
+```
+
 ### SVG presentation attributes
 
 An icon whose `fill` was never revisited when the palette changed is one of the most common
