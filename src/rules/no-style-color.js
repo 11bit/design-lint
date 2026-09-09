@@ -1,3 +1,4 @@
+import { firstRawColor } from "../policy/color.js";
 import { colorProperty } from "../policy/properties.js";
 
 /**
@@ -43,17 +44,6 @@ export default {
   create(context) {
     const { allowTokenValues = false, shorthandProperties = "key" } = context.options[0] ?? {};
 
-    // Value inspection needs the answer to "does this string carry a colour?", which is
-    // `no-raw-color`'s generated matcher — the 148 named colours included, without which
-    // `border: "1px solid red"` would slip through the very mode chosen to be quieter.
-    // Failing loudly beats a mode that silently under-reports; it is wired up when that
-    // matcher lands.
-    if (shorthandProperties === "value") {
-      throw new Error(
-        'no-style-color: shorthandProperties: "value" is not available yet — it needs the color matcher that ships with no-raw-color. Use "key" (the default).',
-      );
-    }
-
     return {
       JSXAttribute(node) {
         if (node.name?.name !== "style") return;
@@ -67,8 +57,12 @@ export default {
           if (property.type !== "Property") continue;
 
           const name = keyName(property);
-          if (name === null || !colorProperty(name)) continue;
+          const kind = colorProperty(name === null ? "" : name);
+          if (name === null || !kind) continue;
           if (allowTokenValues && isTokenReference(property.value)) continue;
+          if (kind === "shorthand" && shorthandProperties === "value" && !carriesColor(property.value)) {
+            continue;
+          }
 
           context.report({
             node: property,
@@ -101,6 +95,21 @@ function staticString(node) {
     return node.quasis[0].value.cooked;
   }
   return null;
+}
+
+/**
+ * Under `shorthandProperties: "value"`, a shorthand reports only when its value can be seen
+ * to carry a colour. The matcher is `no-raw-color`'s — the same 148 names and the same
+ * function heads — because "is there a colour in this string" is one question, and answering
+ * it twice is how the two rules would come to disagree about `border: "1px solid red"`.
+ *
+ * A value this rule cannot read is *not* a colour here. That is the whole bargain of the
+ * option: `boxShadow: shadowVar` goes unreported, which the contract states outright, and a
+ * project that would rather not miss it stays on the default.
+ */
+function carriesColor(node) {
+  const value = staticString(node);
+  return value !== null && firstRawColor(value) !== null;
 }
 
 /**

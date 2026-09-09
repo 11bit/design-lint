@@ -102,6 +102,54 @@ value inspection.
 <div style={{ filter: "drop-shadow(0 0 4px red)" }} />
 ```
 
+### Narrowing shorthands to value inspection
+
+`shorthandProperties: "value"` reports a shorthand only when its value can be *seen* to
+carry a colour, using the same matcher [`no-raw-color`](./no-raw-color.md) uses — the same
+148 names, the same function heads. Two rules asking "is there a colour in this string" and
+answering it separately is how they would come to disagree about one `border` declaration.
+
+```json options=baseline
+{}
+```
+
+```json options=shorthand-values
+{ "shorthandProperties": "value" }
+```
+
+A colour in the value still reports, whichever form it takes:
+
+```tsx caught options=shorthand-values
+<div style={{ border: "1px solid red" }} />
+
+<div style={{ boxShadow: "0 0 4px rgba(0,0,0,.5)" }} />
+
+<div style={{ backgroundImage: "linear-gradient(red, blue)" }} />
+```
+
+A shorthand with no colour in it does not, which is the whole point of the mode — and
+neither does one whose value this rule cannot read. That second silence is the bargain:
+it is a real miss, stated in [Configuration](#configuration), and a project that would
+rather not take it stays on the default.
+
+```tsx allowed options=shorthand-values
+<div style={{ filter: "blur(4px)" }} />
+
+<div style={{ boxShadow: "none" }} />
+
+<div style={{ borderTop: "1px solid" }} />
+
+<div style={{ boxShadow: shadowVar }} />
+
+<div style={{ backgroundImage: "url(/hero.png)" }} />
+```
+
+A colour-only property is unaffected — the option narrows shorthands and nothing else:
+
+```tsx caught options=shorthand-values
+<div style={{ color: computeColor() }} />
+```
+
 ### Syntactic forms
 
 The property must be found regardless of how the object literal or the prop is written.
@@ -290,7 +338,7 @@ generated property name would be a guess.
 | Option | `recommended` default | Overriding it |
 | --- | --- | --- |
 | `allowTokenValues` | `false` | `true` permits `style={{ color: "var(--color-primary)" }}`. See below — the default is deliberate. |
-| `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its literal value looks like it carries a colour. Quieter, and misses `boxShadow: shadowVar`. |
+| `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its value can be seen to carry a colour, by the same matcher `no-raw-color` uses. Quieter, and misses `boxShadow: shadowVar` — a value this rule cannot read is not a colour under this mode. Asserted in [Narrowing shorthands to value inspection](#narrowing-shorthands-to-value-inspection). |
 | `exclude` | `["**/*.stories.tsx"]` | A preset-level `overrides` glob, not rule logic — no rule derives a path from its own location. Stories are where ad-hoc inline colour is most tempting and least harmful. |
 
 **`var()` values are a violation by default.** `style={{ color: "var(--color-primary)" }}`
