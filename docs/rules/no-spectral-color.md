@@ -526,22 +526,24 @@ policy file and keep in sync.
   `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered. The
   design system is built once at plugin-module load from the path the consumer supplied,
   never inside `create()`.
-- **Rule options are JSON, and only JSON.** Oxlint serialises them with `JSON.stringify` on
-  the way to a rule — in `RuleTester` and in a real run alike, and `meta.defaultOptions`
-  travels the same path — so a rule can be handed the *answers* the design system gave at
-  load but never the design system. This rule needs no live query to do its job, so its
-  `designSystem` option is two lists of names, `{ colorPrefixes, colorNames }`, both derived
-  by probing Tailwind at load, and `tokens` is a list rather than a `Set`. The corrected
-  claim matters beyond this rule: any contract whose predicate is a *function* of the design
-  system needs a channel other than `options`.
-- **A wiped option falls back to the recommended one, per key.** Oxlint merges
-  `meta.defaultOptions` into whatever the consumer supplied, key by key, so a consumer
-  writing `"…/no-spectral-color": "error"` to bump a severity keeps the whole `replacement`
-  map rather than losing it. What does *not* merge is a value: a consumer who supplies their
-  own `replacement` replaces the map outright instead of adding to it. (An earlier draft of
-  this section had the first half backwards — it predates
+- **The two halves of the configuration travel differently.** Rule options cross a JSON
+  boundary — Oxlint hands a JS plugin its options from Rust as JSON, and `RuleTester`
+  round-trips them the same way — so a design system passed that way arrives as
+  `{ colorPrefixes: {} }` with every method gone and a `Set` arrives as `{}`, with no
+  warning. `replacement`, `flagFixedColors`, `tokenFiles` and `ignoreGlobs` are JSON and
+  arrive through `options` as written. `designSystem` and `tokens` cannot be, so they are
+  built once at load and *bound* around `create` by `bindResolved` in `src/plugin.js`. The
+  rule reads both from `context.options[0]` and cannot tell which route either took.
+- **A wiped option falls back to the recommended one, per key.** A consumer writing
+  `"…/no-spectral-color": "error"` to bump a severity keeps the recommended behaviour rather
+  than losing it. (An earlier draft of this section said the opposite; it predates
   [the conventions](./README.md#writing-a-rule), which make `meta.defaultOptions` the place
   the recommended policy lives for exactly this reason.)
+- **`replacement` is the one default that cannot live in `meta.defaultOptions`.** Oxlint
+  merges those **deeply** for an object-valued option, so a consumer supplying a map with
+  `text` deliberately left out would get the default's `text` entries back and never learn
+  why. Booleans and arrays are replaced whole and are safe there; the map is defaulted
+  inside the rule, where "no map supplied" and "this map" are the only two outcomes.
 
 ## Deltas from the current implementation
 

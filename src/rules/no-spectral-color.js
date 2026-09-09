@@ -48,13 +48,14 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  * the message names the escape hatch — a lookup of complete class names, or a `--color-*`
  * custom property — because it is the one diagnostic with no correct token to suggest.
  *
- * ## Everything arrives as data
+ * ## Where its inputs come from
  *
- * Oxlint puts rule options through `JSON.stringify`, in `RuleTester` and in a real run
- * alike, so a rule can be handed the *answers* a design system gave at load but never the
- * design system. This rule needs no live query to do its job — two lists and a token set
- * are enough — which is why `designSystem` here is `{ colorPrefixes, colorNames }` rather
- * than the policy view that produced them.
+ * Both halves are read from `context.options[0]`, and they get there by different routes.
+ * `replacement`, `flagFixedColors`, `tokenFiles` and `ignoreGlobs` are JSON a consumer
+ * writes. `designSystem` and `tokens` are not — they cross a JSON boundary as husks — so
+ * the plugin module builds them once at load and binds them around `create` with
+ * `bindResolved` in [`src/plugin.js`](../plugin.js). The rule cannot tell the difference,
+ * which is the point.
  */
 export default {
   meta: {
@@ -72,19 +73,13 @@ export default {
         '{{prefix}}- is built from an interpolated value, so no rule can check which token it names. Map to complete class names instead — e.g. const CLASSES = { danger: "bg-danger" } — or use a --color-* custom property.',
       useReplacement: "Replace {{className}} with {{prefix}}-{{replacement}}",
     },
+    // The JSON half only. `designSystem` and `tokens` are bound around `create` rather than
+    // written in a config, so they never reach the validator — and a consumer who tries to
+    // write one by hand should be told it is not theirs to write.
     schema: [
       {
         type: "object",
         properties: {
-          designSystem: {
-            type: "object",
-            properties: {
-              colorPrefixes: { type: "array", items: { type: "string" } },
-              colorNames: { type: "array", items: { type: "string" } },
-            },
-            additionalProperties: true,
-          },
-          tokens: { type: "array", items: { type: "string" } },
           flagFixedColors: { type: "boolean" },
           replacement: { type: "object" },
           tokenFiles: { type: "array", items: { type: "string" } },
@@ -93,10 +88,15 @@ export default {
         additionalProperties: false,
       },
     ],
+
+    // The recommended policy, minus `replacement`. Oxlint merges `defaultOptions` **deeply**
+    // for an object-valued option, so a consumer who supplies a `replacement` map with
+    // `text` deliberately left out gets the default's `text` back and never learns why.
+    // Booleans and arrays are replaced whole and are safe here; the map is applied in
+    // `create` instead, where "no map supplied" and "this map" are the only two outcomes.
     defaultOptions: [
       {
         flagFixedColors: true,
-        replacement: recommendedReplacement(),
         tokenFiles: ["src/styles.css"],
         ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
       },
@@ -115,10 +115,12 @@ export default {
 
     // Silence is indistinguishable from a clean codebase, so a rule that cannot do its job
     // says so rather than reporting nothing. These three are the load step's output, not a
-    // consumer's typing: their absence means the plugin was wired up wrong.
-    const colorPrefixes = required(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
-    const colorNames = required(designSystem?.colorNames, "designSystem.colorNames");
-    const semantic = required(tokens, "tokens");
+    // consumer's typing: their absence means the plugin bound nothing, and the shape they
+    // arrive in says which mistake it was — a husk means they were passed as options and
+    // did not survive the JSON boundary.
+    const colorPrefixes = requiredSet(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
+    const colorNames = requiredSet(designSystem?.colorNames, "designSystem.colorNames");
+    const semantic = requiredSet(tokens, "tokens");
 
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
@@ -179,19 +181,20 @@ export default {
 };
 
 /**
- * A required list of names, as a `Set`.
+ * A required resolved input, which is always a live `Set`.
  *
- * Anything iterable is accepted so that a host able to hand the rule a live `Set` is not
- * turned away, but nothing is defaulted: a missing one is a wiring mistake, and a rule that
- * shrugged at it would report nothing and look like a clean codebase.
+ * The `Set` check is not pedantry: an empty object is exactly what one of these looks like
+ * after a trip through `JSON.stringify`, so the failure this catches is the plumbing
+ * mistake of passing a resolved input as an option instead of binding it. Nothing is
+ * defaulted — a rule that shrugged would report nothing and look like a clean codebase.
  */
-function required(value, name) {
-  if (!value?.[Symbol.iterator]) {
+function requiredSet(value, name) {
+  if (!(value instanceof Set)) {
     throw new Error(
-      `no-spectral-color: the \`${name}\` option is required — the plugin module derives it from \`tokenFiles\` at load and hands it to the rule as a list of names.`,
+      `no-spectral-color: \`${name}\` is missing or is not a Set — the plugin module resolves it from \`tokenFiles\` at load and binds it around \`create\`; it cannot be passed as a JSON option.`,
     );
   }
-  return new Set(value);
+  return value;
 }
 
 /**
