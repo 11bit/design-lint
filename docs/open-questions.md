@@ -13,13 +13,13 @@ supplied — changed what most of them *mean*:
 | Class | Count | Who decides | Blocks |
 | --- | --- | --- | --- |
 | **Mechanism** | 11 → **0 left** ✅ | You, now | Phase 3 (the extractor and `/policy`) |
-| **Scope** | 6 → **5 left** | You, now | Phase 4 |
+| **Scope** | 6 → **0 left** ✅ | You, now | Phase 4 |
 | **Policy** | 11 | Nobody — becomes a preset default | Nothing |
 | **Settled or deferred** | 2 | Already answered | Nothing |
 
 **You need to answer 17, not 50.** Every one carries a recommendation.
 
-**Progress: 13 resolved, 5 open.** All mechanism questions are answered; only scope remains. A1, A6 and B2 were already settled by the plan's own
+**Progress: 18 resolved, 0 open.** ✅ All mechanism and scope questions answered. All mechanism questions are answered; only scope remains. A1, A6 and B2 were already settled by the plan's own
 package shape. A2 and A3 are answered below. Resolved questions keep their heading and are
 marked **ANSWERED**.
 
@@ -266,11 +266,18 @@ point must carry.
 
 *Five contracts. Currently inconsistent: JSX-scoped rules say `.tsx`, token rules say both.*
 
-**Recommendation: keep the split — but as a decision.** A `style` prop or a JSX element
-cannot exist in `.ts`, so `no-style-color`, `no-useless-hover`, and
-`no-component-color-override` are `.tsx` only. The five token rules take both, because
-`const c = { danger: "bg-red-500" }` in a constants file is exactly the case worth
-catching.
+**ANSWERED — split by rule family.** The contracts already had this split; it is now a
+decision rather than four agents each guessing.
+
+| Family | Files | Rules |
+| --- | --- | --- |
+| Token | `.tsx` `.ts` `.css` | `no-spectral-color`, `no-opacity-modifier`, `no-dark-variant`, `no-undefined-token`, `token-constraints`, `no-raw-css-color` |
+| JSX | `.tsx` only | `no-style-color`, `no-useless-hover`, `no-component-color-override` |
+
+Class strings appear in all three file types, and A7's broad sweep exists precisely to
+catch `const m = { danger: "bg-red-500" }` in a constants file. A `style` prop or a JSX
+element cannot syntactically exist outside `.tsx`, so scanning `.ts` with a JSX rule is
+pure cost — nothing can match.
 
 ### B2. Do rules apply to `.css`, and who enforces `@apply`?
 
@@ -289,31 +296,86 @@ plan's *Regressions* section is stale and must be corrected.
 
 *Forced by Phase 0: `oxlint-tailwindcss` already fires inside `cva()`.*
 
-**Recommendation: in scope for the token rules, out of scope for
-`no-component-color-override`.** A `cva()` call is where a component *defines* its
-variants — the thing that rule tells people to do instead of overriding. Flagging it would
-punish the fix.
+**ANSWERED — by consequence of A7 and A10, no separate decision needed.**
+
+- **In scope for the token rules, free.** A7's broad sweep sees `cva()` base, variants and
+  compoundVariants as ordinary strings. Correct: defining a variant with a spectral colour
+  is as wrong as using one inline.
+- **Out of scope for `no-component-color-override`, structurally.** A10 matches JSX
+  elements by import source; a `cva()` call is not a JSX element. This is also the right
+  answer on the merits — `cva()` is where a component defines its variants, which is what
+  that rule tells people to do instead of overriding.
 
 ### B4. Do SVG presentation attributes and string constants have an owner?
 
 *Contract: `no-raw-css-color` 4. Promised, caught today, covered by nothing planned.*
 
-**Recommendation: keep the promise, budget a thin custom rule** in the same plugin. It is
-small and it is the difference between a stated blind spot and a silent one.
+**ANSWERED — keep the promise; budget a thin custom rule.** Nothing off-the-shelf covers
+this: `stylelint-declaration-strict-value` only sees `.css`, and `oxlint-tailwindcss` only
+inspects class strings, so `fill="#ff0000"` is invisible to both.
+
+A7 helps but does not close it. The broad sweep hands the token rules every string in the
+file, but those rules ask *"is this a forbidden Tailwind class?"* — `#ff0000` is not a
+class, so it passes through. Catching it needs a rule that asks *"is this string a raw
+colour?"*
+
+```tsx
+✗ <circle fill="#ff0000" />        ✓ <circle fill="currentColor" />
+✗ <path stroke="rgb(0,255,0)" />   ✓ <circle fill="var(--color-brand)" />
+✗ const SERIES = ["#ff0000"];
+```
+
+The implementation is small — the raw-colour matcher the CSS surface already needs, applied
+to the broad sweep's output. SVG fills are a real place brand colours get hardcoded and
+then never updated when the palette changes.
+
+**This raises the custom-rule count from four to five**, and the plan's rule-disposition
+tables need updating to match.
 
 ### B5. Does `light-dark(var(--a), var(--b))` violate anything?
 
 *Contracts: `no-raw-css-color` 3, `no-dark-variant` 2.*
 
-**Recommendation: allowed when both arguments are tokens, caught otherwise.** It is a
-theming mechanism, not a raw colour — but `light-dark(#fff, #000)` is two raw colours.
+**ANSWERED — banned outright, tokens or not.** `light-dark()` is a second theming mechanism
+competing with CSS custom properties, which is the same argument that bans `dark:`.
+
+```css
+✗ light-dark(var(--color-fg), var(--color-fg-dark))   /* even with tokens */
+✗ light-dark(#000, #fff)
+```
+
+A `--color-*` token already resolves per theme, so `light-dark()` does that job a second
+time, in a place the token file cannot see — which is precisely the property that makes
+theme changes safe. One theming mechanism, enforced.
+
+This reverses the triage's recommendation, which would have allowed the all-tokens form.
+Ownership sits with **`no-dark-variant`** (an unsanctioned theming mechanism), not with
+`no-raw-css-color` (which continues to inspect the arguments, so the literal form reports
+under both — consistent with the property-versus-value division of labour those two
+contracts already document).
 
 ### B6. Does `no-component-color-override` run inside `componentsDirectory` itself?
 
 *Contract: `no-component-color-override` 4.*
 
-**Recommendation: no.** Inside the directory, a component composing another component is
-how the library is built.
+**ANSWERED — yes, the rule applies everywhere, with no library exemption.** A design-system
+component composing another one is held to the same standard as any consumer: add a
+variant rather than pass a colour class.
+
+```tsx
+// src/components/ui/alert.tsx
+<Card className="bg-danger-weak" />   ✗ flagged, same as anywhere else
+```
+
+This reverses the triage's recommendation. The cost is real and should be expected:
+`oxlint-disable` comments will cluster in library files doing legitimate internal
+composition. The benefit is that the library cannot quietly exempt itself from the
+constraint it exports, and every internal override becomes a visible decision rather than
+an invisible one.
+
+Note A10 already removes part of the surface — a relative import (`./button`) does not
+match a `@/components/ui/*` pattern — so this decision bites on alias and package-name
+imports within the library.
 
 ---
 
