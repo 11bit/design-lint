@@ -2,9 +2,9 @@
 rule: no-undefined-token
 legacy-id: 12
 status: agreed
-disposition: off-the-shelf
+disposition: custom
 bias: false-negatives
-files: ["*.tsx", "*.ts", "*.css"]
+files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---
 
 # no-undefined-token
@@ -36,7 +36,8 @@ classes contributed by a plugin — the rule stays silent.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
-> it does not.
+> it does not. `deferred` blocks assert nothing — they document coverage that is planned but
+> unimplemented; see [Deferred: CSS surface](#deferred-css-surface).
 
 ## Promises to catch
 
@@ -49,9 +50,9 @@ variant segment rather than two.
 
 The rule is **context-free**: it asks "does this string resolve?" and never needs to know
 which element the string reaches. It runs over the broad sweep — every string literal and
-every static template literal in a `.tsx`, `.ts` or `.css` file, regardless of position.
-`className` literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant maps and
-`.ts` object-literal constants are all in, for free.
+every static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless of
+position. `className` literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant maps
+and `.ts` object-literal constants are all in, for free.
 
 Of the four rules on this sweep, this one has the strongest claim on the `.ts` surface: a
 constants file is where a token name is written once, far from the element it styles, and
@@ -62,9 +63,9 @@ Two gates keep the breadth quiet, and both come from `/policy`. The class must s
 `inset-ring-` and every per-side border family arrive without a hand-maintained list — and
 it must fail to generate CSS. A string that is not a class satisfies neither.
 
-`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
-module and resolves against the same design system, so `@apply bg-danger-muted` gets the
-same verdict as `className="bg-danger-muted"`.
+Stylesheets are not on this surface. `@apply bg-danger-muted` resolves to nothing exactly as
+`className="bg-danger-muted"` does, and it will get the same verdict when the CSS surface
+lands; today it is unenforced. See [Deferred: CSS surface](#deferred-css-surface).
 
 ### Token names that were never defined
 
@@ -143,12 +144,6 @@ an undefined colour token, in a position where it may never reach a `className`.
 anyway. The alternative — a precise walk — would cost the `.ts` constants surface, which is
 the more valuable half; `oxlint-disable` is the escape hatch.
 
-```css caught
-.alert {
-  @apply bg-danger-muted;
-}
-```
-
 ### Every offending class reports separately
 
 ```tsx caught count=2
@@ -202,7 +197,7 @@ much larger rule.
 
 `bg-[--color-brand]` resolves to `var(--color-brand)` whether or not that property is
 defined — no static check can tell. Raw literals inside brackets belong to
-`no-raw-css-color`.
+`no-raw-color`.
 
 ```tsx allowed
 <div className="bg-[#ff0000]" />
@@ -256,8 +251,8 @@ Not caught, by decision.
 The class does not exist in the source, so there is nothing to resolve — this rule cannot
 say "generates no CSS" about a class it has not seen. The defect is real and it is reported:
 `` `text-${tone}` `` has a colour prefix against an interpolation, so `no-spectral-color`
-reports it once under `dynamicColorClass` (owned by `token-constraints`). Adding a second report here would name the same
-character span twice with the same fix.
+reports it once under `dynamicColorClass`, which that rule owns. Adding a second report here
+would name the same character span twice with the same fix.
 
 ```tsx blindspot
 <div className={`text-${tone}`} />
@@ -317,6 +312,39 @@ an early return, not a warning. `defaultOptions` carries a usable baseline so th
 still works, and the error names the missing key. Falling over loudly is the cheapest
 diagnostic this rule can offer, and the only one that cannot be mistaken for a clean run.
 
+## Deferred: CSS surface
+
+Not a blind spot. A blind spot is something this contract has decided not to catch; what
+follows is something it has decided not to catch **yet**. The linter reads `.js`, `.jsx`,
+`.ts` and `.tsx` only, so the case below is unenforced today and is recorded so that adding
+the CSS surface is an implementation task rather than a fresh design argument.
+
+The fenced block here is tagged `deferred`. The harness executes `caught`, `allowed` and
+`blindspot` blocks only, so nothing in this section asserts anything about the current
+implementation.
+
+The distinction matters more for this rule than for its neighbours, because its subject is an
+absence. "No report" already looks like "no violations", and the one thing this contract
+refuses to do is let a gap in coverage read as a clean run — hence a named section rather
+than silence.
+
+### `@apply` class lists
+
+A class list under `@apply` resolves — or fails to resolve — through the same design system,
+so the verdict for `@apply bg-danger-muted` is already decided; only the surface is missing.
+No entry point in the current package shape covers it, so the mechanism is an open choice.
+
+```css deferred
+.alert {
+  @apply bg-danger-muted;
+}
+```
+
+**The entry point is not a linted surface.** `entryPoint` names a `.css` file, and the rule
+reads it at load to build the design system every verdict depends on. Nothing about narrowing
+the linted file set touches that: it is an *input*, and it stays required. The same is true of
+`tokenFiles` in the sibling rules.
+
 ## Relationship to other rules
 
 This rule shares a surface with three others, and the boundaries are what keep any given
@@ -332,7 +360,7 @@ class from being reported twice for contradictory reasons.
   class body is a *known* semantic token, so an undefined token never reaches a constraint
   check. This rule is the gate: without it, `text-warning-typo` passes `token-constraints`
   cleanly by virtue of not being a token at all.
-- **`no-raw-css-color`** — owns everything inside `[…]`, which this rule skips. The two
+- **`no-raw-color`** — owns everything inside `[…]`, which this rule skips. The two
   never see the same class body.
 - **`no-opacity-modifier`** and **`no-dark-variant`** — orthogonal. They inspect the
   modifier, this rule the class it modifies. `dark:bg-danger-muted/50` reports from all
@@ -366,13 +394,13 @@ index 0.
 
 **The typo candidate must reach the message text via `data`.** Suggestions do not render in
 any CLI output format, and `meta.docs.url` is dead under Oxlint, so the message text is the
-only channel. `oxlint-tailwindcss`'s `no-unknown-classes` provides candidates natively; if it
-emits them only as a suggestion, the CLI experience is *worse* than today's, which prints the
-token name and the `--color-*` hint inline.
+only channel. Emitting candidates only as a suggestion would make the CLI experience *worse*
+than today's, which prints the token name and the `--color-*` hint inline.
 
-This is a criterion, not a preference. If the message text cannot be made to carry the
-candidate, Phase 4 records `adopted-with-narrowed-contract` and says so explicitly — it does
-not adopt quietly.
+This is a criterion, not a preference, and owning the rule is what makes it cheap to meet:
+the candidate list comes from the design system the rule already built, and interpolating it
+into `{{...}}` is a decision this contract gets to make rather than one it has to discover.
+Phase 4 verifies the rendered text, not the suggestion payload.
 
 ## Configuration
 
@@ -381,7 +409,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 
 | Option | `recommended` | Overriding it |
 | --- | --- | --- |
-| `entryPoint` | `"src/styles.css"` | The Tailwind entry point the design system is built from. **Required.** An absent or unloadable entry point is a thrown error, never a silent no-op — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
+| `entryPoint` | `"src/styles.css"` | The Tailwind entry point the design system is built from — an **input**, read at load, never a linted file. **Required**, and unaffected by the linter's file set narrowing to JS/TS. An absent or unloadable entry point is a thrown error, never a silent no-op — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
 | `colorPrefixes` | derived from the design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid. |
 | `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
 
@@ -395,11 +423,12 @@ that does not exist. There is no policy position on the other side of it.
   location.** The design system is built once at plugin-module load from the `entryPoint`
   the consumer supplied — never inside `create()`, never from a path relative to the
   package. This keeps `RuleTester` usable and avoids a per-file filesystem hit.
-- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
-  `settings` is **not inherited through `extends`** — a preset that ships it yields
-  `entryPoint is required`. The consumer supplies it in its own config. This rule is the one
-  that fails hardest without it, which is why the requirement is repeated here rather than
-  left to the README.
+- **The entry point arrives through `options`, not `settings`.** Because the rule is ours,
+  the path is a rule option and none of the `settings`-not-inherited-through-`extends`
+  problem applies to it. What does apply is that the preset's default must survive whatever
+  the consumer writes — see the next bullet. This rule is the one that fails hardest without
+  an entry point, which is why the requirement is repeated here rather than left to the
+  README.
 - **Rule options replace, they do not merge — and this rule is the worst place for it.**
   Bumping a severity wipes `entryPoint`, and a rule whose output is an absence cannot signal
   that by reporting less. It signals it by refusing to start. To change severity alone,
@@ -428,6 +457,7 @@ script locates relative to its own directory.
 | `bg-[image:var(--x)]` | resolved as `var(--x)]` — `normalizeTwToken` splits on the last `:` | allowed, explicitly; segmentation is bracket-depth aware |
 | `const tone = "text-secondary"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | `<Chart palette="text-secondary" />` | caught | caught — the broad sweep is context-free by design |
+| `@apply bg-danger-muted` in a `.css` file | caught — `linter.js` reads `.css` and extracts `@apply` lists | **deferred** — `.css` is not a linted surface for now; the promise is recorded, not the coverage |
 | **Design system fails to load** | **rule silently no-ops; every undefined token passes** | hard error |
 | **Required option absent** | not applicable — config came from a fixed path | hard error at plugin-module load |
 

@@ -76,7 +76,7 @@ point, and pulls in its own dependencies — you do not configure them.
 
 | Rule | Catches |
 | --- | --- |
-| `no-raw-css-color` | `#f00`, `rgb(…)`, `oklch(…)`, named colours in CSS and in `bg-[#ff0000]` |
+| `no-raw-color` | `#f00`, `rgb(…)`, `oklch(…)`, named colours in CSS and in `bg-[#ff0000]` |
 | `no-spectral-color` | `bg-red-500`, `text-blue-200` — palette classes where a token belongs |
 | `no-style-color` | `style={{ color }}` and every other colour property in a `style` prop |
 | `no-opacity-modifier` | `bg-primary/50` — use a token with the opacity baked in |

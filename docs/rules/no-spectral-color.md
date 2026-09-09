@@ -275,7 +275,7 @@ which reports it as generating no CSS.
 ### Arbitrary values
 
 The palette is not involved even when the hex happens to match one. Raw colour literals are
-`no-raw-css-color`'s surface, and flagging them here would double-report the same character
+`no-raw-color`'s surface, and flagging them here would double-report the same character
 span from two rules with two different fixes.
 
 ```tsx allowed
@@ -368,9 +368,8 @@ implementation.
 ### `@apply` class lists
 
 A palette class reached through `@apply` is the same violation as one written in a
-`className`, and the same policy decides it. Coverage was previously described as belonging
-to a `/stylelint` entry point; that entry point is not part of the package shape, so when the
-CSS surface lands the mechanism is an open choice and only the promise below is fixed.
+`className`, and the same policy decides it. No entry point in the current package shape
+covers it, so the mechanism is an open choice; only the promise below is fixed.
 
 ```css deferred
 .card {
@@ -398,7 +397,7 @@ files named by `tokenFiles` stay exempt wholesale.
   stays silent on it by design, not by luck.
 - **`no-opacity-modifier`** is orthogonal — it inspects the modifier, this rule the colour.
   `bg-red-500/50` reports twice, which is correct: two independent things are wrong with it.
-- **`no-raw-css-color`** owns arbitrary values and raw literals. This rule owns named
+- **`no-raw-color`** owns arbitrary values and raw literals. This rule owns named
   palette classes. No class is in both sets.
 - **`token-constraints`** governs which *semantic* token may be used with which prefix. It
   never fires on a spectral class, because a spectral class has no semantic token to
@@ -468,21 +467,20 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
 | `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
-| `tokenFiles` | `["src/styles.css"]` | The files exempted wholesale, because a semantic token has to be defined as something. Also feeds Stylelint's `ignoreFiles`. |
+| `tokenFiles` | `["src/styles.css"]` | The files the semantic token set and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale from this rule, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
 | `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 
-The `replacement` map's disposition is settled: `off-the-shelf` stands. It is 27 entries
-expanding mechanically to 27 restricted-class patterns with a custom message each, which
-Phase 0 verified works. The open item is the build-step trade — regenerating `.oxlintrc` from
-the policy file, replacing today's read-at-runtime property — and that belongs to Phase 4.
+The `replacement` map is a plain rule option, read from `options` at load like every other
+value in the table. There is no generated config and no build step: the rule is ours, so the
+map is data it reads rather than 27 patterns something has to bake into `.oxlintrc` from the
+policy file and keep in sync.
 
 ### Distribution
 
 - **The rule reads no files and derives no path from its own location.** `tokenFiles`,
-  `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered.
-- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
-  `settings` is not inherited through `extends`. The consumer must supply it in its own
-  config; the preset cannot ship it. The same path usually belongs in `tokenFiles`.
+  `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered. The
+  design system is built once at plugin-module load from the path the consumer supplied,
+  never inside `create()`.
 - **Rule options replace, they do not merge.** A consumer writing
   `"…/no-spectral-color": "error"` to bump a severity wipes the preset's options — including
   the whole `replacement` map — and gets the bare `spectralColor` message everywhere. To
@@ -504,12 +502,13 @@ line by line.
 | `bg-red-500/50` | caught (also by `no-opacity-modifier`) | caught, twice |
 | `bg-white`, `text-black` | allowed | caught, under `flagFixedColors` |
 | `` className={`bg-red-500 ${x}`} `` | missed — `extractStringLiterals` matches `"` and `'` only, never a backtick | caught — the broad sweep reads template literals |
-| `` className={`bg-${tone}-500`} `` | missed | caught — by `token-constraints` under `dynamicColorClass` |
+| `` className={`bg-${tone}-500`} `` | missed | caught — here, under `dynamicColorClass` |
 | `bg-[image:var(--x)]` | mangled — `normalizeTwToken` splits on the **last** `:`, yielding `var(--x)]` | allowed, explicitly; segmentation is bracket-depth aware |
 | `"text-blue-500"` in a non-class array | caught | caught — the broad sweep is context-free by design |
 | `const tone = "bg-red-500"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | Replacement hint for `divide-x-red-500` | would compose `divide-<semantic>`, dropping `-x` | prefix is reconstructed from the full class |
 | `inset-ring-red-500`, `text-shadow-sky-300` | caught (the scan is prefix-independent) | caught |
+| `@apply bg-red-500` in a `.css` file | caught — `linter.js` reads `.css` and extracts `@apply` lists | **deferred** — `.css` is not a linted surface for now; the promise is recorded, not the coverage |
 
 `TAILWIND_COLOR_PREFIXES` in `shared.js` is missing `inset-ring`, `inset-shadow` and
 `text-shadow`. It does not affect detection here — the segment scan never consults it — but

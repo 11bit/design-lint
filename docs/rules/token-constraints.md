@@ -4,7 +4,7 @@ legacy-id: 5
 status: agreed
 disposition: custom
 bias: false-positives
-files: ["*.tsx", "*.ts"]
+files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---
 
 # token-constraints
@@ -184,9 +184,18 @@ consumer-supplied `tokenFiles`, the prefixes from the resolved Tailwind design s
 handed to the rule already parsed. Paths are the consumer's, interpreted relative to the
 consumer's project, never to the package.
 
+**`tokenFiles` is an input, not a linted surface, and it stays required.** The files it names
+are usually CSS, and CSS being out of scope as a *linted* surface changes nothing about them:
+they are read to derive the semantic-token set and, with the resolved Tailwind design system,
+the colour-prefix set. Dropping `*.css` from `files` means this rule does not *report on*
+stylesheets; it does not mean it stops *reading* them. That distinction matters more here than
+for any other rule, because this rule's first gate is "is the colour part a declared token?" —
+with no `tokenFiles` the gate always fails, and the rule reports nothing while appearing
+enabled.
+
 | Option | Type | `recommended` default |
 | --- | --- | --- |
-| `tokenFiles` | `string[]` | supplied by the consumer through the preset factory; no built-in default |
+| `tokenFiles` | `string[]` | required; supplied by the consumer through the preset factory, no built-in default. An input the rule reads, not a surface it lints |
 | `allowed` | `{ [prefix or variant]: string[] }` | below |
 | `denied` | `{ [prefix or variant]: string[] }` | below |
 | `exclude` | `string[]` of globs | `["**/*.stories.tsx", "**/*.stories.ts"]` |
@@ -227,7 +236,8 @@ Two mitigations belong to the rule itself:
   all have defensible defaults.
 - **Fail loudly on `tokenFiles`.** It has no defensible default — it is the one option only
   the consumer can supply — so its absence raises a configuration error rather than an early
-  return. Without it there is no semantic-token set, the rule's first gate always fails, and
+  return. The CSS scope change does not soften this: the option is an input, and a rule with
+  no token set is a rule with no first gate. Without it there is no semantic-token set, the rule's first gate always fails, and
   the rule would report nothing while appearing to work. Silence is exactly the failure mode
   this rule cannot afford, since a rule that finds no violations looks identical to a codebase
   with none.
@@ -830,12 +840,16 @@ handles `.js`, `.ts`, `.jsx` and `.tsx` only, and the CSS surface is planned wor
 landed. Nothing below is enforced today, and no assertion in this document depends on it.
 
 `@apply` is a class-string surface like any other, and a policy violation there is
-indistinguishable from one in JSX. When CSS lands, this rule will cover it: `@apply` arguments
-are extracted and handed to the same `/policy` module the Oxlint rule uses, so the resolution
-order, the pattern semantics and the variant families are one implementation and the two
-surfaces cannot drift. Only the extraction differs. Files listed in `tokenFiles` are exempt
-when that happens — they define the tokens, and are already an input rather than a linted
-surface (see [Configuration](#configuration)).
+indistinguishable from one in JSX. When CSS lands, this rule will cover it, and the shape of
+that coverage is already decided: `@apply` arguments are extracted and handed to the same
+`/policy` module this rule uses today. Only the extraction differs — the resolution chain, the
+pattern semantics and the variant families stay one implementation, so the two surfaces cannot
+drift. Whatever entry point the CSS extractor eventually ships behind is an open question; the
+one thing already settled is that it does not get its own copy of the policy.
+
+Files listed in `tokenFiles` are exempt when that happens — they define the tokens. They are
+already an input rather than a linted surface, and remain required regardless of this
+deferral (see [Configuration](#configuration)).
 
 Until then, `@apply text-muted` in a stylesheet is unreported. That is a known, accepted gap
 for the current phase, not a claim that the usage is acceptable.
@@ -844,7 +858,7 @@ The block below is **illustrative only**. It carries no `caught`, `allowed` or `
 tag, so the harness does not execute it — it describes a promise we are not yet keeping, and
 tagging it would assert behaviour that does not exist.
 
-```css
+```css deferred
 /* Illustrative — not executed, not enforced today. */
 .card-label {
   @apply text-muted;        /* will be reported: text allow-list failure */
@@ -872,7 +886,7 @@ part this rule cannot resolve to a declared token is not this rule's business.
   [Dynamically interpolated class names](#dynamically-interpolated-class-names) for the cases
   and why the ownership sits there: there is no colour part, so this rule's second gate can
   never be reached.
-- **`no-raw-css-color`** owns arbitrary values (`bg-[#ff0000]`, `text-[color:var(--x)]`).
+- **`no-raw-color`** owns arbitrary values (`bg-[#ff0000]`, `text-[color:var(--x)]`).
   Same boundary, same reason.
 - **`no-opacity-modifier`** owns the `/50` suffix. This rule strips it before matching, so
   `text-muted/50` reports once from each rule: the modifier from that rule, the token choice
@@ -935,9 +949,9 @@ and `family` — the policy key that caught it, `hover`. A developer who wrote `
 and is told a "hover colour" is constrained needs to see why the two connect; naming only one
 of them makes the diagnostic look like a bug.
 
-`dynamicColorClass` **must name the escape hatch**, not merely report the violation. It is the
-one diagnostic with no correct token to suggest, so without the alternative in the text it
-reads as "you may not do this" with no way forward.
+Every diagnostic this rule emits has a correct token to point at, because the second gate
+guarantees one exists. The one case that does not — a prefix against an interpolation — is
+`no-spectral-color`'s, and its message is what must name the escape hatch.
 
 **Suggestions.** For each `*-suffix` pattern in the failing list, `prefix-colorPart-suffix`
 is a candidate token. A candidate is offered **only if it is in the semantic token set** —
@@ -966,7 +980,7 @@ For migration reference. The current rule is `checkToken` in
 | `` className={`text-muted ${x}`} `` | missed | caught |
 | `border-t-muted-foreground` (per-side border) | missed | caught |
 | `border-x-`, `border-inline-start-` | missed | caught |
-| `` className={`text-${tone}`} `` | missed | caught (dynamic prefix) |
+| `` className={`text-${tone}`} `` | missed | caught, by `no-spectral-color` — not by this rule |
 | `` className={"text-" + tone} `` | missed | declared blind spot |
 | `group-hover:bg-primary` | caught, by substring accident | caught, by family membership |
 | `peer-hover:bg-primary` | caught, by substring accident | caught, by family membership |
@@ -981,7 +995,7 @@ For migration reference. The current rule is `checkToken` in
 | `bg-[image:var(--x)]` | mis-split by `lastIndexOf(":")` | parsed correctly |
 | `text-muted` in a `.ts` object map | caught | caught |
 | `cva()` base / variants / compoundVariants | caught | caught |
-| `@apply text-muted` in CSS | caught | caught, via `/stylelint` |
+| `@apply text-muted` in CSS | caught | deferred — CSS is not a linted surface yet; a regression against today's linter, and a tracked one |
 | Storybook files | skipped by a hardcoded check | skipped by a configurable glob |
 | Prefix or variant key in both `allowed` and `denied` | deny silently ignored | config error |
 | Severity-only override wipes options | n/a | `defaultOptions` restores the policy |

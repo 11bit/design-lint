@@ -2,9 +2,9 @@
 rule: no-opacity-modifier
 legacy-id: 3
 status: agreed
-disposition: off-the-shelf
+disposition: custom
 bias: false-positives
-files: ["*.tsx", "*.ts", "*.css"]
+files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---
 
 # no-opacity-modifier
@@ -23,7 +23,8 @@ and gives it a name that says what it is for.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
-> it does not.
+> it does not. `deferred` blocks assert nothing — they document coverage that is planned but
+> unimplemented; see [Deferred: CSS surface](#deferred-css-surface).
 
 ## Promises to catch
 
@@ -33,8 +34,8 @@ call site.
 
 The rule is **context-free**: it asks "does this string contain a colour class with a
 modifier?" and never needs to know which element the string reaches. It runs over the broad
-sweep — every string literal and every static template literal in a `.tsx`, `.ts` or `.css`
-file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge` arguments,
+sweep — every string literal and every static template literal in a `.tsx`, `.ts`, `.jsx` or
+`.js` file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge` arguments,
 `cva` / `tv` variant maps and `.ts` object-literal constants are all in, for free, because
 the strings are simply there.
 
@@ -44,9 +45,9 @@ actually name a colour — which is what stops `text-sm/6` being reported. Varia
 stripped **by segment**, with bracket depth respected, so `[@media(hover:hover)]:` is one
 segment and `bg-[image:var(--x)]` is never split at its inner colon.
 
-`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
-module, so `@apply bg-primary/50` and `className="bg-primary/50"` are governed by one policy
-rather than two that drift.
+Stylesheets are not on this surface. `@apply bg-primary/50` is the same violation as
+`className="bg-primary/50"` and will be caught when the CSS surface lands; today it is
+unenforced. See [Deferred: CSS surface](#deferred-css-surface).
 
 ### On semantic tokens
 
@@ -152,12 +153,6 @@ const scrimClass = { light: "bg-white/60", dark: "bg-black/60" };
 const scrim = "bg-black/50";
 ```
 
-```css caught
-.scrim {
-  @apply bg-primary/50;
-}
-```
-
 ### The modifier interpolated
 
 The `/` is statically present and it sits on a class the rule has already established is a
@@ -212,10 +207,10 @@ rule's business. The same derivation supplies the prefix set itself, which is ho
 maintaining a list.
 
 Where the resolver is unavailable, `/policy` falls back to prefix matching plus a deny list
-of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths). The fallback is
-strictly worse and is documented as such; an off-the-shelf restricted-classes regex can
-express only the fallback, which is why a pattern including `text` is the first thing Phase 4
-must probe.
+of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths). The fallback is strictly
+worse and is documented as such: it is a degraded mode, not the design. `text-` is where the
+difference shows first, so it is the case Phase 4 must probe before accepting any run in
+which the design system failed to build.
 
 ```tsx allowed
 <div className="text-sm/6 text-lg/7 text-base/loose" />
@@ -253,13 +248,11 @@ different consequences, and banning it belongs to a rule about layering, not tok
 
 ### The token-definition files
 
-A translucent token has to be defined somewhere, and the `tokenFiles` option is where.
-
-```css allowed
-@theme {
-  --color-scrim: color-mix(in oklab, var(--color-neutral-950) 50%, transparent);
-}
-```
+A translucent token has to be defined somewhere, and the `tokenFiles` option is where. The
+exemption costs nothing today — those files are `.css` and no `.css` file is linted — and
+becomes load-bearing when the CSS surface lands. `tokenFiles` is otherwise untouched by the
+scope change: the rule reads it to derive the token set and the design system, so it is an
+*input*, not a linted surface.
 
 ## Declared blind spots
 
@@ -277,7 +270,7 @@ expressions rather than one string with a hole in it.
 ### A colour prefix interpolated before the modifier is reached
 
 `` `bg-${tone}/50` `` is a dynamically assembled class name, which reports once from
-`token-constraints` under `dynamicColorClass`. This rule stays silent rather than adding a
+`no-spectral-color` under `dynamicColorClass`. This rule stays silent rather than adding a
 second report of the same unknowable string — its own subject, the modifier, is only half
 the defect there.
 
@@ -305,12 +298,52 @@ The same result, arrived at without a modifier. Each belongs to a different rule
 <div style={{ backgroundColor: "rgb(0 0 0 / 50%)" }} />
 ```
 
+## Deferred: CSS surface
+
+Not a blind spot. A blind spot is something this contract has decided not to catch; what
+follows is something it has decided not to catch **yet**. The linter reads `.js`, `.jsx`,
+`.ts` and `.tsx` only, so the cases below are unenforced today and are recorded so that
+adding the CSS surface is an implementation task rather than a fresh design argument.
+
+The fenced blocks here are tagged `deferred`. The harness executes `caught`, `allowed` and
+`blindspot` blocks only, so nothing in this section asserts anything about the current
+implementation.
+
+### `@apply` class lists
+
+An opacity modifier reached through `@apply` derives a colour at the call site exactly as a
+`className` does, and the same `/policy` gates decide it — the derived colour prefix, then
+the colour test. No entry point in the current package shape covers it, so the mechanism is
+an open choice; only the promise below is fixed.
+
+```css deferred
+.scrim {
+  @apply bg-primary/50;
+}
+```
+
+### The token-definition files, once `.css` is linted
+
+A translucent token has to be defined somewhere, and that definition is a colour derived on
+purpose in the one file allowed to do it. When `.css` becomes a linted surface the files
+named by `tokenFiles` stay exempt wholesale.
+
+```css deferred
+@theme {
+  --color-scrim: color-mix(in oklab, var(--color-neutral-950) 50%, transparent);
+}
+```
+
+Declaration-level alpha in a component stylesheet — `background: rgb(0 0 0 / 50%)` — is not
+deferred coverage for this rule. It is a raw colour value, and it stays with
+`no-raw-color` on whatever surface that rule ends up covering.
+
 ## Relationship to other rules
 
 - **`no-spectral-color`** is orthogonal. This rule inspects the modifier, that one the
   colour. `bg-red-500/50` reports from both, which is correct — the palette class and the
   ad-hoc alpha are independently wrong.
-- **`no-raw-css-color`** owns the value inside `bg-[#ff0000]/50`; this rule owns the `/50`.
+- **`no-raw-color`** owns the value inside `bg-[#ff0000]/50`; this rule owns the `/50`.
   Two reports, two different fixes.
 - **`no-undefined-token`** evaluates the class with the modifier stripped, so
   `bg-nonesuch/50` reports from both: the token does not exist *and* it should not have been
@@ -344,7 +377,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `allowFullOpacity` | `false` | `true` stops reporting `/100` and `/[100%]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
 | `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
-| `tokenFiles` | `["src/styles.css"]` | The files exempted wholesale, because a translucent token has to be defined somewhere. Also feeds Stylelint's `ignoreFiles`. |
+| `tokenFiles` | `["src/styles.css"]` | The files the colour test and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
 | `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
 
 ### Distribution
@@ -352,13 +385,13 @@ consuming project overrides in its own config — none is a fact baked into the 
 - **The rule reads no files and derives no path from its own location.** `tokenFiles`,
   `colorPrefixes` and `ignoreGlobs` arrive through `options`; the design system is built once
   at plugin-module load from a path the consumer supplied, never inside `create()`.
-- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
-  `settings` is not inherited through `extends`. The consumer supplies it in its own config;
-  the preset cannot. It is also what makes the exact colour test above available rather than
-  the deny-list fallback.
+- **`tokenFiles` is what makes the exact colour test available** rather than the deny-list
+  fallback, so a consumer that omits it does not get a quieter rule — it gets a worse one.
+  The path arrives through `options`, not through `settings`, which is why nothing here
+  depends on `settings` being inherited through `extends`.
 - **Rule options replace, they do not merge.** A consumer writing
   `"…/no-opacity-modifier": "error"` to bump a severity wipes the preset's options,
-  including `tokenFiles` — so token-definition files start reporting. To change severity
+  including `tokenFiles` — so the rule falls back to the deny list. To change severity
   alone, restate the options.
 
 ## Deltas from the current implementation
@@ -383,6 +416,7 @@ last `/` to be all digits, and requires the part before the `/` to start with on
 | `` className={`bg-primary/${a}`} `` | missed — template literals are never extracted | caught |
 | `const scrim = "bg-black/50"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | `bg-red-500/50` | 2 reports (this rule + `no-spectral-color`) | 2 reports |
+| `@apply bg-primary/50` in a `.css` file | caught — `linter.js` reads `.css` and extracts `@apply` lists | **deferred** — `.css` is not a linted surface for now; the promise is recorded, not the coverage |
 
 `text-sm/6` was the only known false positive in the current rule, and it is fixed by
 deriving the colour test from the Tailwind design system rather than from a hand-written

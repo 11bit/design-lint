@@ -282,7 +282,7 @@ on our own implementations rather than as an audit checklist:
 | `no-spectral-color` | Per-pattern messages naming the semantic replacement. The `replacement` map is read from `options` at runtime; the build step that would have regenerated `.oxlintrc` from policy is gone. |
 | `no-opacity-modifier` | Only after a derived colour prefix — `text-sm/6` must not report. |
 | `no-dark-variant` | Handle stacked variants (`md:dark:`) via segment parsing. |
-| `no-raw-css-color` | Tailwind arbitrary values, while sparing `bg-[--my-var]`. |
+| `no-raw-color` | Tailwind arbitrary values, while sparing `bg-[--my-var]`. |
 
 Phase 0 verified all of these behaviours *in `oxlint-tailwindcss`*, which no longer tells
 us they will work in our implementation — but it does tell us they are achievable, and it
@@ -302,7 +302,7 @@ why they benefit most from the move to a real AST; the fifth was added by decisi
 | 10 | `no-useless-hover` | No published equivalent found. `jsx-a11y/no-noninteractive-element-interactions` is adjacent but solves an accessibility problem, not a hover-affordance one. |
 | 11 | `no-component-color-override` | [`eslint-plugin-primer-react`'s `no-system-props`](https://github.com/primer/eslint-plugin-primer-react/blob/main/docs/rules/no-system-props.md) is the closest published cousin, but it is Primer-specific. The generic form — discover components from a directory, flag color classes passed to them — does not exist as a package. |
 | 5 | `token-constraints` | Prefix-scoped allow lists (`text-` may only use `*content*`/`*foreground*`) are more expressive than a flat deny list. Approximable with negative-lookahead regexes, but unreadable and unmaintainable as config. |
-| 2* | raw colours in SVG attributes and string constants | Added by **B4**. A7's broad sweep does not cover it: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Needs a rule asking *"is this string a raw colour?"* — `<circle fill="#ff0000" />`, `const SERIES = ["#ff0000"]`. Owned by `no-raw-css-color`, which with the CSS surface deferred is now entirely a JS/TS rule and misnamed. |
+| 2* | raw colours in SVG attributes and string constants | Added by **B4**. A7's broad sweep does not cover it: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Needs a rule asking *"is this string a raw colour?"* — `<circle fill="#ff0000" />`, `const SERIES = ["#ff0000"]`. Owned by `no-raw-color`, which with the CSS surface deferred is now entirely a JS/TS rule and misnamed. |
 
 ### Design constraints for these five
 
@@ -376,7 +376,7 @@ They are evidence for why the contracts come before code. They are not a bug bac
   `/50` and undefined tokens are all linted. Likewise raw colour values in stylesheets,
   `.dark &` selectors, `prefers-color-scheme` blocks, and `light-dark()` in declarations.
   Affects `token-constraints`, `no-spectral-color`, `no-opacity-modifier`,
-  `no-undefined-token` and `no-raw-css-color`. Each carries a `Deferred: CSS surface`
+  `no-undefined-token` and `no-raw-color`. Each carries a `Deferred: CSS surface`
   section naming what returns when CSS lands.
 - **Colour classes in `.ts` object-literal maps** — **resolved by A7.** The broad sweep
   sees them.
@@ -400,7 +400,7 @@ code. Every test input is already a JSX snippet, and the
 | Port to `RuleTester` | 122 | All nine rules are ours now, so the 50 cases previously slated for deletion with the delegated rules — `no-spectral-color` (19), `no-dark-variant` (11), `no-opacity-modifier` (11), `no-undefined-token` (9) — port too, minus any asserting behaviour the contracts have since changed. |
 | ~~Delete with their rules~~ | 0 | Superseded: nothing is delegated, so nothing is deleted for being someone else's job. |
 | Delete as orchestrator tests | 18 | `linter.test.ts` — rule gating, ignore comments, multi-rule dispatch. All now Oxlint's job. |
-| Deferred with the CSS surface | 20 | `no-raw-css-color`'s `.css` cases. They return with that surface; the arbitrary-value and string-constant cases port now. |
+| Deferred with the CSS surface | 20 | `no-raw-color`'s `.css` cases. They return with that surface; the arbitrary-value and string-constant cases port now. |
 
 Rework needed on the 72 that port: message-substring assertions become `messageId` + `data`;
 line assertions move into the `errors` array; `ruleConfig` arguments become `options`.
@@ -418,7 +418,7 @@ supersedes them as the coverage instrument.
 *Executed as a throwaway spike. All eight required capabilities verified by execution,
 with no workarounds.*
 
-Versions proved against: `oxlint` 1.81.0 · `oxlint-tailwindcss` 1.10.2 ·
+Versions proved against: `oxlint` 1.81.0 · `oxlint-tailwindcss` 1.10.2 (since dropped) ·
 `tailwindcss` 4.3.3 · `vitest` 5.0.0 · node 24.18.0.
 
 | Capability | Result |
@@ -524,9 +524,9 @@ None is `agreed` — each carries open questions that block it.
 | --- | --- | --- |
 | Does a `hover:` token policy bind `group-hover:` / `peer-hover:`? | `token-constraints`, `no-useless-hover` | **Contracts disagree.** Both agree variants must match by *segment*, not substring. They differ on whether `group-hover:bg-primary` must still satisfy `allowed["hover:"]`. Turns on whether the `-hover` suffix rule is about *this element's* hover state or about hover-triggered colour generally. |
 | Do rules apply to `.ts` as well as `.tsx`? | All nine | Raised everywhere, settled nowhere. `no-style-color` and the JSX-scoped rules say `.tsx` only; the token rules say both. That may be correct — but it must be a decision. |
-| Do rules apply to `.css`? | The four token rules, `no-raw-css-color` | Bound to the `@apply` regression above. |
+| Do rules apply to `.css`? | The four token rules, `no-raw-color` | Bound to the `@apply` regression above. |
 | Are Storybook files excluded? | Several | Currently excluded wholesale by `isStorybookFile`. Intent or convenience, still unknown. |
-| Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | `no-raw-css-color`, `no-dark-variant` | Same family as the `.dark &` / `prefers-color-scheme` question. |
+| Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | `no-raw-color`, `no-dark-variant` | Same family as the `.dark &` / `prefers-color-scheme` question. |
 | Does `cva()` fall inside each rule's scope? | `token-constraints`, `no-component-color-override`, the token rules | Forced by Phase 0: the off-the-shelf half already fires there. |
 
 **Exit:** nine contracts reviewed and agreed.
@@ -588,7 +588,7 @@ Three items it carried are not lost:
   `no-spectral-color` means reading the map from `options` at runtime. The build step that
   would have regenerated `.oxlintrc` from the policy file is gone.
 
-The one question genuinely deferred is `no-raw-css-color`'s **one rule or two**, which now
+The one question genuinely deferred is `no-raw-color`'s **one rule or two**, which now
 depends on what returns with the CSS surface rather than on tool boundaries.
 
 Phase numbering is unchanged so that references elsewhere still resolve.
@@ -619,7 +619,7 @@ By now this is mechanical; the thinking happened in Phases 1–3.
 
    `no-style-color` (smallest, no config) → `no-dark-variant` → `no-opacity-modifier` →
    `no-spectral-color` → `no-undefined-token` (design-system resolution) →
-   `no-raw-css-color` (JS/TS surface only) → `token-constraints` (most configurable) →
+   `no-raw-color` (JS/TS surface only) → `token-constraints` (most configurable) →
    `no-useless-hover` → `no-component-color-override` (import resolution).
 4. Wire the spectral→semantic replacement map from `colors.json` into
    `context.report({ suggest })` — **and into the message text via `data`**. Suggestions
@@ -628,9 +628,9 @@ By now this is mechanical; the thinking happened in Phases 1–3.
    of it. The map is a rule option read at load — `no-spectral-color` is ours, so there is
    no generated-config step and no question of whether it survives.
 5. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
-   from today's `colors.json` contents, `oxlint-tailwindcss` declared as a peer
-   dependency, and the versioning policy that new rules ship disabled and join
-   `recommended` only on a major.
+   from today's `colors.json` contents, and the versioning policy that new rules ship
+   disabled and join `recommended` only on a major. No lint dependencies — `oxlint` is the
+   only peer.
 6. Adopt it in one real application via `npm install` — not a path reference — and
    confirm green. Installing it the way a consumer would is the only test that the
    packaging works; a `file:` link would hide exactly the resolution problems Phase 0b

@@ -4,7 +4,7 @@ legacy-id: 11
 status: agreed
 disposition: custom
 bias: false-positives
-files: ["*.tsx"]
+files: ["*.tsx", "*.jsx"]
 ---
 
 # no-component-color-override
@@ -660,9 +660,9 @@ options alongside it.
   `style` on watched components — a divergence from the current implementation, which
   reports raw colors in `style=` a second time under this rule's id. Under the split,
   `<Button style={{ color: "#f00" }} />` reports from `no-style-color` and
-  `no-raw-css-color`, and not from here.
+  `no-raw-color`, and not from here.
 - **`no-spectral-color`**, **`no-undefined-token`**, **`token-constraints`**, and
-  **`no-raw-css-color`** fire on the *class*, wherever it appears. This rule fires on the
+  **`no-raw-color`** fire on the *class*, wherever it appears. This rule fires on the
   *channel* — a design-system component's `className`. The two are orthogonal and
   double-reporting is correct: `<Button className="bg-red-500" />` is both a forbidden
   class and a forbidden mechanism, and fixing only one of them leaves a real defect.

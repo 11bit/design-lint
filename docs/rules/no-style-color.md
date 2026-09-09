@@ -4,7 +4,7 @@ legacy-id: 1
 status: agreed
 disposition: custom
 bias: false-positives
-files: ["*.tsx"]
+files: ["*.tsx", "*.jsx"]
 ---
 
 # no-style-color
@@ -242,8 +242,8 @@ const Box = styled.div`
 
 ## Relationship to other rules
 
-- **`no-raw-css-color`** overlaps deliberately. This rule flags the *property*
-  (`color:` in a `style` prop); `no-raw-css-color` flags the *value* (`#f00`, `rgb(...)`)
+- **`no-raw-color`** overlaps deliberately. This rule flags the *property*
+  (`color:` in a `style` prop); `no-raw-color` flags the *value* (`#f00`, `rgb(...)`)
   wherever it appears. `style={{ color: "#f00" }}` therefore reports twice, which is
   correct — both the mechanism and the literal are wrong. `style={{ color: brandToken }}`
   reports once, from this rule only.

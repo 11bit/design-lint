@@ -4,7 +4,7 @@ legacy-id: 10
 status: agreed
 disposition: custom
 bias: false-negatives
-files: ["*.tsx"]
+files: ["*.tsx", "*.jsx"]
 ---
 
 # no-useless-hover

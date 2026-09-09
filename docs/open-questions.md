@@ -244,7 +244,7 @@ Why it wins on every distribution constraint at once:
 
 ### A11. Is the definition-scoped token-file exemption achievable?
 
-*Contract: `no-raw-css-color` 2.*
+*Contract: `no-raw-color` 2.*
 
 The contract *requires* definition-scoped (a literal in a `--color-*` declaration is
 allowed; an ordinary styling declaration in the same file is caught). Stylelint's
@@ -261,7 +261,7 @@ unlinted, including in an ordinary styling rule.
 ```
 
 This **reverses the contract's requirement**, which asked for definition-scoped exemption.
-`no-raw-css-color` must move that from *Promises to catch* into *Declared blind spots*,
+`no-raw-color` must move that from *Promises to catch* into *Declared blind spots*,
 where the harness asserts it — so if a future change starts catching it, CI fails and the
 doc is updated rather than the behaviour drifting silently.
 
@@ -285,7 +285,7 @@ decision rather than four agents each guessing.
 
 | Family | Files | Rules |
 | --- | --- | --- |
-| Token | `.tsx` `.ts` `.css` | `no-spectral-color`, `no-opacity-modifier`, `no-dark-variant`, `no-undefined-token`, `token-constraints`, `no-raw-css-color` |
+| Token | `.tsx` `.ts` `.css` | `no-spectral-color`, `no-opacity-modifier`, `no-dark-variant`, `no-undefined-token`, `token-constraints`, `no-raw-color` |
 | JSX | `.tsx` only | `no-style-color`, `no-useless-hover`, `no-component-color-override` |
 
 Class strings appear in all three file types, and A7's broad sweep exists precisely to
@@ -322,7 +322,7 @@ plan's *Regressions* section is stale and must be corrected.
 
 ### B4. Do SVG presentation attributes and string constants have an owner?
 
-*Contract: `no-raw-css-color` 4. Promised, caught today, covered by nothing planned.*
+*Contract: `no-raw-color` 4. Promised, caught today, covered by nothing planned.*
 
 **ANSWERED — keep the promise; budget a thin custom rule.** Nothing off-the-shelf covers
 this: `stylelint-declaration-strict-value` only sees `.css`, and `oxlint-tailwindcss` only
@@ -348,7 +348,7 @@ tables need updating to match.
 
 ### B5. Does `light-dark(var(--a), var(--b))` violate anything?
 
-*Contracts: `no-raw-css-color` 3, `no-dark-variant` 2.*
+*Contracts: `no-raw-color` 3, `no-dark-variant` 2.*
 
 **ANSWERED — banned outright, tokens or not.** `light-dark()` is a second theming mechanism
 competing with CSS custom properties, which is the same argument that bans `dark:`.
@@ -364,7 +364,7 @@ theme changes safe. One theming mechanism, enforced.
 
 This reverses the triage's recommendation, which would have allowed the all-tokens form.
 Ownership sits with **`no-dark-variant`** (an unsanctioned theming mechanism), not with
-`no-raw-css-color` (which continues to inspect the arguments, so the literal form reports
+`no-raw-color` (which continues to inspect the arguments, so the literal form reports
 under both — consistent with the property-versus-value division of labour those two
 contracts already document).
 
@@ -408,8 +408,8 @@ a configured default — not a debate.
 | Do colour-capable shorthands flag on the key alone? | `no-style-color` 2 | Yes |
 | Are non-colour classes on a watched component flagged? | `no-component-color-override` 1 | No |
 | Is a `/100` modifier a violation? | `no-opacity-modifier` 2 | Yes |
-| Is the full 148-name CSS colour set enforced? | `no-raw-css-color` 5 | Yes, generated not hand-typed |
-| Is the value-scoped backstop worth its noise? | `no-raw-css-color` 8 | Yes |
+| Is the full 148-name CSS colour set enforced? | `no-raw-color` 5 | Yes, generated not hand-typed |
+| Is the value-scoped backstop worth its noise? | `no-raw-color` 8 | Yes |
 | Are unrecognised PascalCase components flagged? | `no-useless-hover` 2 | No |
 | Should `interactiveElements` accept component names? | `no-useless-hover` 4 | Yes — config *shape* is mechanism, contents are policy |
 | Are Storybook files excluded? | Five contracts | Excluded, via a configurable glob |
@@ -426,7 +426,7 @@ glob, it stops needing an answer.
   palette families of 22 and `text`/`bg` only, and expands mechanically to 27
   restricted-class patterns with per-pattern messages. `off-the-shelf` stands; the open
   item is the build-step trade, which belongs to Phase 4.
-- **One rule or two for `no-raw-css-color`?** Deferred to Phase 4 by that contract's own
+- **One rule or two for `no-raw-color`?** Deferred to Phase 4 by that contract's own
   recommendation — the audit needs both halves in one document to answer.
 - **Should the typo candidate reach the message text?** Recorded as a Phase 4 *acceptance
   criterion*, not a preference, because suggestions do not render on the CLI.
