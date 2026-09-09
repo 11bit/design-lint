@@ -237,9 +237,11 @@ suggestions, now for a second reason.
 
 ### Consequences to design around
 
-- **~~The five off-the-shelf rules become a peer dependency.~~ Retired.** All nine rules
-  are ours, so there is no meta-package, no coupling to another package's rule names or
-  version range, and every diagnostic appears under our own namespace.
+- **No third-party rule package, no meta-package.** `oxlint` itself remains a peer
+  dependency; no *rule* package does. All nine rules are ours, so there is no
+  coupling to another package's rule names or version range, and every diagnostic appears
+  under our own namespace. The factory does not need `import.meta.resolve` to locate a
+  peer package — the one genuinely fiddly part of the Phase 0b packaging design is gone.
 - **New rules ship disabled.** Adding a rule to `recommended` breaks builds on
   `npm update`. New rules land off by default and join `recommended` only on a major.
 - **`componentsDirectory` cannot stay a filesystem convention.** It was the shadcn
@@ -268,15 +270,17 @@ suggestions, now for a second reason.
 
 ---
 
-## Rules we can migrate to off-the-shelf tooling
+## Rule requirements
 
-~~Five rules are covered by existing, maintained packages.~~ **Superseded.** All nine rules
-are authored in-house; see [No third-party rule packages](#no-third-party-rule-packages).
+All nine rules are ours. Nothing is delegated, audited, or configured through another
+package — see [No third-party rule packages](#no-third-party-rule-packages).
 
-What the earlier delegation plan established still has value, and is kept as requirements
-on our own implementations rather than as an audit checklist:
+### Behaviours carried forward
 
-| Rule | Requirement carried forward |
+The earlier delegation plan established these as acceptance criteria for third-party
+packages. They survive as requirements on our own implementations:
+
+| Rule | Requirement |
 | --- | --- |
 | `no-undefined-token` | Resolve candidates against the Tailwind v4 `@theme` design system, and put the typo candidate **in the message text** — suggestions do not render on the CLI. |
 | `no-spectral-color` | Per-pattern messages naming the semantic replacement. The `replacement` map is read from `options` at runtime; the build step that would have regenerated `.oxlintrc` from policy is gone. |
@@ -284,27 +288,32 @@ on our own implementations rather than as an audit checklist:
 | `no-dark-variant` | Handle stacked variants (`md:dark:`) via segment parsing. |
 | `no-raw-color` | Tailwind arbitrary values, while sparing `bg-[--my-var]`. |
 
-Phase 0 verified all of these behaviours *in `oxlint-tailwindcss`*, which no longer tells
-us they will work in our implementation — but it does tell us they are achievable, and it
-leaves a working reference to compare against. Its verification of the **JS plugin API**
-is unaffected and remains the basis for the whole approach.
+Phase 0 verified all of these *in `oxlint-tailwindcss`*. That no longer tells us they will
+work in our implementation, but it does tell us they are achievable, and it leaves a
+working reference to compare against. Phase 0's verification of the **JS plugin API** is
+unaffected and remains the basis for the whole approach.
 
----
+### Rules that never had an equivalent
 
-## Rules with no off-the-shelf equivalent
+Recorded so nobody re-opens the search:
 
-**Five** rules must be written as a local Oxlint JS plugin. Four are JSX-shaped, which is
-why they benefit most from the move to a real AST; the fifth was added by decision B4.
+- **`no-style-color`** — banning the `style` prop wholesale is possible
+  (`react/forbid-dom-props`); banning *specific CSS properties inside* the object is not
+  available anywhere.
+- **`no-useless-hover`** — no published equivalent.
+  `jsx-a11y/no-noninteractive-element-interactions` is adjacent but solves an
+  accessibility problem, not a hover-affordance one.
+- **`no-component-color-override`** —
+  [`eslint-plugin-primer-react`'s `no-system-props`](https://github.com/primer/eslint-plugin-primer-react/blob/main/docs/rules/no-system-props.md)
+  is the closest published cousin, but it is Primer-specific.
+- **`token-constraints`** — prefix-scoped allow lists are more expressive than a flat deny
+  list. Approximable with negative-lookahead regexes, but unmaintainable as config.
+- **Raw colours in SVG attributes and string constants** (**B4**) — A7's broad sweep does
+  not cover it: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a
+  class. Needs a rule asking *"is this string a raw colour?"* — `<circle fill="#ff0000" />`,
+  `const SERIES = ["#ff0000"]`. Owned by `no-raw-color`.
 
-| # | Rule | Why nothing covers it |
-| --- | --- | --- |
-| 1 | `no-style-color` | Banning the `style` prop wholesale is possible (`react/forbid-dom-props`). Banning *specific CSS properties inside* the style object is not available anywhere. |
-| 10 | `no-useless-hover` | No published equivalent found. `jsx-a11y/no-noninteractive-element-interactions` is adjacent but solves an accessibility problem, not a hover-affordance one. |
-| 11 | `no-component-color-override` | [`eslint-plugin-primer-react`'s `no-system-props`](https://github.com/primer/eslint-plugin-primer-react/blob/main/docs/rules/no-system-props.md) is the closest published cousin, but it is Primer-specific. The generic form — discover components from a directory, flag color classes passed to them — does not exist as a package. |
-| 5 | `token-constraints` | Prefix-scoped allow lists (`text-` may only use `*content*`/`*foreground*`) are more expressive than a flat deny list. Approximable with negative-lookahead regexes, but unreadable and unmaintainable as config. |
-| 2* | raw colours in SVG attributes and string constants | Added by **B4**. A7's broad sweep does not cover it: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Needs a rule asking *"is this string a raw colour?"* — `<circle fill="#ff0000" />`, `const SERIES = ["#ff0000"]`. Owned by `no-raw-color`, which with the CSS surface deferred is now entirely a JS/TS rule and misnamed. |
-
-### Design constraints for these five
+### Design constraints for all nine
 
 - **All external data arrives via rule `options`** — token sets, component sources, the
   replacement map. Discovery (filesystem reads, Tailwind resolution) happens **once at
@@ -527,7 +536,7 @@ None is `agreed` — each carries open questions that block it.
 | Do rules apply to `.css`? | The four token rules, `no-raw-color` | Bound to the `@apply` regression above. |
 | Are Storybook files excluded? | Several | Currently excluded wholesale by `isStorybookFile`. Intent or convenience, still unknown. |
 | Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | `no-raw-color`, `no-dark-variant` | Same family as the `.dark &` / `prefers-color-scheme` question. |
-| Does `cva()` fall inside each rule's scope? | `token-constraints`, `no-component-color-override`, the token rules | Forced by Phase 0: the off-the-shelf half already fires there. |
+| Does `cva()` fall inside each rule's scope? | `token-constraints`, `no-component-color-override`, the token rules | Settled in the contract pass. |
 
 **Exit:** nine contracts reviewed and agreed.
 
@@ -580,7 +589,7 @@ Three items it carried are not lost:
 
 - **The behavioural requirements** it would have audited for are now requirements on our
   own implementations, listed under
-  [Rules formerly delegated](#rules-we-can-migrate-to-off-the-shelf-tooling).
+  [Behaviours carried forward](#behaviours-carried-forward).
 - **`no-undefined-token`'s acceptance criterion** — the typo candidate must reach the
   message text, since suggestions do not render on the CLI — moves into that rule's
   contract as an ordinary promise.
@@ -671,7 +680,7 @@ only makes sense as a comparison, it does not survive the move.
 | `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
 | The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
 | The options-replace-not-merge footgun, and the `jsPlugins` / factory config shape | `README.md` |
-| Index of the nine rules with their dispositions, and *why* each is custom or off-the-shelf | `docs/rules/README.md` |
+| Index of the nine rules, with what each covers and how they divide the surface | `docs/rules/README.md` |
 | Any coverage gap accepted rather than closed — including the `.ts` object-literal question if it resolves that way | The affected contracts, as **Declared blind spots** |
 
 Written this way, `README.md` and `docs/rules/README.md` are permanent

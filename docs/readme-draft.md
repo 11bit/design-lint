@@ -13,7 +13,9 @@ Lint rules that keep colour in a Tailwind v4 codebase inside your design system.
 
 Nine rules that catch raw colour values, palette classes used in place of semantic tokens,
 inline colour that escapes theming, and colour classes forced onto design-system
-components. Runs on [Oxlint](https://oxc.rs) or ESLint, from one install.
+components. Every rule is written and maintained here — no third-party rule packages, so
+every diagnostic appears under one namespace. Runs on [Oxlint](https://oxc.rs) or ESLint,
+from one install.
 
 ```
 src/components/Badge.tsx:14:22
@@ -26,7 +28,8 @@ src/components/Card.tsx:8:16
 ## Requirements
 
 - Tailwind CSS **v4** — rules resolve against your `@theme` block, not a JS config
-- React / JSX (`.tsx`)
+- `.js`, `.jsx`, `.ts`, `.tsx`. Four of the nine rules are JSX-specific and need React or
+  another JSX framework; the other five work on any JavaScript or TypeScript
 - **`oxlint` >= 1.55.0** — JS plugins reached alpha there. Declared as a peer dependency.
 - **Node >= 22.18, or >= 24** — required to execute an `oxlint.config.ts`. If you are on
   an older Node, use the `.oxlintrc.json` form below instead, which has no such
@@ -76,7 +79,7 @@ point, and pulls in its own dependencies — you do not configure them.
 
 | Rule | Catches |
 | --- | --- |
-| `no-raw-color` | `#f00`, `rgb(…)`, `oklch(…)`, named colours in CSS and in `bg-[#ff0000]` |
+| `no-raw-color` | `#f00`, `rgb(…)`, `oklch(…)` in `bg-[#ff0000]`, SVG attributes, and string constants |
 | `no-spectral-color` | `bg-red-500`, `text-blue-200` — palette classes where a token belongs |
 | `no-style-color` | `style={{ color }}` and every other colour property in a `style` prop |
 | `no-opacity-modifier` | `bg-primary/50` — use a token with the opacity baked in |
@@ -158,10 +161,21 @@ export default defineConfig({
 > loudly when required options are missing, which catches most cases — but severity-only
 > overrides are the one shape that can slip through.
 
-## The CSS half
+## What is not covered yet
 
-`@apply` directives and raw colours in `.css` files are checked by Stylelint, because
-Oxlint does not lint CSS. **[TBD — pending the `@apply` decision.]**
+**Stylesheets are not linted.** The rules cover `.js`, `.jsx`, `.ts` and `.tsx` only, so
+raw colours in `.css` files, `@apply` directives, `.dark &` selectors and
+`@media (prefers-color-scheme: dark)` blocks pass without comment.
+
+This is deferred, not a blind spot — planned work, not a decision to ignore it. Each
+affected contract carries a `Deferred: CSS surface` section describing what it will cover
+when CSS lands.
+
+Your token stylesheets are still **read** — that is where the token vocabulary and the
+Tailwind design system come from. Being read is not the same as being linted.
+
+The one place the boundary runs through a single rule: `bg-[light-dark(…)]` is a class
+string in a `.tsx` file and *is* checked; `light-dark()` in a CSS declaration is not.
 
 ## Using ESLint instead
 
@@ -193,28 +207,24 @@ on the terminal.
 
 ## Decisions this draft is blocked on
 
-Writing this surfaced five, in rough order of how visible they are to a user:
+Writing this surfaced four, in rough order of how visible they are to a user:
 
 1. **The rule namespace.** Every diagnostic and every disable comment contains it. Drafted
    as `design/`; alternatives `design-lint/`, `ds/`. It is public API — changing it later
    breaks every suppression comment in every consuming project.
 2. **The package name.** `@evil-martians/design-lint` is a placeholder.
-3. **`@apply` and the CSS half.** The whole section is a stub until that verdict lands. It
-   is also the only part of the setup that would need a *second* config file, which is a
-   real ergonomic cost worth weighing in the decision.
-4. **Editor support.** Named as unverified rather than promised. If it does not work, the
+3. **Editor support.** Named as unverified rather than promised. If it does not work, the
    pitch changes materially — CLI-only linting is a much weaker product.
-5. **How policy reaches rules.** This draft assumes an auto-discovered
+4. **How policy reaches rules.** This draft assumes an auto-discovered
    `design-lint.config.json`, keeping the designer-editable property the proof of concept
    has. The alternative — policy as arguments to the factory in `oxlint.config.ts` — is
    fewer moving parts but puts design decisions in a TypeScript file. Recommend the JSON.
 
 Two things the draft deliberately does *not* do, both worth confirming:
 
-- It never mentions `oxlint-tailwindcss`, even though five of the nine rules come from it.
-  A user should not need to know which rules are ours. The cost is that diagnostics from
-  those five appear under *its* rule ids, not `design/` — which will confuse anyone who
-  reads this table and then reads their terminal. That gap needs closing, either by
-  documenting the mapping or by accepting the leak.
+- It does not name any dependency beyond `oxlint` itself. Nothing to explain: every rule
+  reports under `design/`, so the rules table and the terminal now agree. This was a
+  documented leak while five rules came from `oxlint-tailwindcss`; owning all nine closed
+  it.
 - It does not explain the token system, only how to lint against one. That seems right,
   but it means the package assumes a reader who already has semantic tokens.
