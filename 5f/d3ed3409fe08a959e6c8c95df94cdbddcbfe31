@@ -1,0 +1,54 @@
+test/harness/options.js
+  s_5c54fd76d4025e::t_13fc248018e225 50-76,80-87
+  s_5c54fd76d4025e::t_1d0c107e58525e 96-101
+  s_5c54fd76d4025e::t_9398d67ae35e68 49
+docs/rules/token-constraints.md
+  s_5c54fd76d4025e::t_dc6f8f358d98e9 254-261,263-265
+  s_5c54fd76d4025e::t_d942487fc8c372 203-205
+  s_5c54fd76d4025e::t_5f206312e3337b 4
+  s_5c54fd76d4025e::t_db2d7fa9292ad2 262
+  s_5c54fd76d4025e::t_82bf59650be615 454-456,459-465,471
+  s_5c54fd76d4025e::t_0d9fe038731e9e 197-202,206
+  s_5c54fd76d4025e::t_f072b1276014c2 1027-1033
+  s_5c54fd76d4025e::t_c11ab7536a317d 1072
+  s_5c54fd76d4025e::t_57c7c34a6af73c 991,995-1000
+  s_5c54fd76d4025e::t_ae391c6ca6cf05 268-269
+  s_5c54fd76d4025e::t_e946dcd0ac5d8f 1091
+  s_5c54fd76d4025e::t_3a4fb55cc3065d 47
+  s_5c54fd76d4025e::t_6e8906db9c0a5a 44-46
+  s_5c54fd76d4025e::t_3459a055d0c9f9 1001
+src/rules/token-constraints.js
+  s_5c54fd76d4025e::t_9170c9192b429e 304-305
+  s_5c54fd76d4025e::t_164b9a6f056a43 1-5,7,10-30,32-33,46-59,62,66-89,91,96-99,101-102,104,110,113-116,121-126,130-131,133-134,137-274,276-303,306,322-374,376,378-380,382-392,398-413,415-427
+  s_5c54fd76d4025e::t_b6a50e82766516 414
+  s_5c54fd76d4025e::t_a092bc1b0915eb 105-109,111-112
+  s_5c54fd76d4025e::t_91841aa0a4d3ed 275
+  s_5c54fd76d4025e::t_fd8c79e1ced87e 307-321
+  s_5c54fd76d4025e::t_bc9db1ebbd39ae 393-397
+  s_5c54fd76d4025e::t_215d137fbf6842 34-45
+  s_5c54fd76d4025e::t_1bb2b96f809502 60-61,90,92,95
+  s_5c54fd76d4025e::t_26c624b9574932 93-94
+  s_5c54fd76d4025e::t_7350b3adfe6ae6 103
+  s_5c54fd76d4025e::t_bc9e59b3b0ebaa 117-120,127-129,132
+  s_5c54fd76d4025e::t_9c4481baf2c511 375,377,381
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_ee62f8e018d2df 63-93
+test/harness/baseline.json
+  s_5c54fd76d4025e::t_e33f9a068c7ac6 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "5fd3ed3409fe08a959e6c8c95df94cdbddcbfe31",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
