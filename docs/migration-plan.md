@@ -638,26 +638,60 @@ executed — the size of the CSS deferral, visible rather than forgotten.
   obvious way of switching test behaviour around a `run()` call. Documented in
   [`test/harness/README.md`](../test/harness/README.md) so it is not rediscovered.
 
-### Phase 3 — Build the class-string extractor
+### Phase 3 — Build the class-string extractor ✅ DONE
 
 *One component, its own test suite, tested independently of any rule.*
 
 Four rules share one hard problem: **given a JSX element, which class strings can reach
-it?** Every gap listed above is an extraction gap, not a rule-logic gap. The current code
-solves this three separate times — brace-scanning in `no-component-color-override`, tag
+it?** Every gap in the proof of concept is an extraction gap, not a rule-logic gap. It
+solved this three separate times — brace-scanning in `no-component-color-override`, tag
 extraction in `no-useless-hover`, line-wise literal scanning in `shared.js` — which is
-exactly why coverage differs between rules.
+exactly why coverage differed between rules.
 
-Solve it once against the AST and the rules become thin predicates over a
-trustworthy input.
+Solved once against the AST, the rules become thin predicates over a trustworthy input.
 
-**Phase 0b must have landed first.** The extractor is where an app-embedded assumption
-would get baked in hardest: it takes paths and policy as arguments, derives nothing from
-its own location, and touches the filesystem never. Building it before the config channel
-is known risks an interface that only works in one repo.
+**Two extractors, not one** (decision A7), because the rule families ask different questions
+and want opposite failure modes:
 
-**Exit:** extractor passes the extraction-shaped subset of the Phase 2 corpus, and its
-public interface names every input it needs rather than discovering any.
+| | Broad sweep | Precise walk |
+| --- | --- | --- |
+| For | the six token rules | the three JSX rules |
+| Sees | every string literal and every static template segment, context-free | the `className` of one element |
+| Follows | nothing — it does not parse the wrapper | composition helpers to any depth, conditionals, logical operators, arrays, object keys |
+| Refuses | nothing | identifiers, member expressions, `+`, unknown calls (a runtime `.join()` included), spreads |
+| Cost | strings that are not classes arrive too | a class the walk cannot attribute is invisible to it |
+
+Both emit the same type, and it is the type that carries the phase's one real design
+decision: a **class source** keeps the holes. `` `bg-${tone}-500` `` is neither a class name
+nor nothing — it is the prefix `bg-` against an interpolation, which decision A7b makes a
+violation — so extraction hands the rules the interpolation along with the text, and
+`/policy`'s tokenizer turns that into a token that knows whether a hole falls between its
+neighbours or inside itself. Every rule needs that distinction and none of them has to
+derive it.
+
+`/policy` also gained **variant parsing**, the other piece four rules would otherwise each
+get slightly wrong: segments split on top-level colons only, so `bg-[image:var(--x)]`
+survives; `!` in either position and a bracket-aware `/opacity` split; and family membership
+(decision A3), where `"hover:"` governs `group-hover`, `peer-hover` and `has-hover`, but not
+`[@media(hover:hover)]` or `not-hover`.
+
+**Exit met.** 392 extraction assertions, of which 317 are the extraction-shaped subset of
+the Phase 2 corpus: for every case the seven class-based rules promise to catch, at least
+one class token reaches the extractor. A promise whose string never arrives would be a hole
+in the extractor rather than in the rule, and this is where it would show — before any rule
+exists to be blamed. The public interface names every input it needs: helper names arrive as
+an option, and nothing reads a file, resolves a path, or derives anything from its own
+location.
+
+**What `/policy` still owes**, both blocked on the same missing piece rather than on design:
+
+- **Colour-prefix derivation** from the resolved Tailwind design system, which needs
+  `tailwindcss` and the consumer's stylesheet — neither of which exists in this repo.
+- **Token-set resolution** from `tokenFiles`. Phase 2 already found the interface
+  requirement: `/policy` must accept a **resolved token set**, not only a list of paths, or
+  the corpus cannot express a case that varies it.
+
+Both land in Phase 5 step 1, before any rule that depends on them.
 
 ### Phase 4 — ~~Audit the off-the-shelf rules~~ Retired
 
@@ -694,15 +728,20 @@ defines "done" is already written and already failing.
    appear in the editor. Suggestions are invisible on the CLI, so if the editor path is
    broken they are invisible everywhere — and step 4 below is built on them. Do this
    before writing rule code, not after.
-1. Port the 72 surviving PoC tests into the contracts, as ordinary tagged blocks the
+1. Finish `/policy`: colour-prefix derivation from the resolved Tailwind design system, and
+   token-set resolution from `tokenFiles`. Both need the application repo's stylesheet, and
+   both are inputs to rules rather than rules, so they come before rule code. `/policy` must
+   accept an already-resolved token set as well as paths — the corpus needs it, and a rule
+   that can only be handed a filename is a rule that cannot be tested.
+2. Port the 72 surviving PoC tests into the contracts, as ordinary tagged blocks the
    Phase 2 harness already runs. Anything they assert that a contract does not is either a
    gap in the contract or behaviour the contracts deliberately changed — decide per case,
    do not port on autopilot. The `RuleTester` configuration and the ESLint-first rule are
    settled in [Phase 2](#phase-2--build-the-evasion-corpus); the port is not
    find-and-replace over the existing `describe` / `it` nesting, so budget for
    restructuring.
-2. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
-3. Implement in risk order. The three formerly-delegated token rules are small and share
+3. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
+4. Implement in risk order. The three formerly-delegated token rules are small and share
    `/policy`, so they come early and de-risk the shared machinery before the intricate
    ones land on top of it:
 
@@ -710,21 +749,21 @@ defines "done" is already written and already failing.
    `no-spectral-color` → `no-undefined-token` (design-system resolution) →
    `no-raw-color` (JS/TS surface only) → `token-constraints` (most configurable) →
    `no-useless-hover` → `no-component-color-override` (import resolution).
-4. Wire the spectral→semantic replacement map from `colors.json` into
+5. Wire the spectral→semantic replacement map from `colors.json` into
    `context.report({ suggest })` — **and into the message text via `data`**. Suggestions
    do not render on the CLI, so a suggestion-only hint is strictly worse than today's
    console output. The upgrade is the editor quick-fix on top of the message, not instead
    of it. The map is a rule option read at load — `no-spectral-color` is ours, so there is
    no generated-config step and no question of whether it survives.
-5. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
+6. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
    from today's `colors.json` contents, and the versioning policy that new rules ship
    disabled and join `recommended` only on a major. No lint dependencies — `oxlint` is the
    only peer.
-6. Adopt it in one real application via `npm install` — not a path reference — and
+7. Adopt it in one real application via `npm install` — not a path reference — and
    confirm green. Installing it the way a consumer would is the only test that the
    packaging works; a `file:` link would hide exactly the resolution problems Phase 0b
    exists to find.
-7. Removal of the old system happens in Phase 6, not here — keep `lint-color/` on disk
+8. Removal of the old system happens in Phase 6, not here — keep `lint-color/` on disk
    until the new rules have run against a real codebase at least once.
 
 No parallel-run period is needed — nothing depends on the old output.
