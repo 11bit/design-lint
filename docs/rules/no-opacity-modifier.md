@@ -1,7 +1,7 @@
 ---
 rule: no-opacity-modifier
 legacy-id: 3
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -41,9 +41,18 @@ the strings are simply there.
 
 Two gates keep that breadth quiet, and both come from `/policy` rather than from where the
 string was found. The class must sit under a **derived** colour prefix, and its body must
-actually name a colour — which is what stops `text-sm/6` being reported. Variants are
-stripped **by segment**, with bracket depth respected, so `[@media(hover:hover)]:` is one
-segment and `bg-[image:var(--x)]` is never split at its inner colon.
+not be something the design system resolves to a **non**-colour — which is what stops
+`text-sm/6` being reported. Variants are stripped **by segment**, with bracket depth
+respected, so `[@media(hover:hover)]:` is one segment and `bg-[image:var(--x)]` is never
+split at its inner colon.
+
+The second gate is a double negative on purpose, because "not a colour" answers two
+different questions at once. `text-sm` resolves to a `font-size`: it is a different utility
+that happens to share a prefix, and it is excluded. `border-input`, in a project whose
+stylesheet never defined `--color-input`, resolves to *nothing*: it is a colour class whose
+token is missing, which is `no-undefined-token`'s subject and not a licence to fade it at
+the call site. `bg-nonesuch/50` is wrong twice over and reports from both rules — see
+[Relationship to other rules](#relationship-to-other-rules).
 
 Stylesheets are not on this surface. `@apply bg-primary/50` is the same violation as
 `className="bg-primary/50"` and will be caught when the CSS surface lands; today it is
@@ -60,19 +69,28 @@ unenforced. See [Deferred: CSS surface](#deferred-css-surface).
 
 <div className="ring-primary/10" />
 
-<div className="from-primary/40 to-accent/0" />
-
 <div className="divide-border/30" />
 
 <div className="placeholder-muted/60" />
 
 <div className="shadow-primary/25" />
 
-<svg><path className="fill-primary/50 stroke-primary/50" /></svg>
-
-<div className="outline-ring/50 decoration-link/40 caret-primary/80 accent-primary/70" />
-
 <div className="inset-ring-primary/30" />
+```
+
+The remaining families are demonstrated two and four to a string, which is two and four
+reports — see [Every offending class reports separately](#every-offending-class-reports-separately).
+
+```tsx caught count=2
+<div className="from-primary/40 to-accent/0" />
+```
+
+```tsx caught count=2
+<svg><path className="fill-primary/50 stroke-primary/50" /></svg>
+```
+
+```tsx caught count=4
+<div className="outline-ring/50 decoration-link/40 caret-primary/80 accent-primary/70" />
 ```
 
 ### On spectral and arbitrary colours
@@ -112,6 +130,31 @@ see [Configuration](#configuration).
 <div className="bg-primary/100" />
 ```
 
+`allowFullOpacity` turns that off, and it turns off a **value** rather than a spelling:
+`/100`, `/[100%]` and `/[1]` are one no-op alpha written three ways. Every other modifier
+still reports, which is the point of having the option at all rather than a blanket
+exemption.
+
+```json options=baseline
+{}
+```
+
+```json options=allow-full-opacity
+{ "allowFullOpacity": true }
+```
+
+```tsx allowed options=allow-full-opacity
+<div className="bg-primary/100" />
+
+<div className="bg-primary/[100%]" />
+
+<div className="bg-primary/[1]" />
+```
+
+```tsx caught options=allow-full-opacity
+<div className="bg-primary/50" />
+```
+
 ### With variants and important
 
 Variants are stripped by segment before the modifier is located, so position in the chain
@@ -143,7 +186,7 @@ const overlay = cva("fixed", {
 });
 ```
 
-```tsx caught
+```tsx caught count=2
 const scrimClass = { light: "bg-white/60", dark: "bg-black/60" };
 ```
 
@@ -224,15 +267,19 @@ colour in it at all.
 Prefix matching alone cannot separate these, which is why the verdict comes from resolving
 the class through the Tailwind design system in `/policy`: `text-sm` generates a `font-size`
 declaration, `text-primary` generates a `color` declaration, and only the second is this
-rule's business. The same derivation supplies the prefix set itself, which is how
-`inset-ring-`, `text-shadow-` and every per-side border family arrive without anyone
-maintaining a list.
+rule's business. A class that generates *neither* — a token nobody defined — is not
+excluded; see [Promises to catch](#promises-to-catch). The same derivation supplies the
+prefix set itself, which is how `inset-ring-`, `text-shadow-` and every per-side border
+family arrive without anyone maintaining a list.
 
-Where the resolver is unavailable, `/policy` falls back to prefix matching plus a deny list
-of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths). The fallback is strictly
-worse and is documented as such: it is a degraded mode, not the design. `text-` is where the
-difference shows first, so it is the case Phase 4 must probe before accepting any run in
-which the design system failed to build.
+A fallback for the case where the resolver is unavailable — prefix matching plus a deny list
+of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths) — was described here as a
+degraded mode. It is **not built**, in `/policy` or anywhere else, and the rule does not
+pretend otherwise: without a resolved design system it throws. A rule that fell back to
+prefix matching would report `text-sm/6`, which is precisely the false positive this contract
+exists to remove, and one that reported nothing would be indistinguishable from a clean
+codebase. `text-` is still where the difference would show first, so it is the case that must
+be probed if the degraded mode is ever built.
 
 ```tsx allowed
 <div className="text-sm/6 text-lg/7 text-base/loose" />
@@ -399,23 +446,39 @@ consuming project overrides in its own config — none is a fact baked into the 
 
 | Option | `recommended` | Overriding it |
 | --- | --- | --- |
-| `allowFullOpacity` | `false` | `true` stops reporting `/100` and `/[100%]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
+| `allowFullOpacity` | `false` | `true` stops reporting a full-opacity modifier however it is spelled — `/100`, `/[100%]`, `/[1]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
 | `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
 | `tokenFiles` | `["src/styles.css"]` | The files the colour test and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
-| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
+| `ignoreGlobs` | `[]` — **not implemented** | The rule accepts the key and throws on a non-empty value. See below. |
 
 ### Distribution
 
 - **The rule reads no files and derives no path from its own location.** `tokenFiles`,
-  `colorPrefixes` and `ignoreGlobs` arrive through `options`; the design system is built once
-  at plugin-module load from a path the consumer supplied, never inside `create()`.
-- **`tokenFiles` is what makes the exact colour test available** rather than the deny-list
-  fallback, so a consumer that omits it does not get a quieter rule — it gets a worse one.
-  The path arrives through `options`, not through `settings`, which is why nothing here
-  depends on `settings` being inherited through `extends`.
+  `colorPrefixes` and `allowFullOpacity` arrive through `options`; the design system is built
+  once at plugin-module load from a path the consumer supplied, never inside `create()`.
+- **The design system itself cannot arrive through `options`.** Oxlint sends rule options to
+  a JS plugin as a JSON string, so a `Set` arrives as `{}` and a method arrives not at all —
+  and `RuleTester` serializes a test case's options the same way. The resolved policy view
+  therefore reaches the rule the only way a live object can: bound by the module that built
+  it, around the rule's `create`. `test/harness/options.js` is the corpus's stand-in for that
+  binding. It is not this rule's decision to make alone and it is not this rule's alone to
+  live with — five contracts name a resolved input.
+- **`tokenFiles` is what makes the colour test available at all**, so a consumer that omits
+  it does not get a quieter rule — it gets a rule that throws. There is no deny-list fallback
+  in `/policy` today; the degraded mode this contract describes is unbuilt, and silence would
+  be indistinguishable from a clean codebase. The path arrives through `options`, not through
+  `settings`, which is why nothing here depends on `settings` being inherited through
+  `extends`.
+- **File exclusion has no mechanism yet.** `ignoreGlobs` is one of three spellings of one
+  policy across the nine contracts, and `docs/evasion-matrix.md` recommends replacing all
+  three with a preset-level `overrides` glob — pending a spike that has not happened. Matching
+  `**/*.stories.@(ts|tsx)` would also need a glob matcher this package does not depend on. So
+  the rule accepts the key and throws on a non-empty value rather than accepting a
+  configuration it would silently ignore. Exclude stories with `overrides` until that decision
+  lands.
 - **Rule options replace, they do not merge.** A consumer writing
   `"…/no-opacity-modifier": "error"` to bump a severity wipes the preset's options,
-  including `tokenFiles` — so the rule falls back to the deny list. To change severity
+  including `tokenFiles` — so the rule throws rather than falling quiet. To change severity
   alone, restate the options.
 
 ## Deltas from the current implementation

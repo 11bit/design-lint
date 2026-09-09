@@ -3,7 +3,7 @@
   "pending": {
     "no-component-color-override": 68,
     "no-dark-variant": 31,
-    "no-opacity-modifier": 38,
+    "no-opacity-modifier": 0,
     "no-raw-color": 45,
     "no-spectral-color": 53,
     "no-style-color": 0,

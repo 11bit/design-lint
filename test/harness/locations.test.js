@@ -37,6 +37,28 @@ import { optionsFor, ruleFor } from "./options.js";
  * would silently be 0-based.
  */
 export const FIXTURES = {
+  "no-opacity-modifier": [
+    {
+      name: "each offending class, at the class and not at the string that holds it",
+      code: [
+        'const overlay = cva("fixed inset-0", {',
+        '  variants: { tone: { dim: "bg-black/50", dimmer: "bg-black/70" } },',
+        "});",
+        "<div",
+        '  className={cn("rounded-md bg-primary/50 text-foreground/75", className)}',
+        "/>;",
+        '<svg><path className="fill-primary/50 stroke-primary/50" /></svg>;',
+      ].join("\n"),
+      errors: [
+        { messageId: "opacityModifierOnColor", line: 2, column: 29, endLine: 2, endColumn: 40 },
+        { messageId: "opacityModifierOnColor", line: 2, column: 52, endLine: 2, endColumn: 63 },
+        { messageId: "opacityModifierOnColor", line: 5, column: 29, endLine: 5, endColumn: 42 },
+        { messageId: "opacityModifierOnColor", line: 5, column: 43, endLine: 5, endColumn: 61 },
+        { messageId: "opacityModifierOnColor", line: 7, column: 23, endLine: 7, endColumn: 38 },
+        { messageId: "opacityModifierOnColor", line: 7, column: 39, endLine: 7, endColumn: 56 },
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",
