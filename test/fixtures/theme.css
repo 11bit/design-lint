@@ -1,0 +1,18 @@
+/*
+ * The fixture design system the `/policy` tests resolve against.
+ *
+ * It is not a copy of any application's stylesheet, and it deliberately should not become
+ * one. Prefix derivation asks what Tailwind itself generates — `@import "tailwindcss"`
+ * answers that in full — and the `@theme` block below exists only to give the token-facing
+ * tests a small, stable set of semantic names to resolve against. A real project's
+ * stylesheet would be a *narrower* probe surface, not a better one: a project that trims
+ * the default palette trims what a probe can see.
+ */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: oklch(0.62 0.19 259);
+  --color-foreground: oklch(0.15 0 0);
+  --color-danger-muted: oklch(0.7 0.1 25);
+  --color-card: light-dark(white, black);
+}

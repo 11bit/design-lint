@@ -1,0 +1,184 @@
+/**
+ * The Tailwind design system, and the two questions rules ask of it.
+ *
+ * Three rules need to know things that only Tailwind can answer — which utility prefixes
+ * carry a colour, whether a class generates any CSS at all, and whether a *particular*
+ * class sets a colour. The proof of concept answered the first with a hand-written
+ * seventeen-entry list and never asked the third, which is why `text-sm/6` and
+ * `inset-ring-primary` were wrong in opposite directions: one reported, one invisible.
+ *
+ * Everything here is **derived by probing the design system**. Nothing is a list someone
+ * has to remember to update when Tailwind adds a utility family.
+ *
+ * ## What this needs, and what it does not
+ *
+ * It needs `tailwindcss` and *a* stylesheet. It does not need the consuming project's
+ * stylesheet, and the difference decides where this module can be built and tested.
+ * Two separate facts decide whether a class carries colour:
+ *
+ * - **Which utilities exist, and what each generates.** `bg-*` sets `background-color`
+ *   and `text-<size>` sets `font-size` in every project there has ever been. This comes
+ *   from Tailwind core, and `@import "tailwindcss";` on its own loads all of it.
+ * - **Which token names resolve.** `bg-primary` is a project's own business, and that is
+ *   what the consumer's `tokenFiles` supply at load.
+ *
+ * Prefix derivation asks only the first. So it is probed against whatever design system
+ * was loaded, and the fixture in `test/fixtures/theme.css` is a *wider* probe surface than
+ * a real application stylesheet — a project that narrows the default palette narrows what
+ * a probe can see.
+ *
+ * The one genuinely project-specific input is a Tailwind plugin that introduces a new
+ * colour prefix, and that arrives through the `colorPrefixes` option, which *adds* to the
+ * derived set rather than replacing it.
+ */
+
+/**
+ * The colour whose presence in generated CSS marks a declaration as colour-carrying.
+ *
+ * Any token in the default palette would do. It is a probe, not a policy: it is used to
+ * ask "which utilities accept a colour here?", and the answer is a property of Tailwind
+ * rather than of this choice.
+ */
+const PROBE_TOKEN = "red-500";
+
+/** Tailwind's own namespace for theme colours. A value mentioning one names a colour. */
+const THEME_COLOR_VAR = /var\(\s*--color-[\w-]/;
+
+/**
+ * @typedef {{
+ *   colorPrefixes: Set<string>,
+ *   resolves: (className: string) => boolean,
+ *   isColorClass: (className: string) => boolean,
+ *   parseRoot: (className: string) => string | null,
+ * }} DesignSystemPolicy
+ */
+
+/**
+ * Collect the declarations a candidate generates, from **style rules only**.
+ *
+ * The at-rule carve-out is not tidiness. Tailwind emits `@property` blocks alongside the
+ * utilities that need them, and their descriptors include `syntax: "<color>"` — so a
+ * colour test that walked every node would find the word `color` under `from-50%`, a
+ * gradient *stop position* with no colour in it. Descriptors describe a custom property;
+ * they do not style anything.
+ *
+ * @param {unknown[]} nodes
+ * @param {{ property: string, value: string }[]} out
+ */
+function declarationsInRules(nodes, out) {
+  for (const node of nodes ?? []) {
+    if (node.kind === "declaration") out.push(node);
+    // Recurse through rules — nesting and `:where(...)` wrappers are ordinary — but never
+    // into at-rules, which is where `@property` descriptors live.
+    else if (node.kind === "rule") declarationsInRules(node.nodes, out);
+  }
+}
+
+/**
+ * Build the policy view of a loaded Tailwind design system.
+ *
+ * The design system arrives already loaded. This module resolves no path and reads no
+ * file: loading needs `tailwindcss`, a stylesheet and a filesystem, and every one of those
+ * is the caller's to supply — see `loadDesignSystem` in `./load.js`, which is the only
+ * place in the package that touches disk for this.
+ *
+ * @param {object} designSystem A resolved Tailwind design system.
+ * @param {{ extraPrefixes?: string[] }} [options]
+ * @returns {DesignSystemPolicy}
+ */
+export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
+  const parseRoot = (className) => {
+    const [candidate] = designSystem.parseCandidate(className) ?? [];
+    return candidate?.root ?? null;
+  };
+
+  /**
+   * Every utility root that accepts a colour.
+   *
+   * Derived by enumerating the class list and keeping the roots of every class the probe
+   * colour completes. This is where `inset-ring-`, `text-shadow-`, `mask-*-from-` and the
+   * per-side border families arrive without anyone maintaining a list — the whole reason
+   * the derivation exists.
+   */
+  const colorPrefixes = new Set(extraPrefixes);
+  for (const [className] of designSystem.getClassList()) {
+    if (!className.endsWith(`-${PROBE_TOKEN}`)) continue;
+    const root = parseRoot(className);
+    if (root) colorPrefixes.add(root);
+  }
+
+  const declarationsOf = (className) => {
+    const [ast] = designSystem.candidatesToAst([className]);
+    if (!ast) return null;
+    const declarations = [];
+    declarationsInRules(ast, declarations);
+    // Tailwind answers an unknown *value* under a known root — `ring-2/50`, `border-2/50` —
+    // with an empty node list rather than a null. Generating nothing and being unknown are
+    // the same fact to every rule that asks, so they are the same answer here.
+    return declarations.length > 0 ? declarations : null;
+  };
+
+  return {
+    colorPrefixes,
+    parseRoot,
+
+    /**
+     * Does this class generate CSS?
+     *
+     * `no-undefined-token`'s whole predicate. The caller strips variants, the important
+     * modifier and the opacity modifier first: those decide *when* a declaration applies,
+     * never *whether* one exists.
+     */
+    resolves(className) {
+      return declarationsOf(className) !== null;
+    },
+
+    /**
+     * Does this class set a colour?
+     *
+     * The second gate for `no-opacity-modifier`, and the answer to the near-miss that
+     * makes prefix matching alone unusable: `text-` is a colour prefix *and* a font-size
+     * prefix, so `text-sm/6` and `text-primary/50` are the same shape and opposite
+     * verdicts.
+     *
+     * The test is on the **value**, not the property. Property names do not partition:
+     * `fill` and `stroke` carry colours without saying so, while `--tw-shadow` carries
+     * `rgb(0 0 0 / 0.1)` as a *default* that no token was asked for — which is why
+     * `shadow-sm/50` resolves, contains a literal colour, and still is not a colour class.
+     * Its body is `sm`, and the contract's gate is that the body names a colour.
+     *
+     * So a class is colour-carrying when it either reaches into the theme's colour
+     * namespace, or names a colour outright in an arbitrary value.
+     */
+    isColorClass(className) {
+      const declarations = declarationsOf(className);
+      if (!declarations) return false;
+
+      // A theme colour, however deeply wrapped. `bg-primary/50` arrives as
+      // `color-mix(in oklab, var(--color-primary) 50%, transparent)`, and the reference
+      // survives every wrapper Tailwind puts around it.
+      if (declarations.some((d) => THEME_COLOR_VAR.test(d.value))) return true;
+
+      // An arbitrary value names its colour directly and never touches the namespace:
+      // `text-[#fff]` generates `color: #fff`. The root gate matters here — it is what
+      // keeps `bg-[image:var(--x)]`, whose type hint sends it to `background-image`, from
+      // being read as a colour just because `bg` can carry one.
+      const [candidate] = designSystem.parseCandidate(className) ?? [];
+      if (!candidate || candidate.value?.kind !== "arbitrary") return false;
+      if (!colorPrefixes.has(candidate.root)) return false;
+      return declarations.some((d) => isColorProperty(d.property));
+    },
+  };
+}
+
+/**
+ * Does this property hold a colour?
+ *
+ * Only reached for arbitrary values, where there is no theme reference to follow. The
+ * `-color` suffix covers `background-color`, `border-inline-color`, `--tw-ring-color` and
+ * every custom property Tailwind names that way; `fill` and `stroke` are the two SVG
+ * paint properties that carry a colour without saying so in their name.
+ */
+function isColorProperty(property) {
+  return property === "color" || property.endsWith("-color") || property === "fill" || property === "stroke";
+}

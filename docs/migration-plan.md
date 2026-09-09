@@ -442,8 +442,9 @@ Versions proved against: `oxlint` 1.81.0 · `oxlint-tailwindcss` 1.10.2 (since d
 | Inline disable directives | works, incl. `eslint-disable-next-line` |
 
 **Not verified, and deferred to Phase 5:** editor/LSP integration. It needs the
-application repo, which this repo is an extraction from. It is the only unverified
-assumption left on the critical path.
+application repo, which this repo is an extraction from. Phase 5 then
+[skipped it deliberately](#phase-5--write-the-nine-rules-wire-the-suggestions-cut-over),
+so it stays unverified through cutover; that step records what the decision costs.
 
 **Exit criterion met** for the API question. The fallback to ESLint v9 + `@eslint/css` is
 retired to a contingency.
@@ -683,13 +684,44 @@ exists to be blamed. The public interface names every input it needs: helper nam
 an option, and nothing reads a file, resolves a path, or derives anything from its own
 location.
 
-**What `/policy` still owes**, both blocked on the same missing piece rather than on design:
+**What `/policy` still owed** — both since delivered in
+[Phase 5 step 1](#phase-5--write-the-nine-rules-wire-the-suggestions-cut-over), neither
+blocked on design:
 
-- **Colour-prefix derivation** from the resolved Tailwind design system, which needs
-  `tailwindcss` and the consumer's stylesheet — neither of which exists in this repo.
+- **Colour-prefix derivation** from the resolved Tailwind design system.
 - **Token-set resolution** from `tokenFiles`. Phase 2 already found the interface
   requirement: `/policy` must accept a **resolved token set**, not only a list of paths, or
   the corpus cannot express a case that varies it.
+
+**What they need is `tailwindcss`, not the consumer's stylesheet.** An earlier revision said
+otherwise and it was wrong, in a way that would have stalled step 1 behind an unrelated
+dependency, so the reasoning is recorded rather than just the correction.
+
+Two separate things decide whether a class is colour-carrying, and only one of them is the
+consumer's:
+
+| What decides it | Where it comes from | Consumer-specific |
+| --- | --- | --- |
+| Which utilities exist, and what property each generates | Tailwind core, in the `tailwindcss` package | no |
+| Which token *names* resolve — `bg-primary`, `text-danger-muted` | the consumer's `@theme` | yes |
+
+Prefix derivation asks only the first question. `bg-*` generates `background-color` and
+`text-sm` generates `font-size` whatever project you are in; `@import "tailwindcss";` on its
+own loads the full default theme, which is a wider probe surface than a real stylesheet — a
+project that narrows its `@theme` narrows what a probe can see. The consumer's stylesheet
+supplies token *values*, which is a different question, asked by token-set resolution and
+answered per-project at load.
+
+The one genuinely consumer-specific input is a Tailwind **plugin** introducing new colour
+prefixes, and the design already cut that dependency: `colorPrefixes` is an option that
+*adds* to the derived set (`no-undefined-token`), so plugin prefixes arrive by config rather
+than by derivation.
+
+Note this is new work rather than a port. The proof of concept hardcoded a 17-entry
+`TAILWIND_COLOR_PREFIXES` list and used the design system only as a boolean
+"does this candidate resolve"; deriving the prefix set by probing is the thing that makes
+`inset-ring-`, `text-shadow-` and the per-side border families arrive without a maintained
+list.
 
 Both land in Phase 5 step 1, before any rule that depends on them.
 
@@ -723,16 +755,50 @@ Phase numbering is unchanged so that references elsewhere still resolve.
 By now this is mechanical; the thinking happened in Phases 1–3, and the corpus that
 defines "done" is already written and already failing.
 
-0. **Verify editor/LSP integration** (~1 hour, in the app repo). Carried over from
-   Phase 0, which could not run it. Confirm custom-rule diagnostics *and* suggestions
-   appear in the editor. Suggestions are invisible on the CLI, so if the editor path is
-   broken they are invisible everywhere — and step 4 below is built on them. Do this
-   before writing rule code, not after.
+0. ~~**Verify editor/LSP integration**~~ **Skipped — deliberate, owner's decision.**
+   Carried over from Phase 0, which could not run it; it stays unverified.
+
+   **What this costs.** It was the only unverified assumption left on the critical path,
+   and it is the one that decides whether suggestions are visible *anywhere*: they do not
+   render in CLI output, so if the editor path is broken they reach no one. Step 5 is
+   built on them.
+
+   **Why the cost is bearable.** Every design decision that depended on this was already
+   settled the pessimistic way, for independent reasons. Phase 0 found suggestions
+   invisible on the CLI and Phase 0b found `meta.docs.url` dead under Oxlint, and between
+   them they forced the same conclusion twice: **the message text is the only channel a
+   rule can rely on.** So step 5 requires the replacement hint in `data` *and* the
+   suggestion, never the suggestion alone, and no contract promises anything a plain CLI
+   run cannot deliver. If the editor path turns out to be broken, the rules are no worse
+   than the console output they replace — a quick-fix is lost, not a diagnostic.
+
+   **What replaces it.** Nothing, on the critical path. Verification moves to first
+   adoption (step 7), where the editor is exercised by whoever installs the package; a
+   broken path is then a bug against Oxlint's LSP, not a reason to have designed the
+   rules differently.
 1. Finish `/policy`: colour-prefix derivation from the resolved Tailwind design system, and
-   token-set resolution from `tokenFiles`. Both need the application repo's stylesheet, and
-   both are inputs to rules rather than rules, so they come before rule code. `/policy` must
-   accept an already-resolved token set as well as paths — the corpus needs it, and a rule
-   that can only be handed a filename is a rule that cannot be tested.
+   token-set resolution from `tokenFiles`. Both are inputs to rules rather than rules, so
+   they come before rule code. `/policy` must accept an already-resolved token set as well
+   as paths — the corpus needs it, and a rule that can only be handed a filename is a rule
+   that cannot be tested.
+
+   **Neither is gated on the application repo**, contrary to what earlier revisions of this
+   plan said. Both need *a* stylesheet, not *the* stylesheet, and the distinction is the
+   whole of the difference — see
+   [What `/policy` still owes](#phase-3--build-the-class-string-extractor--done).
+
+   ✅ **Both are built**, against the fixture design system in `test/fixtures/theme.css`.
+   `src/policy/design-system.js` derives the colour-prefix set by probing (**51 prefixes**
+   against the proof of concept's hand-written 17 — `inset-ring`, `text-shadow`,
+   `drop-shadow`, `inset-shadow`, every per-side border family and the `mask-*-from` /
+   `mask-*-to` families were all invisible to the old list) and answers the two per-class
+   questions, `resolves` and `isColorClass`. `src/policy/tokens.js` resolves a token set
+   from either stylesheet text or an already-resolved set. `src/policy/load.js` isolates the
+   one filesystem read. 25 assertions.
+
+   What is left of this step is wiring only — reading `tokenFiles` once at plugin-module
+   load and handing rules the result — which lands with the first rule that needs it rather
+   than before all of them.
 2. Port the 72 surviving PoC tests into the contracts, as ordinary tagged blocks the
    Phase 2 harness already runs. Anything they assert that a contract does not is either a
    gap in the contract or behaviour the contracts deliberately changed — decide per case,
