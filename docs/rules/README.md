@@ -52,6 +52,12 @@ commit as the code. Its corpus is already red on every promise the rule has yet 
   class splits into variants is `src/policy`. If a second rule needs a question answered,
   move the answer there rather than writing it twice — the proof of concept's coverage
   differed rule by rule for exactly this reason.
+- **Paths are resolved before a rule sees them.** A contract configures `tokenFiles` or
+  `entryPoint` because a path is what a consumer has, but a rule never reads one. The
+  plugin module resolves them once at load and hands rules the result under two keys:
+  `designSystem`, the policy view from `designSystemPolicy()`, and `tokens`, a `Set` of
+  semantic token names. Both arrive through `options` like any other input —
+  `test/harness/options.js` is the corpus's stand-in for that load step.
 - **`messageId` plus `data`, never an interpolated string.** The message text is the only
   channel a rule can rely on: suggestions do not render in CLI output and `meta.docs.url` is
   dead under Oxlint. Anything the reader needs — the offending property, the token to use

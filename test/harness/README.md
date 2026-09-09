@@ -88,11 +88,11 @@ have a fixture here**, and the fixture must be one a lazy rule could not satisfy
 expectation a full span, nothing on line 1, violations on more than one line. Both are
 tests, so neither is a convention anyone has to remember.
 
-## What the harness cannot do yet
+## Where the design system comes from
 
-A block can vary the rule's `options`, but not the **semantic token set** — that is derived
-by `/policy` from the stylesheets in `tokenFiles`, and `/policy` does not exist until Phase
-3. One block in `token-constraints` already needs it (`options=focus-policy` assumes a
-`primary-focus` token). So `/policy`'s public interface has to accept a resolved token set
-directly, not only a list of paths, or the corpus cannot express a case like that without a
-fixture stylesheet per variation.
+Five rules need a resolved design system or token set, and no rule may read a file to get
+one. `options.js` resolves both once from `test/fixtures/theme.css` — the most expensive
+thing the suite does — and hands them to rules under `designSystem` and `tokens`, the same
+two keys the plugin module fills in at load. A contract that needs to vary either per case
+does it in an `options=` fixture block, which is why `/policy` accepts an already-resolved
+token set and not only a list of paths.
