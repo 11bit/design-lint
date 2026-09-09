@@ -1,0 +1,30 @@
+test/rules/no-dark-variant.test.js
+  s_5c54fd76d4025e::t_11af93fd87e0a9 1-37
+docs/rules/no-dark-variant.md
+  s_5c54fd76d4025e::t_92399a6a796683 115-120,122
+  s_5c54fd76d4025e::t_b02d845cf4da27 4
+test/harness/baseline.json
+  s_5c54fd76d4025e::t_7053976b0d0739 5
+src/rules/no-dark-variant.js
+  s_5c54fd76d4025e::t_7542e9b342b215 123-139
+  s_5c54fd76d4025e::t_94c14a14bd5697 1-5,7,10-46,51-92,94-122,140-152,154-157,160-185,188-208
+  s_5c54fd76d4025e::t_42df6fdb867127 153,158-159
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_732c1ba0e68f1b 217-247
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "27e5223b15ba38cb2556d1d9ff7516383045936a",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
