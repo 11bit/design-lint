@@ -895,7 +895,7 @@ only makes sense as a comparison, it does not survive the move.
 | Operational constraints — JS/TS-only plugins, no type-awareness, mandatory `settings.tailwindcss.entryPoint`, suggestions invisible in CLI output | `README.md` |
 | Policy *values* are supplied by the consuming project; rule *semantics* live in contracts | `README.md` |
 | The mechanism-ships-policy-is-supplied principle, and the versioning policy | `CONTRIBUTING.md` |
-| Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` |
+| Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` — **written**, extend rather than rewrite |
 | `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
 | Why report locations are asserted outside the corpus, and the fixture every rule owes | `docs/rules/README.md` |
 | The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
