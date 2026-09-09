@@ -1,0 +1,45 @@
+docs/rules/no-spectral-color.md
+  s_7e8ab0bd95e6ad::t_4ba2bf02e9432a 53-55
+  s_7e8ab0bd95e6ad::t_b66160d1400d63 5,7
+  s_7e8ab0bd95e6ad::t_a9cf01a608b48a 357-392
+  s_7e8ab0bd95e6ad::t_2f2f74f58cbda9 433-445,447-452
+  s_7e8ab0bd95e6ad::t_891716f702cb51 416-418
+  s_7e8ab0bd95e6ad::t_0a5c3ae46eb0da 313-317
+  s_7e8ab0bd95e6ad::t_3f64d3132bc226 28-29,38-39
+docs/migration-plan.md
+  s_7e8ab0bd95e6ad::t_5ed6483766bf5e 571-594
+  s_7e8ab0bd95e6ad::t_3783ad4abf78ad 372-387
+  s_7e8ab0bd95e6ad::t_c122f157bec38b 596,615-623
+  s_7e8ab0bd95e6ad::t_8ff9f76c0f2444 129-133,240-242,305,328,703
+  s_7e8ab0bd95e6ad::t_f7ac83060cfc97 219,273-274,276-277,279-285,287-290
+  s_7e8ab0bd95e6ad::t_4c0b0af286d4fc 28,32-68,194-200
+  s_7e8ab0bd95e6ad::t_e8ff9c669cba20 101-103,403,491-493,495,628-629
+  s_7e8ab0bd95e6ad::t_cb8e9423175972 400-401,560,595
+docs/rules/token-constraints.md
+  s_7e8ab0bd95e6ad::t_98f5a8be4661bd 650-691
+  s_7e8ab0bd95e6ad::t_2613f6a871a116 7
+  s_7e8ab0bd95e6ad::t_2582453ca11a63 862-863,869-874
+  s_7e8ab0bd95e6ad::t_42ca86530daeda 889-893
+  s_7e8ab0bd95e6ad::t_bde7d0bc42f325 901-903
+  s_7e8ab0bd95e6ad::t_24e8d15e38399e 825-857
+  s_7e8ab0bd95e6ad::t_05b00b68ff8d80 458-460
+  s_7e8ab0bd95e6ad::t_afd5a18d0436a6 803-806
+  s_7e8ab0bd95e6ad::t_bf53c9d16a9f5d 427,429-430
+  s_7e8ab0bd95e6ad::t_c1304540de545f 734-739,749,751
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "44295f077d8c001e6159552090432612215fd2de",
+  "prompts": {},
+  "sessions": {
+    "s_7e8ab0bd95e6ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba6a48db-5481-4c8f-b9b0-3fdf59bad159",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
