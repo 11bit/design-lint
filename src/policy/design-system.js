@@ -44,9 +44,13 @@ const PROBE_TOKEN = "red-500";
 /** Tailwind's own namespace for theme colours. A value mentioning one names a colour. */
 const THEME_COLOR_VAR = /var\(\s*--color-[\w-]/;
 
+/** Tailwind's theme namespace for colours. Every colour a class can name lives under it. */
+const COLOR_NAMESPACE = "--color";
+
 /**
  * @typedef {{
  *   colorPrefixes: Set<string>,
+ *   colorNames: Set<string>,
  *   resolves: (className: string) => boolean,
  *   isColorClass: (className: string) => boolean,
  *   parseRoot: (className: string) => string | null,
@@ -107,6 +111,19 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
     if (root) colorPrefixes.add(root);
   }
 
+  /**
+   * Every colour name a class can carry: `red-500`, `white`, and the project's own
+   * `primary` alike.
+   *
+   * The theme's `--color` namespace is the only place the two are the same kind of thing,
+   * which is exactly what `no-spectral-color` needs — it asks whether the colour part of a
+   * class is a colour *the project did not define*, and subtracting the semantic token set
+   * from this leaves the palette. Note what is absent: `transparent`, `current` and
+   * `inherit` are keywords Tailwind handles itself rather than theme colours, so a rule
+   * that gates on this set gets them allowed for free.
+   */
+  const colorNames = new Set(designSystem.theme.namespace(COLOR_NAMESPACE).keys());
+
   const declarationsOf = (className) => {
     const [ast] = designSystem.candidatesToAst([className]);
     if (!ast) return null;
@@ -120,6 +137,7 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
 
   return {
     colorPrefixes,
+    colorNames,
     parseRoot,
 
     /**

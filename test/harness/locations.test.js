@@ -89,6 +89,51 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-spectral-color": [
+    {
+      name: "each class where it was written, not the string that carries it",
+      code: [
+        'const tone = "p-2";',
+        "const badge = {",
+        '  danger: "bg-red-500 text-white",',
+        '  info: "hover:border-x-slate-200",',
+        "};",
+        "<div className={`text-${kind}`} />;",
+      ].join("\n"),
+      errors: [
+        // Two classes in one string literal, and they are two spans. The rule that reported
+        // the literal would put both of these at column 11 and be none the wiser.
+        {
+          messageId: "spectralColorWithReplacement",
+          line: 3,
+          column: 12,
+          endLine: 3,
+          endColumn: 22,
+          // The span is also what the suggestion rewrites, so asserting it here is the only
+          // place that promise becomes an assertion — the corpus checks counts, not fixes.
+          suggestions: [
+            {
+              messageId: "useReplacement",
+              output: [
+                'const tone = "p-2";',
+                "const badge = {",
+                '  danger: "bg-danger text-white",',
+                '  info: "hover:border-x-slate-200",',
+                "};",
+                "<div className={`text-${kind}`} />;",
+              ].join("\n"),
+            },
+          ],
+        },
+        { messageId: "spectralColor", line: 3, column: 23, endLine: 3, endColumn: 33 },
+        // The variant is part of the class the author has to edit, so it is part of the span.
+        { messageId: "spectralColor", line: 4, column: 10, endLine: 4, endColumn: 34 },
+        // The dynamic case points at the prefix standing against the hole — the half of the
+        // class that is actually there.
+        { messageId: "dynamicColorClass", line: 6, column: 18, endLine: 6, endColumn: 23 },
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",

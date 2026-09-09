@@ -134,3 +134,31 @@ describe("isColorClass", () => {
     expect(policy.isColorClass("text-nonexistent")).toBe(false);
   });
 });
+
+describe("colorNames", () => {
+  it("holds the palette and the project's own tokens alike", () => {
+    // The point of the set: a rule subtracts the project's token names from it and what is
+    // left is the palette. Both halves have to be in it for that subtraction to mean
+    // anything.
+    for (const name of ["red-500", "slate-200", "blue-950", "black", "white"]) {
+      expect(policy.colorNames).toContain(name);
+    }
+    for (const name of ["primary", "foreground", "danger-muted", "card"]) {
+      expect(policy.colorNames).toContain(name);
+    }
+  });
+
+  it("omits the keyword colours, which are not theme colours", () => {
+    // `transparent`, `current` and `inherit` defer to the cascade rather than naming a
+    // colour of their own, and Tailwind handles them itself rather than through the theme.
+    for (const name of ["transparent", "current", "inherit"]) {
+      expect(policy.colorNames).not.toContain(name);
+    }
+  });
+
+  it("omits the sizes, widths and positions that share a colour prefix", () => {
+    for (const name of ["sm", "lg", "2", "50%", "cover", "none"]) {
+      expect(policy.colorNames).not.toContain(name);
+    }
+  });
+});

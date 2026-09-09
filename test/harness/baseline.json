@@ -5,7 +5,7 @@
     "no-dark-variant": 31,
     "no-opacity-modifier": 0,
     "no-raw-color": 45,
-    "no-spectral-color": 53,
+    "no-spectral-color": 0,
     "no-style-color": 0,
     "no-undefined-token": 26,
     "no-useless-hover": 34,

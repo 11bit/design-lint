@@ -1,21 +1,378 @@
+import { sweepVisitors } from "../extract/index.js";
+import { ignoredFile } from "../policy/ignore.js";
+import { classTokens } from "../policy/tokenize.js";
+import { parseClass, splitVariants, stripImportant } from "../policy/variants.js";
+
 /**
- * no-spectral-color — stub.
+ * no-spectral-color — Tailwind's built-in palette must not colour anything.
  *
  * The specification is `docs/rules/no-spectral-color.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object. A stub reports nothing,
- * so every `caught` case fails and every `allowed` and `blindspot` case passes: the
- * red baseline Phase 5 drives to zero.
+ * `blindspot` blocks the harness executes against this object.
+ *
+ * The rule is **context-free**: it asks "is this string a forbidden class?" and never needs
+ * to know which element the string reaches. So it runs over `sweepVisitors` — every string
+ * literal and every static template segment in the file — and a `cn()` argument, a `cva()`
+ * variant map and a `.ts` constants file are one string each, with no plumbing that has to
+ * know about any of them.
+ *
+ * ## What makes a class spectral
+ *
+ * Not a list of family names, and not a regular expression over `-\d+`. A class carries a
+ * colour when some suffix of it is a name in the theme's `--color` namespace and what
+ * stands in front of that name begins with a colour-carrying utility. Both of those come
+ * from probing the design system at load, so `inset-ring-`, `text-shadow-`, the per-side
+ * border families and every palette family Tailwind ships arrive without anyone maintaining
+ * a list.
+ *
+ * That colour is **spectral** when the project's own token file did not define it. The
+ * subtraction is the whole idea: the namespace holds `red-500` and `primary` as the same
+ * kind of thing, and the token set is exactly the half the project chose. It also settles
+ * three cases that would otherwise each need a rule of their own — `text-sm` and `border-2`
+ * are not colours at all, `transparent` and `current` are keywords Tailwind handles rather
+ * than theme colours, and `bg-brand` is a name this project defined, which is the declared
+ * blind spot.
+ *
+ * ## Prefix in, prefix out
+ *
+ * The prefix the message names is whatever the author wrote before the colour, so
+ * `divide-x-red-500` is answered with `divide-x-<token>` and not `divide-<token>` — the
+ * former is the text they have to edit. The gate only asks that this text *begin* with a
+ * declared colour prefix, which is why the class is caught at all: `divide-x-*` takes a
+ * width, so it generates nothing, and the contract still wants the evident attempt at a
+ * palette colour reported.
+ *
+ * ## The dynamic case, which this rule owns
+ *
+ * `` `bg-${tone}-500` `` is unknowable to every rule in the family, so giving all four the
+ * diagnostic would produce four reports of one defect with one fix. It reports here, and
+ * the message names the escape hatch — a lookup of complete class names, or a `--color-*`
+ * custom property — because it is the one diagnostic with no correct token to suggest.
+ *
+ * ## Everything arrives as data
+ *
+ * Oxlint puts rule options through `JSON.stringify`, in `RuleTester` and in a real run
+ * alike, so a rule can be handed the *answers* a design system gave at load but never the
+ * design system. This rule needs no live query to do its job — two lists and a token set
+ * are enough — which is why `designSystem` here is `{ colorPrefixes, colorNames }` rather
+ * than the policy view that produced them.
  */
 export default {
   meta: {
     type: "problem",
-    // Permissive while this is a stub: the corpus passes options through, and Oxlint
-    // rejects options for a rule with no schema. Phase 5 replaces it with a real one.
-    schema: [{ type: "object", additionalProperties: true }],
-    docs: { description: "See docs/rules/no-spectral-color.md" },
-    messages: {},
+    hasSuggestions: true,
+    docs: {
+      description: "Tailwind's built-in color palette must not be used to color anything.",
+    },
+    messages: {
+      spectralColorWithReplacement:
+        "{{className}} — spectral color class; use {{prefix}}-{{replacement}} instead",
+      spectralColor:
+        "{{className}} — spectral color class; use a semantic token from {{tokenFile}} instead of the {{family}} palette",
+      dynamicColorClass:
+        '{{prefix}}- is built from an interpolated value, so no rule can check which token it names. Map to complete class names instead — e.g. const CLASSES = { danger: "bg-danger" } — or use a --color-* custom property.',
+      useReplacement: "Replace {{className}} with {{prefix}}-{{replacement}}",
+    },
+    schema: [
+      {
+        type: "object",
+        properties: {
+          designSystem: {
+            type: "object",
+            properties: {
+              colorPrefixes: { type: "array", items: { type: "string" } },
+              colorNames: { type: "array", items: { type: "string" } },
+            },
+            additionalProperties: true,
+          },
+          tokens: { type: "array", items: { type: "string" } },
+          flagFixedColors: { type: "boolean" },
+          replacement: { type: "object" },
+          tokenFiles: { type: "array", items: { type: "string" } },
+          ignoreGlobs: { type: "array", items: { type: "string" } },
+        },
+        additionalProperties: false,
+      },
+    ],
+    defaultOptions: [
+      {
+        flagFixedColors: true,
+        replacement: recommendedReplacement(),
+        tokenFiles: ["src/styles.css"],
+        ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
+      },
+    ],
   },
-  create() {
-    return {};
+
+  create(context) {
+    const {
+      designSystem,
+      tokens,
+      flagFixedColors = true,
+      replacement = recommendedReplacement(),
+      tokenFiles = ["src/styles.css"],
+      ignoreGlobs = ["**/*.stories.@(ts|tsx)"],
+    } = context.options[0] ?? {};
+
+    // Silence is indistinguishable from a clean codebase, so a rule that cannot do its job
+    // says so rather than reporting nothing. These three are the load step's output, not a
+    // consumer's typing: their absence means the plugin was wired up wrong.
+    const colorPrefixes = required(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
+    const colorNames = required(designSystem?.colorNames, "designSystem.colorNames");
+    const semantic = required(tokens, "tokens");
+
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
+
+    const tokenFile = tokenFiles.join(", ") || "the token files";
+
+    return sweepVisitors((source) => {
+      const locate = locator(context, source.node);
+
+      for (const token of classTokens(source)) {
+        // Every token advances the cursor, reported or not, so a class written twice in one
+        // string is located twice rather than reported at its first occurrence both times.
+        const range = locate(token.dynamic ? token.head : token.text);
+        const at = range ? { loc: spanOf(context, range) } : { node: source.node };
+
+        if (token.dynamic) {
+          const prefix = danglingColorPrefix(token.head, colorPrefixes);
+          if (prefix) context.report({ ...at, messageId: "dynamicColorClass", data: { prefix } });
+          continue;
+        }
+
+        const found = spectralIn(token.text, colorPrefixes, colorNames, semantic, flagFixedColors);
+        if (!found) continue;
+
+        const { prefix, color, family, scale } = found;
+        const replacementToken = replacementFor(replacement, prefix, family, scale);
+        const data = { className: token.text, prefix, family, scale: scale ?? "" };
+
+        if (!replacementToken) {
+          context.report({ ...at, messageId: "spectralColor", data: { ...data, tokenFile } });
+          continue;
+        }
+
+        context.report({
+          ...at,
+          messageId: "spectralColorWithReplacement",
+          data: { ...data, replacement: replacementToken },
+          // A suggestion in addition to the message, never instead of it: suggestions do
+          // not render in any CLI output, so the token has to be in the text as well. It is
+          // offered only where the class was located in the source, because a fix that
+          // cannot point at the characters it replaces is not a fix.
+          suggest: range
+            ? [
+                {
+                  messageId: "useReplacement",
+                  data: { className: token.text, prefix, replacement: replacementToken },
+                  fix: (fixer) =>
+                    fixer.replaceTextRange(
+                      range,
+                      token.text.replace(`${prefix}-${color}`, `${prefix}-${replacementToken}`),
+                    ),
+                },
+              ]
+            : undefined,
+        });
+      }
+    });
   },
 };
+
+/**
+ * A required list of names, as a `Set`.
+ *
+ * Anything iterable is accepted so that a host able to hand the rule a live `Set` is not
+ * turned away, but nothing is defaulted: a missing one is a wiring mistake, and a rule that
+ * shrugged at it would report nothing and look like a clean codebase.
+ */
+function required(value, name) {
+  if (!value?.[Symbol.iterator]) {
+    throw new Error(
+      `no-spectral-color: the \`${name}\` option is required — the plugin module derives it from \`tokenFiles\` at load and hands it to the rule as a list of names.`,
+    );
+  }
+  return new Set(value);
+}
+
+/**
+ * The `recommended` preset's spectral→semantic map, in the shape
+ * `design-system/lint/colors.json` already stores it: keyed by utility prefix, then a list
+ * of `{ "<family>-<lo>...<hi>": "<token>" }` entries.
+ *
+ * The list-of-single-key-objects shape is not one anybody would choose from scratch — a
+ * single object per prefix would do — but it is the shape the policy file has, and the
+ * packaging step should be able to lift the map out of that file unchanged rather than
+ * transform it on the way through.
+ *
+ * Built fresh on each call rather than shared as a constant: `meta.defaultOptions` and the
+ * destructuring fallback both hand it out, and a mutable default two rule instances share
+ * is a bug waiting for someone to write it.
+ */
+function recommendedReplacement() {
+  return {
+    text: [
+      { "green-400...600": "success-content" },
+      { "emerald-400...600": "success-content" },
+      { "blue-400...600": "info-content" },
+      { "sky-400...600": "info-content" },
+      { "yellow-400...500": "warning-content" },
+      { "amber-400...500": "warning-content" },
+      { "orange-400...500": "warning-content" },
+      { "red-400...500": "danger-content" },
+      { "rose-400...500": "danger-content" },
+    ],
+    bg: [
+      { "green-100...200": "success-weak" },
+      { "green-400...600": "success" },
+      { "emerald-100...200": "success-weak" },
+      { "emerald-400...600": "success" },
+      { "blue-100...200": "info-weak" },
+      { "blue-400...600": "info" },
+      { "sky-100...200": "info-weak" },
+      { "sky-400...600": "info" },
+      { "yellow-100...200": "warning-weak" },
+      { "yellow-400...500": "warning" },
+      { "amber-100...200": "warning-weak" },
+      { "amber-400...500": "warning" },
+      { "orange-100...200": "warning-weak" },
+      { "orange-400...500": "warning" },
+      { "red-100...200": "danger-weak" },
+      { "red-400...500": "danger" },
+      { "rose-100...200": "danger-weak" },
+      { "rose-400...500": "danger" },
+    ],
+  };
+}
+
+/** A palette name and its scale step: `red-500`, `slate-200`, `blue-950`. */
+const PALETTE_STEP = /^(.+)-(\d+)$/;
+
+/**
+ * The spectral colour in a class, or `null`.
+ *
+ * @returns {{ prefix: string, color: string, family: string, scale: string | null } | null}
+ *   `prefix` is what the author wrote before the colour — `divide-x`, not `divide` — because
+ *   that is the text the message asks them to change. `scale` is `null` for a colour the
+ *   palette spells without one, which today means `black` and `white`.
+ */
+function spectralIn(className, colorPrefixes, colorNames, semantic, flagFixedColors) {
+  const { base } = parseClass(className);
+
+  // An arbitrary value is `no-raw-color`'s surface, and flagging it here would double-report
+  // one character span from two rules with two different fixes. The bracket is the whole
+  // test: variants have already been stripped, so a bracket left in the base is a value.
+  if (!base || base.includes("[")) return null;
+
+  const segments = base.split("-");
+
+  // Longest colour name first, so `border-t-red-500` is `red-500` under `border-t` rather
+  // than nothing at all. The split has to satisfy both halves at once — a name in the theme
+  // and a colour-carrying utility in front of it — which is why this is a scan and not a
+  // parse of a fixed prefix.
+  for (let k = 1; k < segments.length; k++) {
+    const color = segments.slice(k).join("-");
+    if (!colorNames.has(color)) continue;
+    const prefix = segments.slice(0, k).join("-");
+    if (!startsWithColorPrefix(prefix, colorPrefixes)) continue;
+
+    // A colour this project defined is a semantic token by construction, whatever it is
+    // spelled like. The palette is what Tailwind brings, not what the token file declares.
+    if (semantic.has(color)) return null;
+
+    const step = PALETTE_STEP.exec(color);
+    if (step) return { prefix, color, family: step[1], scale: step[2] };
+
+    // `black` and `white` are palette values with the scale left off, and the same
+    // violation — `text-white` on a themed surface is the case `*-content` tokens exist to
+    // solve. They are also the noisiest line in the rule, hence the switch.
+    return flagFixedColors ? { prefix, color, family: color, scale: null } : null;
+  }
+
+  return null;
+}
+
+/**
+ * Does this text begin with a declared colour-carrying utility?
+ *
+ * The match has to land on a segment boundary, or `bordering-red-500` would pass on the
+ * strength of `border`.
+ */
+function startsWithColorPrefix(prefix, colorPrefixes) {
+  for (const candidate of colorPrefixes) {
+    if (prefix === candidate || prefix.startsWith(`${candidate}-`)) return true;
+  }
+  return false;
+}
+
+/**
+ * The colour prefix standing immediately against an interpolation, or `null`.
+ *
+ * The gate is the prefix, not the backtick (decision **A7b**): `` `p-${size}` `` is ordinary
+ * code and `` `bg-${tone}` `` is the one hole the token system cannot tolerate. "Immediately"
+ * is meant literally — `` `bg-primary/${alpha}` `` is an opacity modifier against a hole and
+ * belongs to `no-opacity-modifier`, `` `dark:${utility}` `` to `no-dark-variant`.
+ */
+function danglingColorPrefix(head, colorPrefixes) {
+  const { base: decorated } = splitVariants(head);
+  const { base } = stripImportant(decorated);
+  if (!base.endsWith("-")) return null;
+  const prefix = base.slice(0, -1);
+  return colorPrefixes.has(prefix) ? prefix : null;
+}
+
+/**
+ * The semantic token the map names for this colour, or `null`.
+ *
+ * A key is `<family>-<step>` or `<family>-<lo>...<hi>`. A family with no entry — every
+ * neutral, and `black` and `white` — is still caught; it just reports under the message that
+ * names the token file instead of a token.
+ */
+function replacementFor(replacement, prefix, family, scale) {
+  if (scale === null) return null;
+  const entries = replacement?.[prefix];
+  if (!Array.isArray(entries)) return null;
+
+  const step = Number(scale);
+  for (const entry of entries) {
+    for (const [key, token] of Object.entries(entry)) {
+      const dash = key.indexOf("-");
+      if (dash === -1 || key.slice(0, dash) !== family) continue;
+      const range = key.slice(dash + 1);
+      const [low, high] = range.includes("...") ? range.split("...") : [range, range];
+      if (step >= Number(low) && step <= Number(high)) return token;
+    }
+  }
+  return null;
+}
+
+/**
+ * Find each class in the text the author actually wrote.
+ *
+ * A `ClassToken` carries the string it came from but not where in it the class sits, so a
+ * rule that reported the whole literal would point at `"bg-white text-black"` twice with the
+ * same span. The text is searched forward from the end of the previous token, which keeps a
+ * class written twice in one string from resolving to its first occurrence both times, and
+ * anything that cannot be found — an escape sequence, a template whose cooked text differs
+ * from its source — falls back to the node.
+ */
+function locator(context, node) {
+  const raw = context.sourceCode.getText(node);
+  const origin = node.range[0];
+  let cursor = 0;
+
+  return (text) => {
+    if (!text) return null;
+    const at = raw.indexOf(text, cursor);
+    if (at === -1) return null;
+    cursor = at + text.length;
+    return [origin + at, origin + at + text.length];
+  };
+}
+
+/** A source range as the report API wants it. */
+function spanOf(context, [start, end]) {
+  return {
+    start: context.sourceCode.getLocFromIndex(start),
+    end: context.sourceCode.getLocFromIndex(end),
+  };
+}

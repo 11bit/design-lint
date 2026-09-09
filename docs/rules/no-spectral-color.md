@@ -1,7 +1,7 @@
 ---
 rule: no-spectral-color
 legacy-id: 4
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -43,9 +43,13 @@ template literals are scanned for complete classes in their static text, and for
 prefix left dangling against an interpolation (see
 [Dynamically assembled class names](#dynamically-assembled-class-names)).
 
-Precision is not what keeps this quiet. The gate is a palette family name followed by a
-scale step under a colour-carrying prefix, and a random string cannot accidentally satisfy
-it. The accepted cost is the string that *is* a palette class but never reaches a
+Precision is not what keeps this quiet. The gate is a name in the theme's `--color`
+namespace, under a colour-carrying prefix, that the project's own token file did not define
+— and a random string cannot accidentally satisfy all three. Stating it as a *subtraction*
+rather than as a family-plus-scale pattern is what makes the allow list below fall out
+instead of being enumerated: `text-sm` and `border-2` are not colours at all, `transparent`
+and `current` are keywords Tailwind handles rather than theme colours, and `bg-brand` is a
+name this project defined. The accepted cost is the string that *is* a palette class but never reaches a
 `className` — a chart series colour, a prop on a non-DOM component. It reports anyway. Under
 `bias: false-positives` that is the deliberate trade, and `oxlint-disable` is the escape
 hatch.
@@ -72,10 +76,6 @@ scope; none is a lesser violation than `bg-`.
 
 <div className="inset-ring-emerald-500" />
 
-<svg><path className="fill-green-600 stroke-green-800" /></svg>
-
-<div className="from-blue-500 via-purple-500 to-pink-500" />
-
 <div className="divide-green-100" />
 
 <div className="placeholder-gray-400" />
@@ -95,19 +95,32 @@ scope; none is a lesser violation than `bg-`.
 <div className="text-shadow-sky-300" />
 ```
 
+The paint and gradient families come in sets, and each class in a set is its own violation
+with its own fix — the report is per class, not per attribute.
+
+```tsx caught count=2
+<svg><path className="fill-green-600 stroke-green-800" /></svg>
+```
+
+```tsx caught count=3
+<div className="from-blue-500 via-purple-500 to-pink-500" />
+```
+
 ### Every palette family
 
 All twenty-two built-in families, at every scale step (`50`, `100`–`900`, `950`). The
 neutrals are not an exception — `bg-gray-100` is the most common way this rule is violated
 and the least likely to be noticed in review.
 
-```tsx caught
+```tsx caught count=4
 <div className="bg-red-50 bg-orange-100 bg-amber-200 bg-yellow-300" />
 
 <div className="bg-lime-400 bg-green-500 bg-emerald-600 bg-teal-700" />
 
 <div className="bg-cyan-800 bg-sky-900 bg-blue-950 bg-indigo-500" />
+```
 
+```tsx caught count=5
 <div className="text-violet-500 text-purple-500 text-fuchsia-500 text-pink-500 text-rose-500" />
 
 <div className="border-slate-200 border-gray-200 border-zinc-200 border-neutral-200 border-stone-200" />
@@ -121,14 +134,22 @@ followed by a scale anywhere in the class, not parse a fixed prefix.
 ```tsx caught
 <div className="border-t-red-500" />
 
-<div className="border-x-slate-200 border-s-slate-200" />
-
 <div className="ring-offset-blue-200" />
 
 <div className="divide-x-red-500" />
 
 <div className="inset-ring-red-500" />
 ```
+
+```tsx caught count=2
+<div className="border-x-slate-200 border-s-slate-200" />
+```
+
+`divide-x-red-500` is the odd one, and deliberately so: Tailwind's `divide-x-*` takes a
+*width*, so the class generates no CSS at all and the colour never lands. It is reported
+here anyway, because what the author wrote is unmistakably an attempt at a palette colour
+and `bias: false-positives` decides the tie. The prefix in the message is `divide-x`, the
+text they have to edit, even though the utility Tailwind knows about is `divide`.
 
 ### Variants, important, and opacity
 
@@ -166,9 +187,11 @@ large count that is mostly image overlays, the answer is to turn that one option
 to weaken the rule — and to name the overlay colour as a token. See
 [Configuration](#configuration).
 
-```tsx caught
+```tsx caught count=2
 <div className="bg-white text-black" />
+```
 
+```tsx caught
 <div className="border-white/20" />
 ```
 
@@ -202,7 +225,7 @@ const button = cva("rounded", {
 });
 ```
 
-```tsx caught
+```tsx caught count=2
 const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 ```
 
@@ -503,10 +526,22 @@ policy file and keep in sync.
   `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered. The
   design system is built once at plugin-module load from the path the consumer supplied,
   never inside `create()`.
-- **Rule options replace, they do not merge.** A consumer writing
-  `"…/no-spectral-color": "error"` to bump a severity wipes the preset's options — including
-  the whole `replacement` map — and gets the bare `spectralColor` message everywhere. To
-  change severity alone, restate the options.
+- **Rule options are JSON, and only JSON.** Oxlint serialises them with `JSON.stringify` on
+  the way to a rule — in `RuleTester` and in a real run alike, and `meta.defaultOptions`
+  travels the same path — so a rule can be handed the *answers* the design system gave at
+  load but never the design system. This rule needs no live query to do its job, so its
+  `designSystem` option is two lists of names, `{ colorPrefixes, colorNames }`, both derived
+  by probing Tailwind at load, and `tokens` is a list rather than a `Set`. The corrected
+  claim matters beyond this rule: any contract whose predicate is a *function* of the design
+  system needs a channel other than `options`.
+- **A wiped option falls back to the recommended one, per key.** Oxlint merges
+  `meta.defaultOptions` into whatever the consumer supplied, key by key, so a consumer
+  writing `"…/no-spectral-color": "error"` to bump a severity keeps the whole `replacement`
+  map rather than losing it. What does *not* merge is a value: a consumer who supplies their
+  own `replacement` replaces the map outright instead of adding to it. (An earlier draft of
+  this section had the first half backwards — it predates
+  [the conventions](./README.md#writing-a-rule), which make `meta.defaultOptions` the place
+  the recommended policy lives for exactly this reason.)
 
 ## Deltas from the current implementation
 
@@ -538,6 +573,13 @@ it does affect the replacement hint, and it affects `no-opacity-modifier` and
 `no-undefined-token`, which gate on it. Under this contract the prefix set is derived from
 the Tailwind design system in `/policy` rather than hand-maintained, so the hint reconstructs
 the full prefix (`divide-x-`, `inset-ring-`) instead of guessing at it.
+
+`TAILWIND_SPECTRAL_COLORS` goes the same way, and further: there is no family list under
+this contract at all. The scan looks for a suffix of the class that is a name in the theme's
+`--color` namespace — which is `red-500` and `white` and the project's own `primary`, all
+the same kind of thing — and the palette is what remains once the project's token names are
+subtracted. A family Tailwind adds is covered on the day it ships, and a project that trims
+the default palette stops being told about the families it removed, both without an edit.
 
 The source comment claims returning a message "signals the orchestrator to stop checking
 this token further". It does not: `linter.js` runs every rule against every token and
