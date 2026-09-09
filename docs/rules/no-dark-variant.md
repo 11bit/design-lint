@@ -1,7 +1,7 @@
 ---
 rule: no-dark-variant
 legacy-id: 9
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -112,7 +112,14 @@ that disagrees; see [Configuration](#configuration).
 <div className="dark:hidden" />
 
 <img className="dark:block hidden" src="/logo-dark.svg" />
+```
 
+Two non-colour utilities in one string are two forks and two reports, on the same rule as
+[every other class](#every-offending-class-reports-separately) — the widest reading does not
+also mean the coarsest one. Nothing about `dark:shadow-none` is fixed by deleting
+`dark:border-0`.
+
+```tsx caught count=2
 <div className="dark:border-0 dark:shadow-none" />
 ```
 

@@ -214,6 +214,37 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-dark-variant": [
+    {
+      name: "each theme fork, at the class and not at the string or the element that carries it",
+      code: [
+        'const label = "Save";',
+        'const panel = cva("rounded-md", {',
+        '  variants: { tone: { night: "dark:bg-card dark:text-muted" } },',
+        "});",
+        '<div className={cn("p-2", "not-dark:border-border")} />;',
+        '<div className="bg-[light-dark(#000,#fff)]" />;',
+        "<div",
+        "  className={`md:dark:${utility}`}",
+        "/>;",
+      ].join("\n"),
+      errors: [
+        // Two forks in one `cva()` variant string, and they are two spans. A rule that
+        // reported the literal would put both at column 30 and be none the wiser.
+        { messageId: "darkVariant", line: 3, column: 31, endLine: 3, endColumn: 43 },
+        { messageId: "darkVariant", line: 3, column: 44, endLine: 3, endColumn: 59 },
+        // Through a `cn()` argument, and in the negated spelling the old regex missed: the
+        // span is the whole class the author has to edit, variant included.
+        { messageId: "darkVariant", line: 5, column: 28, endLine: 5, endColumn: 50 },
+        // `light-dark()` is a different message with a different fix, located at the class
+        // rather than at the call inside it — the call is not what gets deleted alone.
+        { messageId: "lightDarkFunction", line: 6, column: 17, endLine: 6, endColumn: 43 },
+        // The interpolated case points at the half of the class that was written down —
+        // inside the template, not at the attribute or the element spanning lines 7-9.
+        { messageId: "darkVariant", line: 8, column: 15, endLine: 8, endColumn: 23 },
+      ],
+    },
+  ],
 };
 
 RuleTester.describe = describe;

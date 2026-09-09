@@ -2,7 +2,7 @@
   "note": "Cases each rule must catch and does not yet. Phase 5 drives every number to zero, updating this file as it goes; a number that changes for any other reason means the corpus lost or gained cases, which should be deliberate.",
   "pending": {
     "no-component-color-override": 0,
-    "no-dark-variant": 31,
+    "no-dark-variant": 0,
     "no-opacity-modifier": 0,
     "no-raw-color": 45,
     "no-spectral-color": 0,
