@@ -1,0 +1,90 @@
+docs/rules/no-component-color-override.md
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 663,665
+  s_7e8ab0bd95e6ad::t_83a4ad44e732d8 7
+docs/rules/no-useless-hover.md
+  s_7e8ab0bd95e6ad::t_83a4ad44e732d8 7
+docs/migration-plan.md
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 285,305,379,403,527,529,591,622
+  s_7e8ab0bd95e6ad::t_9ca40172b3e55b 421,631-633
+docs/open-questions.md
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 247,264,288,325,351,367,411-412,429
+docs/rules/no-undefined-token.md
+  s_7e8ab0bd95e6ad::t_952e1a54f94436 5,7
+  s_7e8ab0bd95e6ad::t_5ba1a6b9239bd9 412
+  s_7e8ab0bd95e6ad::t_f312872a5da569 39-40
+  s_7e8ab0bd95e6ad::t_71b62f359a35c4 315-347
+  s_7e8ab0bd95e6ad::t_f9302e7b3da2d6 66-68
+  s_7e8ab0bd95e6ad::t_9bd031adfc0d3b 254-255
+  s_7e8ab0bd95e6ad::t_43ab904a8825b8 397-398,400-403
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 200,363
+  s_7e8ab0bd95e6ad::t_c584e3f04bd6f6 426-431
+  s_7e8ab0bd95e6ad::t_a221851436197b 460
+  s_7e8ab0bd95e6ad::t_dd8a2c0569fb9f 53-55
+docs/rules/token-constraints.md
+  s_7e8ab0bd95e6ad::t_3d010dfccd6ca8 952-954
+  s_7e8ab0bd95e6ad::t_4f6df997a177a5 187-195,198
+  s_7e8ab0bd95e6ad::t_581c09cebde01d 239-240
+  s_7e8ab0bd95e6ad::t_57eb193c1d9540 983
+  s_7e8ab0bd95e6ad::t_699bc609fe0bef 998
+  s_7e8ab0bd95e6ad::t_83a4ad44e732d8 7,861
+  s_7e8ab0bd95e6ad::t_e96d9d83c91ffb 843-852
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 889
+docs/rules/no-dark-variant.md
+  s_7e8ab0bd95e6ad::t_b650a91ac5f892 152,156-160,164-165
+  s_7e8ab0bd95e6ad::t_7ac1d2fc5a396c 439-440,443-445
+  s_7e8ab0bd95e6ad::t_d2a6e213564e41 289-367
+  s_7e8ab0bd95e6ad::t_fc6009e693469f 462-464
+  s_7e8ab0bd95e6ad::t_302c51344e3a0e 425-426
+  s_7e8ab0bd95e6ad::t_f3193693b4f252 35-36,40-41
+  s_7e8ab0bd95e6ad::t_a25d376a319aeb 467
+  s_7e8ab0bd95e6ad::t_914e7ed3cae982 56-61
+  s_7e8ab0bd95e6ad::t_01eca29e22be1f 379,381-382
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 176-177,378
+  s_7e8ab0bd95e6ad::t_b7e2fbda2c0afb 30-31
+  s_7e8ab0bd95e6ad::t_617192c30bdf4f 5,7
+  s_7e8ab0bd95e6ad::t_faf38a0ec9d980 400-402
+  s_7e8ab0bd95e6ad::t_a45fb79d77e515 279-282
+  s_7e8ab0bd95e6ad::t_78023b8b3a9740 235-239
+docs/rules/no-style-color.md
+  s_7e8ab0bd95e6ad::t_83a4ad44e732d8 7
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 245-246
+docs/readme-draft.md
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 79
+docs/rules/no-spectral-color.md
+  s_7e8ab0bd95e6ad::t_1b3d7db7cd2e17 371-372
+  s_7e8ab0bd95e6ad::t_734b320a99b412 470,473-476,481-483
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 278,400
+  s_7e8ab0bd95e6ad::t_31cdacd13d546b 511
+  s_7e8ab0bd95e6ad::t_892c377ce75b77 505
+docs/rules/no-opacity-modifier.md
+  s_7e8ab0bd95e6ad::t_829aa388612482 210-213
+  s_7e8ab0bd95e6ad::t_171b82fb28b1dc 5,7
+  s_7e8ab0bd95e6ad::t_08ca8c2a6aba2c 251-255
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 339,346
+  s_7e8ab0bd95e6ad::t_a2985de2a1ef9d 48-50
+  s_7e8ab0bd95e6ad::t_a0c1179d9a8cb3 380
+  s_7e8ab0bd95e6ad::t_50ebfb27fa5a95 388-391,394
+  s_7e8ab0bd95e6ad::t_d9490cd18789df 37-38
+  s_7e8ab0bd95e6ad::t_0ca56f48fb7b98 273
+  s_7e8ab0bd95e6ad::t_37f4750c79bb59 26-27
+  s_7e8ab0bd95e6ad::t_a0daf50af56eab 301-338,340
+  s_7e8ab0bd95e6ad::t_3615cb48ddb6dd 419
+docs/rules/no-raw-color.md
+  s_7e8ab0bd95e6ad::t_0e621cd7e5d1f5 2,5,7,10,17-20,23-27,29,31-33,37-62,66-67,74,87,89-91,94-98,101-103,109-121,126-127,129-130,132-133,135,137-140,142,144-147,149,151-153,155-158,160,162-166,168,189-192,216,220-222,238-240,242-261,263,265-273,280-281,284-285,287,289-291,293,297-300,303-309,325-326,328,332,334,336,338,340,343,354,356,359-362,364,369-370,372,374,376,379,381-383,385-387,389-390,403-404,407,418,420-421,423-424,426,428-430,432-434,447-448,463-466,472-473,476-480,485-486,496-497,505-629,635,637-639,643-645,653-654,665-668,670-673,677,679,685-690,710-730,737-741,745-752,754-755,759,763-764,772-804,810-812,814,828-831,835-848,851-875
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "fd7ca09449b61e504279d535576355e6ef84b976",
+  "prompts": {},
+  "sessions": {
+    "s_7e8ab0bd95e6ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba6a48db-5481-4c8f-b9b0-3fdf59bad159",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
