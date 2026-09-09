@@ -134,6 +134,34 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-useless-hover": [
+    {
+      name: "the offending class, at the class and not at the element that carries it",
+      code: [
+        'const label = "Save";',
+        '<div className="rounded-md hover:bg-primary" />;',
+        '<button className="hover:bg-primary">',
+        '  <span className="hover:underline">{label}</span>',
+        "</button>;",
+        '<li className={cn("p-2", "not-hover:text-muted")} />;',
+        '<svg><path className="fill-primary [&:hover]:fill-link" /></svg>;',
+        '<tr className="hover:bg-muted" />;',
+      ].join("\n"),
+      errors: [
+        // The span is the class, not the string that holds it: `rounded-md` shares the
+        // literal and is nobody's business here.
+        { messageId: "hoverOnNonInteractive", line: 2, column: 28, endLine: 2, endColumn: 44 },
+        // Lines 3-5 are the two silences that matter most, asserted by their absence: the
+        // `<button>` is interactive by tag, and the `<span>` inside it is exempt because the
+        // pointer is over the button too.
+        { messageId: "hoverOnNonInteractive", line: 6, column: 27, endLine: 6, endColumn: 47 },
+        // Through a `cn()` argument and in the arbitrary spelling, each still located in the
+        // source text the author wrote rather than at the attribute.
+        { messageId: "hoverOnNonInteractive", line: 7, column: 36, endLine: 7, endColumn: 55 },
+        // Line 8 is silent too — `tr` is on the `recommended` preset's `interactiveElements`.
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",

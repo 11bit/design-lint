@@ -1,7 +1,7 @@
 ---
 rule: no-useless-hover
 legacy-id: 10
-status: agreed
+status: implemented
 disposition: custom
 bias: false-negatives
 files: ["*.tsx", "*.jsx"]
@@ -349,6 +349,34 @@ affordance, and this rule is about broken affordances.
     <em className="hover:underline">Save</em>
   </span>
 </button>
+```
+
+"Interactive" here is the **negation of the predicate that decides whether to report**, not
+a second list. An element is reported only where non-interactivity can be *proved* — a tag
+on the closed list, no handler, no interactive attribute, no polymorphism, no spread — so an
+ancestor exempts its descendants whenever that proof fails for it. One predicate, read in
+both directions, which is what keeps the two halves from drifting apart.
+
+The consequence worth stating out loud is that an ancestor whose interactivity is *unknown*
+exempts too: a capitalized component, a tag outside the closed list, an element carrying a
+spread. That is the same answer the rule already gives when such an element carries the
+`hover:` class itself — the [capitalized-component blind spot](#capitalized-components) and
+the [spread blind spot](#interactivity-arriving-through-spread-props) — and giving a
+different answer one level up would mean claiming `<Card>` is non-interactive in exactly the
+position where the contract has already said it cannot know.
+
+```tsx allowed
+<Card>
+  <span className="hover:underline">Save</span>
+</Card>
+
+<div {...props}>
+  <span className="hover:underline">Save</span>
+</div>
+
+<form>
+  <p className="hover:text-primary" />
+</form>
 ```
 
 The exemption is **lexical and stops at the component boundary**, which leaves one known

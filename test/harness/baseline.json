@@ -8,7 +8,7 @@
     "no-spectral-color": 0,
     "no-style-color": 0,
     "no-undefined-token": 26,
-    "no-useless-hover": 34,
+    "no-useless-hover": 0,
     "token-constraints": 0
   }
 }
