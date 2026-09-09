@@ -1,0 +1,21 @@
+docs/poc-test-audit.md
+  s_a8f8f42ea80943::t_53cafc7be82e22 1-119
+docs/migration-plan.md
+  s_a8f8f42ea80943::t_89a107c76d7f4f 414-417,804-819
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "d951b7f7db4cc16576fc5361a91b948a27b604fe",
+  "prompts": {},
+  "sessions": {
+    "s_a8f8f42ea80943": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11cead9a-3b29-44b2-8b38-e16e5c0de531",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
