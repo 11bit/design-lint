@@ -841,6 +841,24 @@ defines "done" is already written and already failing.
    `endColumn`), no violation on line 1, and violations on more than one line. Step 4 adds
    one fixture per rule as that rule lands.
 3. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
+
+   ✅ **Verified end-to-end under the CLI**, which nothing before this had been: the rules
+   were only ever proven under `RuleTester`. A scratch consumer project with
+   `jsPlugins: ["./plugin.js"]` and a plugin module that resolves the design system at load
+   and binds it produced, from `oxlint` itself:
+
+   ```
+   src/App.tsx:3:19: error design(no-style-color): color in style= — inline color bypasses …
+   src/App.tsx:4:51: error design(no-useless-hover): hover:text-primary on non-interactive <span> …
+   src/App.tsx:4:35: error design(no-opacity-modifier): text-primary/50 — opacity modifier on a color class …
+   src/App.tsx:4:24: error design(no-spectral-color): bg-red-500 — spectral color class; use bg-danger instead
+   ```
+
+   Four things that were assumptions are now facts: a JS plugin loads under `jsPlugins` with
+   our rule shape; **binding survives the real runner**, so the resolved design system reaches
+   a rule the CLI never serialises; columns are per class token, not per string literal; and
+   the replacement token arrives **in the message text**, which is what step 5 depends on and
+   the only channel Phase 0 and 0b left open.
 4. Implement in risk order. The three formerly-delegated token rules are small and share
    `/policy`, so they come early and de-risk the shared machinery before the intricate
    ones land on top of it:
