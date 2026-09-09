@@ -1,0 +1,40 @@
+test/harness/options.js
+  s_5c54fd76d4025e::t_a78295a6c66486 4,8,30-37,64-77,81-89
+  s_5c54fd76d4025e::t_8fd26b8599db45 90
+vitest.config.js
+  s_5c54fd76d4025e::t_f41724fbb8ffd2 1-10
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_a78295a6c66486 5,73
+src/plugin.js
+  s_5c54fd76d4025e::t_af1dac244e8173 1-46
+test/harness/corpus.test.js
+  s_5c54fd76d4025e::t_a78295a6c66486 5,42
+.claude/worktrees/agent-a6a2e5d0efc202cd7
+  s_5c54fd76d4025e::t_f066d883c8808f 1
+.claude/worktrees/agent-a909a228179904e04
+  s_5c54fd76d4025e::t_e9fcfa0abdcd38 1
+.claude/worktrees/agent-a9225c6269c874e6c
+  s_5c54fd76d4025e::t_0b1f0080095c68 1
+.claude/worktrees/agent-ab9b659c0bfc9be19
+  s_5c54fd76d4025e::t_18fa0198624583 1
+.claude/worktrees/agent-ad6a5339c1b852c40
+  s_5c54fd76d4025e::t_b16e867e79972b 1
+.claude/worktrees/agent-af2a0414c00237e9c
+  s_5c54fd76d4025e::t_32f23a9c8630b1 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "d96cb0c075ce217b7fcf68dcf98f314445512f77",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
