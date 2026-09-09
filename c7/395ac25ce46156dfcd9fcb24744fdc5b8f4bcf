@@ -1,0 +1,47 @@
+docs/rules/no-spectral-color.md
+  s_c7afd02668d88a::t_810604c50b0ccd 209-230
+docs/rules/no-opacity-modifier.md
+  s_c7afd02668d88a::t_810604c50b0ccd 156-177
+  s_c7afd02668d88a::t_b77a4aa04dbf29 309-310
+docs/rules/no-style-color.md
+  s_c7afd02668d88a::t_74186462c97bc1 140
+  s_c7afd02668d88a::t_a6550ec94f1f65 117-120,141-151
+  s_c7afd02668d88a::t_ed366917c70b46 152
+docs/evasion-matrix.md
+  s_c7afd02668d88a::t_be7195e1e61b96 1-110,116-155
+  s_c7afd02668d88a::t_b9a6be07299b5e 111-115
+docs/rules/no-useless-hover.md
+  s_c7afd02668d88a::t_7d7d212676bb34 507-522,528
+  s_c7afd02668d88a::t_2c0c5339829c60 205-209
+  s_c7afd02668d88a::t_3b6cb5bb716c4c 523-527
+docs/rules/no-raw-color.md
+  s_c7afd02668d88a::t_810604c50b0ccd 247-268
+docs/rules/token-constraints.md
+  s_c7afd02668d88a::t_7d7d212676bb34 501-512
+docs/rules/no-dark-variant.md
+  s_c7afd02668d88a::t_810604c50b0ccd 141-162
+  s_c7afd02668d88a::t_b77a4aa04dbf29 286-287
+docs/rules/no-component-color-override.md
+  s_c7afd02668d88a::t_7d7d212676bb34 257-275
+docs/rules/no-undefined-token.md
+  s_c7afd02668d88a::t_b77a4aa04dbf29 293-294
+  s_c7afd02668d88a::t_810604c50b0ccd 147-168
+docs/migration-plan.md
+  s_c7afd02668d88a::t_e2114aba382fb5 559-563,755-756
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "c7395ac25ce46156dfcd9fcb24744fdc5b8f4bcf",
+  "prompts": {},
+  "sessions": {
+    "s_c7afd02668d88a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5eda914-da2d-47e5-9713-9a4edc52ca7b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
