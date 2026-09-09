@@ -27,7 +27,10 @@ src/components/Card.tsx:8:16
 
 - Tailwind CSS **v4** — rules resolve against your `@theme` block, not a JS config
 - React / JSX (`.tsx`)
-- Node 20+
+- **`oxlint` >= 1.55.0** — JS plugins reached alpha there. Declared as a peer dependency.
+- **Node >= 22.18, or >= 24** — required to execute an `oxlint.config.ts`. If you are on
+  an older Node, use the `.oxlintrc.json` form below instead, which has no such
+  requirement.
 
 ## Install
 
@@ -178,8 +181,13 @@ that, so on Oxlint the message text carries everything you need.
 
 ## Editor support
 
-**[TBD — unverified.]** Diagnostics and quick-fixes in the editor depend on Oxlint's
-language server picking up JS plugin rules. Not yet confirmed.
+Oxlint's language server has run JS plugin rules since **1.44.0**, so diagnostics appear
+in the editor alongside built-in ones. **[TBD — capability confirmed from the changelog,
+but not yet exercised end-to-end with this package's rules.]**
+
+Quick-fix suggestions are editor-only: they never appear in CLI output. Every suggestion
+this package offers also states its replacement in the message text, so nothing is lost
+on the terminal.
 
 ---
 

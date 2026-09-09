@@ -68,9 +68,29 @@ rather than by reading a path.
   Stylelint is in the design.
 - **No TypeScript type-awareness** in Oxlint plugins yet. None of our nine rules need it —
   all are syntactic.
-- **JS plugins are alpha** (March 2026) and not semver-stable. Mitigated by the
-  ESLint-compatible rule shape. Phase 0 found the API materially ESLint-shaped in
-  practice: every verified name behaved as the ESLint docs for that name predict.
+- **JS plugins are alpha** and not semver-stable. Mitigated by the ESLint-compatible rule
+  shape. Phase 0 found the API materially ESLint-shaped in practice: every verified name
+  behaved as the ESLint docs for that name predict.
+- **Version floors**, established from the Oxlint changelog rather than assumed:
+
+  | Version | Date | What landed |
+  | --- | --- | --- |
+  | 1.17.0 | 2025-09-23 | `--experimental-js-plugins` renamed `--js-plugins` |
+  | 1.19.0 | 2025-09-29 | JS plugin config moved to the **`jsPlugins`** key |
+  | 1.24.0 | 2025-10-22 | fixed: JS plugin resolution failing when `extends` is used |
+  | **1.44.0** | 2026-02-10 | **LSP runs JS plugins** — before this the language server ignored them (1.21.0 made that explicit) |
+  | 1.52.0 | 2026-03-09 | `oxlint.config.ts` documented |
+  | **1.55.0** | 2026-03-12 | **JS plugins promoted to alpha** |
+
+  **Declare `oxlint >= 1.55.0` as the peer dependency floor.** It is the first release
+  carrying all of the above, and the point the feature was declared fit for real projects.
+  Latest at time of writing is 1.82.0; Phase 0 and 0b verified against 1.81.0.
+- **`oxlint.config.ts` requires Node >= 22.18 or >= 24** — it executes TypeScript
+  directly. The `.oxlintrc.json` path has no such requirement, which is a real reason to
+  keep documenting it as a fallback rather than dropping it.
+- **`oxlint.config.ts` is *not* marked experimental** in current documentation, contrary
+  to what Phase 0b reported. Only `jsPlugins` carries the alpha caveat. The stacked
+  "experimental on alpha" risk recorded earlier is therefore a single risk, not two.
 - **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss` since its
   v1.0.0 — entry-point auto-detection was removed. `colorTokenFiles[0]` in `colors.json`
   already holds `src/styles.css` and can feed both this setting and Stylelint's
@@ -430,11 +450,15 @@ symlink install breaks the factory's `import.meta.resolve`, because the package 
 resolves through a real path with no `node_modules`. A local-development caveat only;
 registry installs are unaffected. Phase 5 must adopt via a real install, not a link.
 
-**Open risks carried forward:** editor/LSP remains unverified and now blocks two things —
-suggestions from Phase 0, and `meta.docs.url` here; pnpm and Yarn PnP untested, with the
-JSON `./node_modules/…` extends path the fragile one; `oxlint.config.ts` is self-described
-as experimental, so the recommended path rests on an experimental feature of an alpha API;
-and nothing validates `settings`, so a typo there fails silently.
+**Open risks carried forward:** editor/LSP not yet exercised with this package's rules —
+though the changelog shows the language server has run JS plugins since 1.44.0, so this is
+now "unconfirmed" rather than "unknown"; pnpm and Yarn PnP untested, with the JSON
+`./node_modules/…` extends path the fragile one; and nothing validates `settings`, so a
+typo there fails silently.
+
+Two risks recorded here have since been **retired**: `oxlint.config.ts` is not marked
+experimental in current documentation, and LSP support for JS plugins is not missing but
+shipped. Both came from reading the changelog rather than the spike.
 
 ### Phase 1 — Write the nine contracts
 
