@@ -16,6 +16,10 @@
  * A rule reads both from `context.options[0]` and stays a pure function of its options,
  * which is the whole point: binding is one step in one place, not a second channel every
  * rule has to know about.
+ *
+ * Bound values are defaults, not overrides — anything the caller supplied for the same key
+ * wins. That is what lets a contract vary a token set per case with a plain JSON list while
+ * every other case runs against the resolved one.
  */
 
 /**
@@ -38,7 +42,7 @@ export function bindResolved(rule, resolved) {
         new Proxy(context, {
           get: (target, key) =>
             key === "options"
-              ? [{ ...(target.options[0] ?? {}), ...resolved }]
+              ? [{ ...resolved, ...(target.options[0] ?? {}) }]
               : Reflect.get(target, key),
         }),
       ),
