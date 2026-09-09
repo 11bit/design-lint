@@ -1,7 +1,7 @@
 ---
 rule: no-undefined-token
 legacy-id: 12
-status: agreed
+status: implemented
 disposition: custom
 bias: false-negatives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -128,6 +128,12 @@ const alert = cva("p-2", {
 ```tsx caught
 const badgeColor = { danger: "bg-danger-muted", ok: "bg-success-muted" };
 ```
+
+One report, not two: `ok` is the control, as it is in the same case in
+[`no-raw-color`](./no-raw-color.md). `success-muted` is a token this project defined and
+`danger-muted` is not, which is the whole point of a rule whose subject is what the
+stylesheet contains — two names of identical shape, and only the stylesheet can tell them
+apart.
 
 ```tsx caught
 <div className={`text-secondary ${extra}`} />
@@ -257,9 +263,24 @@ surfaces the sweep exists for and removes the prose shape entirely:
 "text-heavy"             → single class-shaped segment   → class list      → reported
 ```
 
+```tsx allowed
+const copy = "text-heavy layouts";
+```
+
+"Class-shaped" is itself a question only the design system can answer, which is why the test
+lives beside it: `flex` and `layouts` are both plain words, and nothing short of Tailwind
+distinguishes the one that generates CSS from the one that does not. A segment counts as
+class-shaped when it generates CSS *or* sits under a colour-carrying prefix with something
+after it — the second half is what keeps the undefined classes this rule exists for from
+disqualifying their own string.
+
 The residual is a single-word string that is class-shaped and undefined — `"text-heavy"`
 alone, with no sentence around it. That is indistinguishable from a real typo'd class by
 construction, and reporting it is correct behaviour rather than a false positive.
+
+```tsx caught
+const cls = "text-heavy";
+```
 
 The alternative — narrowing the sweep itself — was rejected: it would cost the `.ts`
 constants surface, which is the reason the sweep exists.
@@ -401,20 +422,46 @@ messageId: undefinedColorToken
 data:      { className, token, tokenFile }
 text:      "{{className}} generates no CSS — {{token}} is not defined; check the spelling,
             or add --color-{{token}} to {{tokenFile}}"
+
+messageId: undefinedColorTokenWithCandidate
+data:      { className, token, tokenFile, candidates }
+text:      "{{className}} generates no CSS — {{token}} is not defined; check the spelling —
+            did you mean {{candidates}}? — or add --color-{{token}} to {{tokenFile}}"
 ```
 
-One message id, not two. `text-smm` generates no CSS, matches a colour prefix, and gets
-"add `--color-smm`" — wrong advice for a font-size typo. The alternative is a second id
-chosen by a heuristic on whether the body looks token-shaped, and a heuristic guessing
-whether `smm` was meant to be a token will be wrong often enough to be worse than a slightly
-over-general second clause. The message therefore leads with "check the spelling", which is
-correct in both cases, and offers the token hint after it.
+**No id chosen by a heuristic on the class body.** `text-smm` generates no CSS, matches a
+colour prefix, and gets "add `--color-smm`" — wrong advice for a font-size typo. The
+tempting fix is a second id selected by guessing whether `smm` was meant to be a token, and
+that guess will be wrong often enough to be worse than a slightly over-general second
+clause. Both messages therefore lead with "check the spelling", which is correct in both
+cases, and offer the token hint after it.
 
-No autofix. A suggestion per near-miss token is offered where the design system provides
-typo candidates, ordered by edit distance; none of them is destructive, so any may sit at
-index 0.
+The second id is chosen by a *fact* rather than a guess: whether the design system had a
+near-miss token to name. `undefinedColorTokenWithCandidate` is the same sentence with the
+candidates spliced into the clause the reader is already being pointed at, which is where
+the retired Phase 4's acceptance criterion (below) requires them to be. The alternative —
+one id with a `{{didYouMean}}` slot that is sometimes the empty string — puts the sentence's
+own punctuation in `data` and reads as a bug the first time someone greps for it.
 
-### Acceptance criterion (Phase 4)
+> **Revised in Phase 5.** This section said "one message id, not two", which read as a rule
+> about the *count* rather than about the heuristic it was rejecting — and it contradicted
+> the acceptance criterion three paragraphs below, which requires a candidate the specified
+> `data` had no field for. The prohibition is on selecting an id by guessing at the author's
+> intent; a second id selected by whether a candidate exists breaks nothing it was
+> protecting. `no-spectral-color` already carries the same pair for the same reason.
+
+Candidates come from the **semantic token set**, resolved from the same `entryPoint` at the
+same load step as the design system — not from the design system's full colour namespace,
+which holds the spectral palette too. Answering `bg-red-40` with `bg-red-400` would hand the
+author a class `no-spectral-color` then forbids, which is the partition between those two
+rules breaking from the inside.
+
+No autofix. A suggestion per near-miss token is offered where a candidate exists, ordered by
+edit distance; none of them is destructive, so any may sit at index 0. The token set is the
+only optional input here: without it the rule still answers its own question and loses only
+the hint, so its absence is not the thrown error a missing design system is.
+
+### Acceptance criterion (retired Phase 4)
 
 **The typo candidate must reach the message text via `data`.** Suggestions do not render in
 any CLI output format, and `meta.docs.url` is dead under Oxlint, so the message text is the
@@ -422,9 +469,11 @@ only channel. Emitting candidates only as a suggestion would make the CLI experi
 than today's, which prints the token name and the `--color-*` hint inline.
 
 This is a criterion, not a preference, and owning the rule is what makes it cheap to meet:
-the candidate list comes from the design system the rule already built, and interpolating it
-into `{{...}}` is a decision this contract gets to make rather than one it has to discover.
-Phase 4 verifies the rendered text, not the suggestion payload.
+the candidate list comes from the token set the rule's own load step already resolved, and
+interpolating it into `{{...}}` is a decision this contract gets to make rather than one it
+has to discover. What is verified is the rendered text, not the suggestion payload — the
+rule's own test asserts the string a terminal prints, and `locations.test.js` asserts the
+payload separately.
 
 ## Configuration
 

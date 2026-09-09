@@ -192,6 +192,61 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-undefined-token": [
+    {
+      name: "each undefined class, at the class and not at the string that carries it",
+      code: [
+        'const base = "rounded-md p-2";',
+        "const badge = {",
+        '  danger: "bg-danger-muted text-secondary",',
+        '  ok: "bg-success-muted",',
+        "};",
+        "<div",
+        '  className={cn("p-2", "hover:text-warning-foreground")}',
+        "/>;",
+        '<div className="bg-primry" />;',
+      ].join("\n"),
+      errors: [
+        // Two undefined classes in one string literal, and they are two spans. Line 1 and
+        // line 4 are the silences either side of them: `rounded-md`, `p-2` and
+        // `bg-success-muted` all generate CSS, and this rule's subject is only the ones
+        // that do not.
+        { messageId: "undefinedColorToken", line: 3, column: 12, endLine: 3, endColumn: 27 },
+        { messageId: "undefinedColorToken", line: 3, column: 28, endLine: 3, endColumn: 42 },
+        // The variant is part of the class the author has to edit, so it is part of the
+        // span — and the report lands inside the `cn()` argument rather than at the
+        // attribute or the element.
+        { messageId: "undefinedColorToken", line: 7, column: 25, endLine: 7, endColumn: 54 },
+        // A near miss reports under the other message id, whose text names the candidate:
+        // suggestions do not render on the CLI, so a hint that lived only in the payload
+        // below would reach nobody. The suggestion rewrites the class and nothing else,
+        // which is a promise the corpus — counting reports — cannot make.
+        {
+          messageId: "undefinedColorTokenWithCandidate",
+          line: 9,
+          column: 17,
+          endLine: 9,
+          endColumn: 26,
+          suggestions: [
+            {
+              messageId: "useCandidate",
+              output: [
+                'const base = "rounded-md p-2";',
+                "const badge = {",
+                '  danger: "bg-danger-muted text-secondary",',
+                '  ok: "bg-success-muted",',
+                "};",
+                "<div",
+                '  className={cn("p-2", "hover:text-warning-foreground")}',
+                "/>;",
+                '<div className="bg-primary" />;',
+              ].join("\n"),
+            },
+          ],
+        },
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",

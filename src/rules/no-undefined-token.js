@@ -1,21 +1,291 @@
+import { sweepVisitors } from "../extract/index.js";
+import { colorPrefixOf, isClassList } from "../policy/class-list.js";
+import { ignoredFile } from "../policy/ignore.js";
+import { classTokens } from "../policy/tokenize.js";
+import { parseClass } from "../policy/variants.js";
+
 /**
- * no-undefined-token — stub.
+ * no-undefined-token — a colour class must resolve to CSS.
  *
  * The specification is `docs/rules/no-undefined-token.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object. A stub reports nothing,
- * so every `caught` case fails and every `allowed` and `blindspot` case passes: the
- * red baseline Phase 5 drives to zero.
+ * `blindspot` blocks the harness executes against this object.
+ *
+ * This is the only rule in the set that reports the **absence** of styling rather than the
+ * wrong kind of it. `text-warning-foreground` is spelled like a token, reads like one in
+ * review, and if `--color-warning-foreground` was never defined it generates no
+ * declaration at all: Tailwind discards an unrecognised candidate silently, the element
+ * inherits, and nobody notices until the one state that needed the emphasis ships without
+ * it.
+ *
+ * ## Two gates, and both come from `/policy`
+ *
+ * A class is reported when it sits under a **derived** colour-carrying prefix and fails to
+ * generate CSS. Neither half is a list anyone maintains: the prefix set is probed off the
+ * design system, which is how `inset-ring-` and every per-side border family arrive, and
+ * `resolves()` is Tailwind's own answer rather than a pattern that approximates it.
+ *
+ * Variants, the important modifier and the opacity modifier are stripped before the
+ * question is asked, because all three decide *when* a declaration applies and none of them
+ * decides *whether* one exists. Stripping is bracket-depth aware, so `bg-[image:var(--x)]`
+ * is never split at its inner colon.
+ *
+ * ## Why it stays quiet where it is unsure
+ *
+ * `bias: false-negatives`, and the reason is the strength of the claim. Every other rule
+ * here says "this class is forbidden", which a reader can verify by looking at it. This one
+ * says "this class does nothing", which a reader cannot verify without running Tailwind, so
+ * a false positive is not noise — it is the rule confidently asserting something false
+ * about working code. Hence the arbitrary-value skip, the dynamic-token skip, and the
+ * all-segments class-list test in `/policy` that keeps a hyphenated word in a sentence from
+ * being read as a class.
+ *
+ * ## Silence is the one thing it must never do by accident
+ *
+ * Its whole output is an absence, and it is the gate for `token-constraints` — an undefined
+ * token never reaches a constraint check, so a silent failure here quietly weakens two
+ * rules. A missing design system is therefore a thrown error, never an early return: a rule
+ * that reports nothing is indistinguishable from a codebase with no violations, and options
+ * replace rather than merge, so a consumer restating a severity is a live route to exactly
+ * that.
  */
 export default {
   meta: {
     type: "problem",
-    // Permissive while this is a stub: the corpus passes options through, and Oxlint
-    // rejects options for a rule with no schema. Phase 5 replaces it with a real one.
-    schema: [{ type: "object", additionalProperties: true }],
-    docs: { description: "See docs/rules/no-undefined-token.md" },
-    messages: {},
+    hasSuggestions: true,
+    docs: {
+      description: "A color class must resolve to CSS.",
+    },
+    messages: {
+      undefinedColorToken:
+        "{{className}} generates no CSS — {{token}} is not defined; check the spelling, or add --color-{{token}} to {{tokenFile}}",
+      // The candidate has to be in the *text*: suggestions do not render in any CLI output
+      // format and `meta.docs.url` is dead under Oxlint, so a hint that lives only in a
+      // suggestion payload reaches nobody running the linter from a terminal.
+      undefinedColorTokenWithCandidate:
+        "{{className}} generates no CSS — {{token}} is not defined; check the spelling — did you mean {{candidates}}? — or add --color-{{token}} to {{tokenFile}}",
+      useCandidate: "Replace {{className}} with {{candidate}}",
+    },
+
+    // The JSON half only. `designSystem` and `tokens` are resolved from `entryPoint` at
+    // plugin-module load and bound around `create`; a consumer cannot write either by hand
+    // and should be told so rather than have one silently ignored.
+    schema: [
+      {
+        type: "object",
+        properties: {
+          entryPoint: { type: "string" },
+          colorPrefixes: { type: "array", items: { type: "string" } },
+          ignoreGlobs: { type: "array", items: { type: "string" } },
+        },
+        additionalProperties: false,
+      },
+    ],
+
+    // The recommended policy. Every value is a string or an array, which Oxlint replaces
+    // whole — the deep merge that makes an object-valued default dangerous has nothing to
+    // reach into here.
+    defaultOptions: [
+      {
+        entryPoint: "src/styles.css",
+        ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
+      },
+    ],
   },
-  create() {
-    return {};
+
+  create(context) {
+    const {
+      designSystem,
+      tokens,
+      entryPoint = "src/styles.css",
+      colorPrefixes = [],
+      ignoreGlobs = ["**/*.stories.@(ts|tsx)"],
+    } = context.options[0] ?? {};
+
+    const resolved = requiredDesignSystem(designSystem);
+
+    // The option *adds* to the derived set rather than replacing it — hand-maintaining that
+    // set is the bug the derivation exists to avoid, and a Tailwind plugin's own prefix is
+    // the one thing probing cannot see.
+    const prefixes = new Set([...resolved.colorPrefixes, ...colorPrefixes]);
+
+    // Candidates come from the semantic token set the same load step resolves from the
+    // entry point. Deliberately not the design system's full colour namespace: that holds
+    // the spectral palette too, and answering a typo with `bg-red-50` would hand the author
+    // a class `no-spectral-color` then forbids.
+    const candidatesFor = candidateSource(tokens);
+
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
+
+    return sweepVisitors((source) => {
+      const found = classTokens(source);
+
+      // Prose, not a class list. One segment that could not be a class is enough: a
+      // sentence is the shape this rule most has to stay out of, and a class string that
+      // mixes in a word Tailwind has never heard of is a false negative the contract
+      // accepts by name.
+      if (!isClassList(found, resolved, prefixes)) return;
+
+      const locate = locator(context, source.node);
+
+      for (const token of found) {
+        // Every token advances the cursor, reported or not, so a class written twice in one
+        // string is located twice rather than resolving to its first occurrence both times.
+        const range = locate(token.dynamic ? token.head : token.text);
+
+        // A class built around an interpolation is not a class this rule has seen, and it
+        // cannot say "generates no CSS" about something it never read. The defect is real
+        // and `no-spectral-color` reports it once, under the prefix standing against the
+        // hole.
+        if (token.dynamic) continue;
+
+        const { base } = parseClass(token.text);
+
+        // Everything inside brackets belongs to `no-raw-color`. `bg-[--color-brand]`
+        // resolves to `var(--color-brand)` whether or not that property is ever defined, so
+        // no static check can answer the question this rule asks.
+        if (!base || base.includes("[")) continue;
+
+        const colorClass = colorPrefixOf(base, prefixes);
+        if (!colorClass) continue;
+        if (resolved.resolves(base)) continue;
+
+        const { prefix, token: name } = colorClass;
+        const near = candidatesFor(name);
+        const data = { className: token.text, token: name, tokenFile: entryPoint };
+        const at = range ? { loc: spanOf(context, range) } : { node: source.node };
+
+        if (near.length === 0) {
+          context.report({ ...at, messageId: "undefinedColorToken", data });
+          continue;
+        }
+
+        context.report({
+          ...at,
+          messageId: "undefinedColorTokenWithCandidate",
+          data: { ...data, candidates: near.map((c) => `${prefix}-${c}`).join(" or ") },
+          // In addition to the message, never instead of it. No candidate is destructive —
+          // each replaces a class that does nothing today — so any of them may sit first,
+          // and they are ordered by edit distance because that is the order a reader
+          // expects. Offered only where the class was located in the source: a fix that
+          // cannot point at the characters it replaces is not a fix.
+          suggest: range
+            ? near.map((candidate) => ({
+                messageId: "useCandidate",
+                data: { className: token.text, candidate: `${prefix}-${candidate}` },
+                fix: (fixer) =>
+                  fixer.replaceTextRange(range, token.text.replace(base, `${prefix}-${candidate}`)),
+              }))
+            : undefined,
+        });
+      }
+    });
   },
 };
+
+/**
+ * The resolved design system, or a thrown error.
+ *
+ * The one rule in the set that must fall over rather than fall silent. Its entire output is
+ * an absence, so "the design system failed to load" and "this codebase is clean" produce
+ * the same empty report and the same exit code — and it gates `token-constraints`, so the
+ * silence costs coverage in two rules rather than one. The proof of concept built its
+ * resolver with `.catch(() => null)` and returned early; that is the behaviour this
+ * replaces.
+ *
+ * Distribution adds a second, likelier route to the same place: options replace rather than
+ * merge, so a consumer writing `"design/no-undefined-token": "error"` to bump a severity
+ * wipes `entryPoint` and every value the preset supplied with it.
+ *
+ * The shape of what arrives says which mistake it was. A husk — `{ colorPrefixes: {} }`
+ * with every method gone — is what a resolved design system looks like after a trip through
+ * JSON, which means it was passed as an option instead of bound.
+ */
+function requiredDesignSystem(designSystem) {
+  if (typeof designSystem?.resolves !== "function" || !(designSystem.colorPrefixes instanceof Set)) {
+    throw new Error(
+      "no-undefined-token: `designSystem` is missing or is not a resolved design system — the plugin module builds it from `entryPoint` at load and binds it around `create`; it cannot be passed as a JSON option. This rule reports an absence, so it refuses to run rather than report nothing.",
+    );
+  }
+  return designSystem;
+}
+
+/** How far a name may stray from a token and still be a plausible typo of it. */
+const MAX_DISTANCE = 2;
+
+/** More than a handful of guesses is not a hint any more. */
+const MAX_CANDIDATES = 2;
+
+/**
+ * The near-miss tokens for an undefined name, ordered by edit distance.
+ *
+ * `tokens` is optional in a way the design system is not: without it the rule still answers
+ * its own question — this class generates no CSS — and only loses the hint. A rule that
+ * refused to run without a spelling aid would trade a real diagnostic for a nicety.
+ *
+ * @param {Set<string> | undefined} tokens
+ */
+function candidateSource(tokens) {
+  if (!(tokens instanceof Set) || tokens.size === 0) return () => [];
+
+  return (name) =>
+    [...tokens]
+      // A short name has no room to be a near miss of anything: at two edits, `red` reaches
+      // half the palette. The threshold scales with what is actually there to misspell.
+      .map((candidate) => ({ candidate, distance: editDistance(name, candidate) }))
+      .filter(({ candidate, distance }) => distance <= Math.min(MAX_DISTANCE, candidate.length - 2))
+      .sort((a, b) => a.distance - b.distance || a.candidate.localeCompare(b.candidate))
+      .slice(0, MAX_CANDIDATES)
+      .map(({ candidate }) => candidate);
+}
+
+/**
+ * Levenshtein distance, over two rows rather than a full matrix.
+ *
+ * Small enough to keep here: the alternative is a dependency on a package whose whole job
+ * is fifteen lines, in a linter plugin whose install size a consumer inherits.
+ */
+function editDistance(a, b) {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+      current[j] = Math.min(substitution, previous[j] + 1, current[j - 1] + 1);
+    }
+    previous = current;
+  }
+
+  return previous[b.length];
+}
+
+/**
+ * Find each class in the text the author actually wrote.
+ *
+ * A `ClassToken` carries the string it came from but not where in it the class sits, so a
+ * rule that reported the whole literal would point at `"text-secondary bg-danger-muted"`
+ * twice with the same span. The text is searched forward from the end of the previous
+ * token, and anything that cannot be found — an escape sequence, a template whose cooked
+ * text differs from its source — falls back to the node.
+ */
+function locator(context, node) {
+  const raw = context.sourceCode.getText(node);
+  const origin = node.range[0];
+  let cursor = 0;
+
+  return (text) => {
+    if (!text) return null;
+    const at = raw.indexOf(text, cursor);
+    if (at === -1) return null;
+    cursor = at + text.length;
+    return [origin + at, origin + at + text.length];
+  };
+}
+
+/** A source range as the report API wants it. */
+function spanOf(context, [start, end]) {
+  return {
+    start: context.sourceCode.getLocFromIndex(start),
+    end: context.sourceCode.getLocFromIndex(end),
+  };
+}

@@ -91,6 +91,46 @@ export const semanticDesignSystem = designSystemPolicy(
 );
 
 /**
+ * The palette `no-undefined-token`'s corpus is written against.
+ *
+ * That rule is the one whose every verdict is a statement about what the design system does
+ * *not* contain, so its corpus needs a stylesheet with deliberate gaps in it — and
+ * `theme.css` above has the wrong ones. It defines `danger-muted`, which that contract
+ * names as its running example of a token nobody defined, and it defines none of `warning`,
+ * `input` or `success-content`, which the contract allows because they resolve. Under the
+ * shared probe surface the rule would be right and the contract would look wrong.
+ *
+ * So this is a third design system, built from Tailwind core plus exactly the names that
+ * contract says are there. It is deliberately *not* a change to `test/fixtures/theme.css`:
+ * that file is a shared probe surface, and taking `danger-muted` out of it would move
+ * `no-spectral-color`'s verdicts as a side effect of a fourth rule's corpus.
+ *
+ * It is built from `@import "tailwindcss"` rather than from `css` for the one reason
+ * `semanticDesignSystem` above could layer onto it and this cannot: a `@theme` block can add
+ * a colour to a design system, and nothing can take one away.
+ *
+ * `sparseTokens` is the same palette as names. The rule builds its typo candidates from it —
+ * `bg-primry` is answered with `bg-primary` — and the two have to come from one stylesheet
+ * or a candidate could name a token that does not resolve.
+ */
+const SPARSE_PALETTE = [
+  "primary",
+  "foreground",
+  "warning",
+  "input",
+  "success-content",
+  "success-muted",
+];
+
+const sparseCss = `@import "tailwindcss";\n@theme {\n${SPARSE_PALETTE.map((name) => `  --color-${name}: oklch(0.7 0.1 25);`).join("\n")}\n}\n`;
+
+export const sparseDesignSystem = designSystemPolicy(
+  await loadDesignSystem(sparseCss, { base: BASE }),
+);
+
+export const sparseTokens = resolveTokenSet({ css: sparseCss });
+
+/**
  * Only options the corpus actually depends on are listed. A contract that needs to vary one
  * of these per case defines its own `options=` fixture block, which is layered on top.
  */
@@ -138,7 +178,7 @@ const RESOLVED = {
   "no-opacity-modifier": { designSystem },
   "no-raw-color": { designSystem, tokens },
   "no-spectral-color": { designSystem, tokens },
-  "no-undefined-token": { designSystem },
+  "no-undefined-token": { designSystem: sparseDesignSystem, tokens: sparseTokens },
   "token-constraints": { designSystem, tokens },
 };
 
