@@ -1,0 +1,21 @@
+docs/readme-draft.md
+  s_fc5904053908ce::t_b60ff83ea0efd1 1-212
+docs/my-notes.md
+  s_fc5904053908ce::t_861c44930721f3 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "4184bb4f4fd141f97ed8ae3160ca9db7842b9e6a",
+  "prompts": {},
+  "sessions": {
+    "s_fc5904053908ce": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3a550137-f2c5-4e61-b9fe-8272cc8f449e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
