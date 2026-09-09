@@ -4,7 +4,7 @@ legacy-id: 5
 status: agreed
 disposition: custom
 bias: false-positives
-files: ["*.tsx", "*.ts", "*.css"]
+files: ["*.tsx", "*.ts"]
 ---
 
 # token-constraints
@@ -424,9 +424,10 @@ resolved Tailwind design system, not hand-maintained — see
 
 Class strings reach elements by many routes, and this rule follows all of them that are
 statically visible. It is **not** scoped to JSX opening tags: every string literal and every
-static template-literal segment in a `.tsx`, `.ts` or `.css` file is scanned. A `className`
+static template-literal segment in a `.tsx` or `.ts` file is scanned. A `className`
 attribute cannot exist in a `.ts` file, but a class *string* can, which is why the token
-family scans it and the JSX rules do not.
+family scans it and the JSX rules do not. CSS is not a linted surface today — see
+[Deferred: CSS surface](#deferred-css-surface).
 
 ```tsx caught
 <div className="text-muted" />
@@ -454,8 +455,9 @@ family scans it and the JSX rules do not.
 )} />
 ```
 
-`cva()` is fully covered — base, `variants`, and `compoundVariants` — matching what
-`oxlint-tailwindcss` already does for the off-the-shelf half of the system.
+`cva()` is fully covered — base, `variants`, and `compoundVariants`. All nine rules are
+authored in-house, so there is no second extractor to stay in step with: one `/policy` module
+sees these strings for every rule that reads class names.
 
 ```tsx caught count=3
 const badge = cva("text-muted", {
@@ -486,43 +488,6 @@ const CLASSES = ["text-muted", "p-2"];
 export const dangerText = "bg-muted-foreground";
 ```
 
-### Dynamically interpolated class names
-
-A colour prefix immediately followed by an interpolation is a violation, **even though the
-value is unknowable**. This is the one hole the token system cannot tolerate: a class name
-assembled at runtime defeats every static guarantee the system offers, and no rule downstream
-can recover the check. The report is against the prefix, not against a token — there is no
-token to name — so it is the one diagnostic this rule emits without its second gate.
-
-```tsx caught
-<div className={`text-${tone}`} />
-
-<div className={`bg-${tone}-500`} />
-
-<div className={`hover:bg-${tone}`} />
-
-<div className={`px-2 text-${tone}`} />
-
-<div className={`text-${"mu"}${"ted"}`} />
-```
-
-The last case shows the rule does **not** attempt to reassemble an interpolation whose parts
-happen to be static; it reports the prefix and stops.
-
-The message must name the escape hatch rather than only reporting the violation: a lookup of
-**complete** class names, statically visible to the linter — which the broad sweep then lints
-like any other string — or a `--color-*` custom property.
-
-```tsx allowed
-const TONE_CLASSES = { danger: "bg-danger", ok: "bg-primary" };
-
-<div className={TONE_CLASSES[tone]} />
-
-<div className={`p-${size}`} />
-
-<div className={`gap-${n} rounded-md`} />
-```
-
 ### Every occurrence reports
 
 There is **one report per class token per occurrence**. A class that fails both its prefix
@@ -539,33 +504,6 @@ policy and a variant policy reports once, against the first failure in resolutio
 
 ```tsx caught count=1
 <div className="hover:text-muted" />
-```
-
-### `@apply` in CSS
-
-`@apply` is a class-string surface like any other, and a policy violation there is
-indistinguishable from one in JSX. The promise is the same, and so is the policy: the
-package's **`/stylelint` entry point owns the CSS surface**, extracting `@apply` arguments and
-handing them to the same `/policy` module the Oxlint rule uses. Only the extraction differs;
-the resolution order, the pattern semantics and the variant families are one implementation,
-so the two surfaces cannot drift. That is why `/oxlint` and `/stylelint` ship in one package
-rather than two — version skew between the two halves of one rule's coverage is the worst
-failure mode available here.
-
-Without this, `@apply` coverage would have disappeared silently in the migration, since
-`stylelint-declaration-strict-value` checks declaration *values* and knows nothing about
-Tailwind class policy. Files listed in `tokenFiles` are exempt: they define the tokens.
-
-The block below is untagged and therefore not executed by the harness, which runs TSX only.
-
-```css
-.card-label {
-  @apply text-muted;        /* caught — text allow-list failure */
-}
-
-.card-surface {
-  @apply bg-muted-foreground; /* caught — deny-list match */
-}
 ```
 
 ## Deliberately allows
@@ -709,6 +647,48 @@ Out of scope by construction. These belong to other rules.
 <div className="bg-[--color-brand]" />
 ```
 
+### Dynamically interpolated class names
+
+A colour prefix immediately followed by an interpolation is a violation — a class name
+assembled at runtime defeats every static guarantee the token system offers — but it is **not
+this rule's violation**. There is no colour part to inspect, so this rule's second gate ("is
+the colour part a declared semantic token?") can never be reached, and a rule that only speaks
+about declared tokens has nothing to say. The dynamic-prefix diagnostic is owned by
+[`no-spectral-color`](#relationship-to-other-rules), which reports every case below.
+
+The cases stay here so the coverage is visible from this contract: each one is caught by the
+plugin, and silence from *this* rule is the correct behaviour rather than a hole.
+
+```tsx allowed
+<div className={`text-${tone}`} />
+
+<div className={`bg-${tone}-500`} />
+
+<div className={`hover:bg-${tone}`} />
+
+<div className={`px-2 text-${tone}`} />
+
+<div className={`text-${"mu"}${"ted"}`} />
+```
+
+The last case matters for the same reason it always did: no rule attempts to reassemble an
+interpolation whose parts happen to be static. `no-spectral-color` reports the prefix and
+stops, and this rule never sees a token.
+
+The escape hatch is a lookup of **complete** class names, statically visible to the linter —
+which this rule's broad sweep then lints like any other string, so the token choice is still
+constrained — or a `--color-*` custom property.
+
+```tsx allowed
+const TONE_CLASSES = { danger: "bg-danger", ok: "bg-primary" };
+
+<div className={TONE_CLASSES[tone]} />
+
+<div className={`p-${size}`} />
+
+<div className={`gap-${n} rounded-md`} />
+```
+
 ### Not colour utilities at all
 
 ```tsx allowed
@@ -751,11 +731,12 @@ assertion and force this document to be updated.
 
 ### Composed class names with no visible prefix
 
-The class does not exist as a literal anywhere, *and* no colour prefix sits immediately before
-the interpolation, so the check in
-[Dynamically interpolated class names](#dynamically-interpolated-class-names) has nothing to
-fire on. Static segments of a template literal are checked; a segment interrupted by an
-interpolation is never reassembled.
+The class does not exist as a literal anywhere, so this rule has no colour part to test. No
+colour prefix sits immediately before the interpolation either, so `no-spectral-color`'s
+dynamic-prefix check — see
+[Dynamically interpolated class names](#dynamically-interpolated-class-names) — has nothing to
+fire on, and the case is missed by the plugin as a whole. Static segments of a template
+literal are checked; a segment interrupted by an interpolation is never reassembled.
 
 ```tsx blindspot
 <div className={`${prefix}-muted-foreground`} />
@@ -765,9 +746,9 @@ interpolation is never reassembled.
 
 String concatenation is a blind spot even in the prefix-adjacent form. The dynamic-prefix
 check reads a template literal's interpolation points, which the extractor surfaces; a binary
-expression is a different shape and is not a class string. Extending the check to it later is
+expression is a different shape and is not a class string. Extending that check to it later is
 compatible — the boundary is drawn where the extractor's is, not on a claim that the two cases
-differ in kind.
+differ in kind. It is `no-spectral-color`'s boundary to move, not this rule's.
 
 ```tsx blindspot
 <div className={"text-" + tone} />
@@ -819,7 +800,10 @@ happens not to carry the suffix does not.
 <div className="hover:bg-primary-hover" />
 ```
 
-### Class strings outside `.tsx`, `.ts` and CSS `@apply`
+### Class strings outside `.tsx` and `.ts`
+
+These are blind spots by decision, and distinct from CSS, which is deferred rather than
+abandoned — see [Deferred: CSS surface](#deferred-css-surface).
 
 Markup in `.mdx` and `.html`, and markup strings rendered through
 `dangerouslySetInnerHTML` — the class is inside an HTML fragment, not a class-list string,
@@ -838,18 +822,56 @@ literal and is caught like any other.
 element.classList.add("text-muted");
 ```
 
+## Deferred: CSS surface
+
+**Not a blind spot.** Everything in [Declared blind spots](#declared-blind-spots) is something
+we decided not to catch. This is something we decided not to catch *yet*: the linter currently
+handles `.js`, `.ts`, `.jsx` and `.tsx` only, and the CSS surface is planned work that has not
+landed. Nothing below is enforced today, and no assertion in this document depends on it.
+
+`@apply` is a class-string surface like any other, and a policy violation there is
+indistinguishable from one in JSX. When CSS lands, this rule will cover it: `@apply` arguments
+are extracted and handed to the same `/policy` module the Oxlint rule uses, so the resolution
+order, the pattern semantics and the variant families are one implementation and the two
+surfaces cannot drift. Only the extraction differs. Files listed in `tokenFiles` are exempt
+when that happens — they define the tokens, and are already an input rather than a linted
+surface (see [Configuration](#configuration)).
+
+Until then, `@apply text-muted` in a stylesheet is unreported. That is a known, accepted gap
+for the current phase, not a claim that the usage is acceptable.
+
+The block below is **illustrative only**. It carries no `caught`, `allowed` or `blindspot`
+tag, so the harness does not execute it — it describes a promise we are not yet keeping, and
+tagging it would assert behaviour that does not exist.
+
+```css
+/* Illustrative — not executed, not enforced today. */
+.card-label {
+  @apply text-muted;        /* will be reported: text allow-list failure */
+}
+
+.card-surface {
+  @apply bg-muted-foreground; /* will be reported: deny-list match */
+}
+```
+
 ## Relationship to other rules
 
 The scope boundary is a single line of code in intent: **this rule only speaks about colour
 parts that are declared semantic tokens** — names derived from the `--color-*` declarations
-in `tokenFiles`. Everything else falls to a rule that owns it. The one exception is the
-dynamic-prefix diagnostic, which by construction has no token to inspect.
+in `tokenFiles`. Everything else falls to a rule that owns it, with no exceptions — a colour
+part this rule cannot resolve to a declared token is not this rule's business.
 
 - **`no-undefined-token`** owns colour classes whose token does not exist
   (`text-mutd`). This rule is silent on them, so a typo produces one report, not two.
 - **`no-spectral-color`** owns palette classes (`bg-red-500`). Their colour part is not a
   semantic token, so this rule never sees them — including under a `hover:` variant, where
-  `hover:bg-red-500` is reported by that rule alone.
+  `hover:bg-red-500` is reported by that rule alone. It **also owns the dynamic-prefix
+  diagnostic**: a colour prefix standing immediately against an interpolation, `` `text-${tone}` ``,
+  is reported by that rule and not by this one. The coverage is unchanged — see
+  [Dynamically interpolated class names](#dynamically-interpolated-class-names) for the cases
+  and why the ownership sits there: there is no colour part, so this rule's second gate can
+  never be reached.
 - **`no-raw-css-color`** owns arbitrary values (`bg-[#ff0000]`, `text-[color:var(--x)]`).
   Same boundary, same reason.
 - **`no-opacity-modifier`** owns the `/50` suffix. This rule strips it before matching, so
@@ -864,9 +886,11 @@ dynamic-prefix diagnostic, which by construction has no token to inspect.
   `group-hover:` means one thing across the plugin — but they draw opposite conclusions from
   it, and correctly: this rule constrains a group-triggered colour, while that rule treats the
   hovered *ancestor* as the thing that must be interactive.
-- **The dynamic-prefix check lives in `/policy`**, so the escape hatch its message names is
-  worded identically wherever the token family reports it, and the definition of "a colour
-  prefix immediately before an interpolation" cannot drift between rules.
+- **The dynamic-prefix check itself lives in `/policy`**, even though `no-spectral-color` is
+  what emits it. The definition of "a colour prefix immediately before an interpolation"
+  therefore cannot drift between rules, and this rule's own extraction — which uses the same
+  module — draws its "a segment interrupted by an interpolation is never reassembled"
+  boundary in exactly the same place.
 - **`no-component-color-override`** governs whether a colour class may be passed to a design
   system component at all. This rule governs which token that class may name. A
   `<Button className="text-muted">` can violate both.
@@ -874,7 +898,9 @@ dynamic-prefix diagnostic, which by construction has no token to inspect.
 
 ## Message
 
-Four diagnostics: one per policy kind, plus the dynamic prefix.
+Three diagnostics, one per policy kind. All of them are this plugin's own — the ids below are
+the ones a developer sees, under our namespace, with no foreign rule id anywhere in the
+output.
 
 **The message text is the only channel.** `meta.docs.url` is inert under Oxlint — absent from
 every CLI format — so a message cannot link a developer to this contract, and suggestions do
@@ -899,14 +925,6 @@ messageId: variantNotAllowed
 data:      { className, colorPart, variant, family, allowed, suggestion }
 text:      "{{className}} — a {{family}} colour must use a token matching
             {{allowed}}{{suggestion}}"
-```
-
-```
-messageId: dynamicColorClass
-data:      { prefix }
-text:      "{{prefix}}- is built from an interpolated value, so no rule can check which
-            token it names. Map to complete class names instead — e.g.
-            const CLASSES = { danger: \"bg-danger\" } — or use a --color-* custom property."
 ```
 
 `allowed` renders the pattern list verbatim, because the patterns are the policy and a

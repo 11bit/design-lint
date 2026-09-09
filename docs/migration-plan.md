@@ -25,13 +25,47 @@ decision below:
 
 ## Migration target
 
-Three components replace one bespoke runner:
+**`oxlint` plus one JS plugin of our own, carrying all nine rules.**
 
 | Component | Responsibility |
 | --- | --- |
-| `oxlint` + [`oxlint-tailwindcss`](https://oxlint-tailwindcss.pages.dev/) | 5 of 9 rules, as configuration only |
-| Local Oxlint JS plugin (5 rules) | The rules no off-the-shelf tool provides — four JSX-shaped, plus raw colours in SVG attributes and string constants (decision B4) |
-| `stylelint` + [`stylelint-declaration-strict-value`](https://github.com/AndyOGo/stylelint-declaration-strict-value) | Raw color values in `.css` files |
+| `oxlint` | The runner |
+| Our Oxlint JS plugin | All nine rules, authored in-house |
+
+### Scope: JavaScript and TypeScript only
+
+**The linter covers `.js`, `.jsx`, `.ts` and `.tsx`. It does not lint `.css` files.**
+
+CSS support is **deferred, not abandoned** — planned work we have chosen not to do yet.
+The distinction matters and the contracts keep it sharp: a *declared blind spot* is
+something we decided not to catch; a *deferred surface* is something we decided not to
+catch **yet**. Each affected contract carries a `Deferred: CSS surface` section describing
+what it will cover when CSS lands, with inert case blocks the harness does not execute.
+
+What this defers: raw colour values in stylesheets, `@apply` directives, `.dark &`
+selectors, `@media (prefers-color-scheme: dark)` blocks, and `light-dark()` in CSS
+declarations. The arbitrary-value class form `bg-[light-dark(...)]` is a class string in a
+`.tsx` file and stays in scope — that is the one place the boundary runs through a single
+rule.
+
+**Token files remain an input.** `tokenFiles` is still a required option: the rules read
+those stylesheets to derive the semantic token set and the Tailwind design system. Being
+read is not the same as being linted.
+
+### No third-party rule packages
+
+Earlier revisions delegated five rules to `oxlint-tailwindcss` and the CSS surface to
+`stylelint-declaration-strict-value`. Both are dropped; all nine rules are ours.
+
+The cost is smaller than it looks, because decision **A7** had already taken back the hard
+part: the class-string extractor lives in `/policy`, broad-sweep for the token rules and a
+precise AST walk for the JSX rules. Extraction was most of what the third-party package
+provided. What remains is class validation against the Tailwind design system, which the
+proof of concept already did directly via `__unstable__loadDesignSystem`.
+
+What we gain: every diagnostic under our own namespace rather than a foreign rule id, no
+coupling to another package's rule names or version range, no meta-package indirection,
+and no build step regenerating config from policy.
 
 **The deliverable is a published package**, not configuration embedded in one
 application — see [Distribution](#distribution). `lint-color/` is deleted at the end of
@@ -64,8 +98,9 @@ rather than by reading a path.
 
 ### Known constraints
 
-- **Oxlint JS plugins are JS/TS only.** No CSS, no Vue/Svelte/Astro parsers. This is why
-  Stylelint is in the design.
+- **Oxlint JS plugins are JS/TS only.** No CSS, no Vue/Svelte/Astro parsers. This was the
+  reason Stylelint was in the design; with the CSS surface deferred, the constraint and the
+  scope now coincide. It becomes binding again when CSS returns.
 - **No TypeScript type-awareness** in Oxlint plugins yet. None of our nine rules need it —
   all are syntactic.
 - **JS plugins are alpha** and not semver-stable. Mitigated by the ESLint-compatible rule
@@ -91,10 +126,11 @@ rather than by reading a path.
 - **`oxlint.config.ts` is *not* marked experimental** in current documentation, contrary
   to what Phase 0b reported. Only `jsPlugins` carries the alpha caveat. The stacked
   "experimental on alpha" risk recorded earlier is therefore a single risk, not two.
-- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss` since its
-  v1.0.0 — entry-point auto-detection was removed. `colorTokenFiles[0]` in `colors.json`
-  already holds `src/styles.css` and can feed both this setting and Stylelint's
-  `ignoreFiles`.
+- **The design-system entry point must be supplied by the consumer.** Our rules resolve
+  classes against the Tailwind design system, so they need the stylesheet that declares
+  `@theme`. It cannot ship in the preset — `settings` is not inherited through `extends` —
+  so `tokenFiles` is a required option on the consumer's own config. Note the stylesheet is
+  *read as an input*, not linted: the CSS surface is out of scope.
 - **Suggestions are invisible in every CLI output format.** They surface only in the
   editor or via `oxlint --fix-suggestions`. Any information carried in a suggestion must
   *also* appear in the message text via `data`.
@@ -155,24 +191,22 @@ needs, so the factory is the supported path.
 
 ### Package shape
 
-One package, several entry points. Not three packages — `/oxlint` and `/stylelint` share
-`/policy`, and splitting them invites version skew between the two halves of a single
-rule's coverage, which is the worst failure mode available here.
+One package, several entry points. `/oxlint` and `/eslint` share `/policy`, so the same
+rules run under either runner without a second implementation.
+
+A `/stylelint` entry point was planned for the CSS surface and is **deferred with that
+surface**. When CSS returns it joins this package rather than becoming a second one:
+splitting them would invite version skew between the two halves of a single rule's
+coverage, which is the worst failure mode available here.
 
 ```
 @evil-martians/design-lint
 ├── /preset      the factory a consumer imports
 ├── /oxlint      plugin object, loaded via jsPlugins
 ├── /eslint      the same rules, ESLint v9 flat config
-├── /stylelint   the CSS surface (@apply, raw values)
 └── /policy      shared: config resolution, variant segmentation,
                  colour-prefix derivation, token parsing
 ```
-
-**The factory resolves its own peer specifiers with `import.meta.resolve`.** Bare
-specifiers inside an *imported* config object resolve relative to the consumer's config,
-not the package — so without this, a nested `oxlint-tailwindcss` fails to load. With it,
-`oxlint-tailwindcss` becomes a plain dependency the consumer never names.
 
 Because rules are authored ESLint-v9-shaped, one rule module serves both runners. What
 began as a portability hedge against the Oxlint alpha becomes a distribution feature: a
@@ -182,9 +216,8 @@ consumer on either runner installs the same package.
 src/
   policy/          config resolution, variant parsing, prefix derivation
   extract/         class-string extractor, with its own test suite
-  rules/           the four custom rules
+  rules/           all nine rules
   presets/         recommended, minimal  ← today's colors.json lives here
-  stylelint/
 docs/rules/        the nine contracts — shipped, meta.docs.url points at them
 test/harness/      extracts caught/allowed/blindspot blocks, runs RuleTester
 ```
@@ -204,11 +237,9 @@ suggestions, now for a second reason.
 
 ### Consequences to design around
 
-- **The five off-the-shelf rules become a peer dependency.** The `recommended` preset
-  configures `oxlint-tailwindcss` on the consumer's behalf, which makes this a
-  meta-package. Cost: coupling to that package's rule names and version range, and its
-  diagnostics appear under its rule ids rather than ours. Accepted — reimplementing five
-  working rules is worse — but it must be a stated dependency, not a surprise.
+- **~~The five off-the-shelf rules become a peer dependency.~~ Retired.** All nine rules
+  are ours, so there is no meta-package, no coupling to another package's rule names or
+  version range, and every diagnostic appears under our own namespace.
 - **New rules ship disabled.** Adding a rule to `recommended` breaks builds on
   `npm update`. New rules land off by default and join `recommended` only on a major.
 - **`componentsDirectory` cannot stay a filesystem convention.** It was the shadcn
@@ -239,47 +270,24 @@ suggestions, now for a second reason.
 
 ## Rules we can migrate to off-the-shelf tooling
 
-Five rules are covered by existing, maintained packages. **These must be audited against
-their contract before deletion, not adopted on faith** (see Phase 4).
+~~Five rules are covered by existing, maintained packages.~~ **Superseded.** All nine rules
+are authored in-house; see [No third-party rule packages](#no-third-party-rule-packages).
 
-| # | Current rule | Replacement |
-| --- | --- | --- |
-| 12 | `no-undefined-token` | `oxlint-tailwindcss` → `no-unknown-classes`. Resolves candidates against the Tailwind v4 `@theme` design system — the same approach as our `__unstable__loadDesignSystem` bridge, but native and with typo suggestions. |
-| 4 | `no-spectral-color` | `oxlint-tailwindcss` restricted-classes, regex per palette family. **Caveat:** loses the spectral→semantic replacement map. See Phase 5. |
-| 3 | `no-opacity-modifier` | Restricted-classes regex on `/\d+$` after a color prefix. |
-| 9 | `no-dark-variant` | Restricted-classes regex on the `dark:` variant. |
-| 2 | `no-raw-css-color` | Split: the `.css` half → `stylelint-declaration-strict-value` (`"scale-unlimited/declaration-strict-value": ["/color/", { ignoreValues: ["transparent", "inherit", "currentColor"] }]`, with `colorTokenFiles` as `ignoreFiles`). The Tailwind arbitrary-value half (`bg-[#ff0000]`) → restricted-classes regex. |
+What the earlier delegation plan established still has value, and is kept as requirements
+on our own implementations rather than as an audit checklist:
 
-All five replacements were **verified working in Phase 0** against a Tailwind v4 `@theme`
-file, including per-pattern custom messages, `hover:`-variant spectral classes,
-`md:dark:` compound variants, and `bg-[--my-var]` correctly *not* being treated as a raw
-arbitrary color.
+| Rule | Requirement carried forward |
+| --- | --- |
+| `no-undefined-token` | Resolve candidates against the Tailwind v4 `@theme` design system, and put the typo candidate **in the message text** — suggestions do not render on the CLI. |
+| `no-spectral-color` | Per-pattern messages naming the semantic replacement. The `replacement` map is read from `options` at runtime; the build step that would have regenerated `.oxlintrc` from policy is gone. |
+| `no-opacity-modifier` | Only after a derived colour prefix — `text-sm/6` must not report. |
+| `no-dark-variant` | Handle stacked variants (`md:dark:`) via segment parsing. |
+| `no-raw-css-color` | Tailwind arbitrary values, while sparing `bg-[--my-var]`. |
 
-Additional coverage we gain for free from `oxlint-tailwindcss` (24 rules): conflicting
-classes, deprecated classes, duplicate classes, concatenated classes, canonical class
-names, class ordering. **Do not enable these during the migration** — adopt them
-afterwards as a separate, deliberate decision, or they will bury the signal in Phase 4.
-Three exceptions are directly relevant and must be evaluated *in* Phase 4:
-`no-hardcoded-colors`, `no-arbitrary-value`, `prefer-theme-tokens`. The first may subsume
-the hand-written arbitrary-value regex for rule 2 entirely.
-
-### Coverage regression to resolve
-
-`oxlint-tailwindcss` **fully extracts `cva()`** — base, variants, and compoundVariants —
-which is better than assumed. But it does **not** see color classes in object-literal maps
-in `.ts` constants files:
-
-```ts
-const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
-```
-
-The current line-wise scanner catches these because it extracts every string literal in
-the file.
-
-**RESOLVED by A7.** The five token rules keep a broad, context-free sweep over every string
-literal and static template literal in the file — `cva()`, `cn()` arguments and `.ts`
-object-literal maps all fall in for free. `oxlint-tailwindcss` covers what it covers; our
-own token rules cover this surface. No verdict needed and no coverage lost.
+Phase 0 verified all of these behaviours *in `oxlint-tailwindcss`*, which no longer tells
+us they will work in our implementation — but it does tell us they are achievable, and it
+leaves a working reference to compare against. Its verification of the **JS plugin API**
+is unaffected and remains the basis for the whole approach.
 
 ---
 
@@ -294,7 +302,7 @@ why they benefit most from the move to a real AST; the fifth was added by decisi
 | 10 | `no-useless-hover` | No published equivalent found. `jsx-a11y/no-noninteractive-element-interactions` is adjacent but solves an accessibility problem, not a hover-affordance one. |
 | 11 | `no-component-color-override` | [`eslint-plugin-primer-react`'s `no-system-props`](https://github.com/primer/eslint-plugin-primer-react/blob/main/docs/rules/no-system-props.md) is the closest published cousin, but it is Primer-specific. The generic form — discover components from a directory, flag color classes passed to them — does not exist as a package. |
 | 5 | `token-constraints` | Prefix-scoped allow lists (`text-` may only use `*content*`/`*foreground*`) are more expressive than a flat deny list. Approximable with negative-lookahead regexes, but unreadable and unmaintainable as config. |
-| 2* | raw colours in SVG attributes and string constants | Added by **B4**. `stylelint-declaration-strict-value` only sees `.css`; `oxlint-tailwindcss` only inspects class strings — so `<circle fill="#ff0000" />` and `const SERIES = ["#ff0000"]` are invisible to both. A7's broad sweep does not close it either: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Small to build — the raw-colour matcher the CSS surface already needs, applied to the sweep's output. Owned by `no-raw-css-color`, whose disposition is now three-way. |
+| 2* | raw colours in SVG attributes and string constants | Added by **B4**. A7's broad sweep does not cover it: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Needs a rule asking *"is this string a raw colour?"* — `<circle fill="#ff0000" />`, `const SERIES = ["#ff0000"]`. Owned by `no-raw-css-color`, which with the CSS surface deferred is now entirely a JS/TS rule and misnamed. |
 
 ### Design constraints for these five
 
@@ -317,7 +325,7 @@ why they benefit most from the move to a real AST; the fifth was added by decisi
 - **Suggestion order is load-bearing.** `oxlint --fix-suggestions` applies index 0 without
   prompting. Never list a destructive suggestion (e.g. "remove the class") first.
 - **Suppression comes from the host.** `color-lint-ignore` is dropped in favour of
-  `// oxlint-disable-next-line` and `/* stylelint-disable */`. Phase 0 confirmed Oxlint
+  `// oxlint-disable-next-line`. Phase 0 confirmed Oxlint
   also honours `eslint-disable-next-line`, so existing disables would survive the
   fallback path.
 
@@ -361,26 +369,22 @@ They are evidence for why the contracts come before code. They are not a bug bac
   further". It does not; every rule runs on every token, so `dark:bg-red-500/50` produces
   three reports. Report multiplicity per token needs to be a decision, not an accident.
 
-### Regressions the target architecture would introduce
+### Coverage the new scope does not carry
 
-Found independently by three of the four contract authors. These are **not** current
-bugs — they are things that work today and that nothing in the three-component design
-covers. Each needs a Phase 4 verdict under this plan's own "do not quietly ship the gap"
-standard.
+- **Deferred with the CSS surface.** `@apply` in component stylesheets — `linter.js:154`
+  runs the full token pipeline over `@apply` lines today, so `@apply bg-red-500`, `dark:`,
+  `/50` and undefined tokens are all linted. Likewise raw colour values in stylesheets,
+  `.dark &` selectors, `prefers-color-scheme` blocks, and `light-dark()` in declarations.
+  Affects `token-constraints`, `no-spectral-color`, `no-opacity-modifier`,
+  `no-undefined-token` and `no-raw-css-color`. Each carries a `Deferred: CSS surface`
+  section naming what returns when CSS lands.
+- **Colour classes in `.ts` object-literal maps** — **resolved by A7.** The broad sweep
+  sees them.
+- **SVG presentation attributes and `.ts` / `.tsx` string constants** — **resolved by B4.**
+  A rule of ours covers them, and they are squarely inside the JS/TS scope.
 
-- **`@apply` in component stylesheets.** `linter.js:154` runs the full token pipeline over
-  `@apply` lines, so `@apply bg-red-500`, `dark:`, `/50`, and undefined tokens are all
-  linted today. Nothing in the target can carry this: Oxlint JS plugins are JS/TS only,
-  and `stylelint-declaration-strict-value` inspects declaration *values*, not Tailwind
-  class lists. Affects `token-constraints`, `no-spectral-color`, `no-opacity-modifier`,
-  and `no-undefined-token` identically. The contracts keep the `.css` promise and
-  recommend a small Stylelint rule reading the same policy module; if that is rejected,
-  the promise must be explicitly demoted to a declared blind spot in all four.
-- **Colour classes in `.ts` object-literal maps.** Covered above under
-  [Coverage regression to resolve](#coverage-regression-to-resolve).
-- **SVG presentation attributes and `.ts` / `.tsx` string constants.** Promised by
-  `no-raw-css-color`, caught today, covered by nothing in the replacement. Its contract
-  recommends keeping the promise and budgeting a thin custom rule.
+Nothing here is silent. The deferred items are documented per-rule with inert case blocks;
+the resolved items are covered.
 
 ---
 
@@ -393,10 +397,10 @@ code. Every test input is already a JSX snippet, and the
 
 | Disposition | Cases | Detail |
 | --- | --- | --- |
-| Port to `RuleTester` | 72 | `token-constraints` (23), `no-useless-hover` (20), `no-component-color-override` (17), `no-style-color` (12) — the four custom rules |
-| Delete with their rules | 50 | `no-spectral-color` (19), `no-dark-variant` (11), `no-opacity-modifier` (11), `no-undefined-token` (9) |
+| Port to `RuleTester` | 122 | All nine rules are ours now, so the 50 cases previously slated for deletion with the delegated rules — `no-spectral-color` (19), `no-dark-variant` (11), `no-opacity-modifier` (11), `no-undefined-token` (9) — port too, minus any asserting behaviour the contracts have since changed. |
+| ~~Delete with their rules~~ | 0 | Superseded: nothing is delegated, so nothing is deleted for being someone else's job. |
 | Delete as orchestrator tests | 18 | `linter.test.ts` — rule gating, ignore comments, multi-rule dispatch. All now Oxlint's job. |
-| Becomes config | 20 | `no-raw-css-color`. Keep 2–3 as a smoke test that Stylelint is wired correctly. |
+| Deferred with the CSS surface | 20 | `no-raw-css-color`'s `.css` cases. They return with that surface; the arbitrary-value and string-constant cases port now. |
 
 Rework needed on the 72 that port: message-substring assertions become `messageId` + `data`;
 line assertions move into the `errors` array; `ruleConfig` arguments become `options`.
@@ -484,12 +488,11 @@ Section 3 is what makes "sure it lints what it promises" achievable.
 Open questions this phase must resolve:
 
 - **Does `token-constraints` apply inside `cva()` / `tv()` variant maps?** Phase 0 forced
-  this one: `oxlint-tailwindcss` *does* extract `cva()`, so the off-the-shelf half already
-  fires there. The only remaining choice is whether the custom rules match that behavior
-  or deliberately diverge. It can no longer be deferred.
+  this one, and A7 answered it: the broad sweep sees `cva()` base, variants and
+  compoundVariants as ordinary strings, so the token rules cover it and
+  `no-component-color-override` does not.
 - **Do the rules cover color classes in `.ts` object-literal maps?** Phase 0 found
-  `oxlint-tailwindcss` does not see them, while the current scanner does. Deciding this at
-  contract time determines whether Phase 4 records a narrowed contract or a custom rule.
+  answered by A7: the broad sweep sees them.
 - Should `no-component-color-override` see through `cn(className, "bg-primary")` where
   `className` is a prop?
 - Is excluding Storybook files intent, or convenience?
@@ -554,7 +557,7 @@ solves this three separate times — brace-scanning in `no-component-color-overr
 extraction in `no-useless-hover`, line-wise literal scanning in `shared.js` — which is
 exactly why coverage differs between rules.
 
-Solve it once against the AST and the four rules become thin predicates over a
+Solve it once against the AST and the rules become thin predicates over a
 trustworthy input.
 
 **Phase 0b must have landed first.** The extractor is where an app-embedded assumption
@@ -565,42 +568,32 @@ is known risks an interface that only works in one repo.
 **Exit:** extractor passes the extraction-shaped subset of the Phase 2 corpus, and its
 public interface names every input it needs rather than discovering any.
 
-### Phase 4 — Audit the off-the-shelf rules against the contracts
+### Phase 4 — ~~Audit the off-the-shelf rules~~ Retired
 
-Verify each replacement in the [migration table](#rules-we-can-migrate-to-off-the-shelf-tooling)
-against *our* contract — including `cva` handling and dynamic classes — before deleting
-anything. Where an off-the-shelf rule covers 90% of a contract, the honest options are to
-narrow the contract or keep a custom rule. Not to quietly ship the gap.
+This phase existed to verify that `oxlint-tailwindcss` and
+`stylelint-declaration-strict-value` satisfied our contracts before we deleted anything.
+With all nine rules authored in-house there is nothing to audit: the contracts are the
+specification and the harness checks them directly, which is a stronger guarantee than an
+audit was ever going to give.
 
-Phase 0 already established the baseline: all four restricted-class patterns work,
-`@theme` resolution works, and `cva()` is covered. Two items carry into this phase:
+Three items it carried are not lost:
 
-- **Three coverage regressions to resolve** — the `.ts` object-literal gap, `@apply` in
-  component stylesheets, and SVG attributes / string constants. See
-  [Regressions the target architecture would introduce](#regressions-the-target-architecture-would-introduce).
-  Each ends in one of: covered by a small Stylelint rule, covered by a thin custom rule,
-  or explicitly demoted to a declared blind spot in every affected contract. Silence is
-  not an option.
-- **Three omitted rules to evaluate** — `no-hardcoded-colors`, `no-arbitrary-value`,
-  `prefer-theme-tokens`. `no-hardcoded-colors` may subsume the hand-written
-  arbitrary-value regex for rule 2; if so, rule 2 shrinks to Stylelint config alone.
-- **Does `oxlint-tailwindcss` put its typo candidate in the message text?**
-  `no-undefined-token`'s contract records this as an *acceptance criterion*, not a
-  preference: suggestions do not render on the CLI, so a suggestion-only candidate makes
-  the terminal experience worse than today's.
-- **Can the `replacement` map survive as generated config?** `no-spectral-color`'s contract
-  argues `off-the-shelf` still stands — the map is 27 entries expanding mechanically to 27
-  restricted-class patterns, and Phase 0 proved per-pattern custom messages work. The
-  trade is a build step regenerating `.oxlintrc` from `colors.json`, replacing today's
-  read-at-runtime. Decide the trade, not the disposition.
+- **The behavioural requirements** it would have audited for are now requirements on our
+  own implementations, listed under
+  [Rules formerly delegated](#rules-we-can-migrate-to-off-the-shelf-tooling).
+- **`no-undefined-token`'s acceptance criterion** — the typo candidate must reach the
+  message text, since suggestions do not render on the CLI — moves into that rule's
+  contract as an ordinary promise.
+- **The `replacement` map question is answered rather than deferred.** Owning
+  `no-spectral-color` means reading the map from `options` at runtime. The build step that
+  would have regenerated `.oxlintrc` from the policy file is gone.
 
-Enable only the five rules being replaced, plus any of the three above that survive
-evaluation. Nothing else from `oxlint-tailwindcss` yet.
+The one question genuinely deferred is `no-raw-css-color`'s **one rule or two**, which now
+depends on what returns with the CSS surface rather than on tool boundaries.
 
-**Exit:** each of the five has a documented verdict — adopted /
-adopted-with-narrowed-contract / kept custom — and the `.ts` gap has a decision.
+Phase numbering is unchanged so that references elsewhere still resolve.
 
-### Phase 5 — Write the four rules, wire the suggestions, cut over
+### Phase 5 — Write the nine rules, wire the suggestions, cut over
 
 By now this is mechanical; the thinking happened in Phases 1–3.
 
@@ -619,15 +612,21 @@ By now this is mechanical; the thinking happened in Phases 1–3.
    - **Author the corpus ESLint-first.** Phase 0b found ESLint's `RuleTester` *requires*
      suggestion assertions where Oxlint's does not, so a corpus written against Oxlint
      will not port to ESLint, while one written against ESLint runs under both.
-2. Add the Phase 2 corpus cases for these four rules.
-3. Implement in risk order: `no-style-color` (smallest, no config) → `token-constraints` →
-   `no-useless-hover` → `no-component-color-override` (needs component discovery).
+2. Add the Phase 2 corpus cases for all nine rules.
+3. Implement in risk order. The three formerly-delegated token rules are small and share
+   `/policy`, so they come early and de-risk the shared machinery before the intricate
+   ones land on top of it:
+
+   `no-style-color` (smallest, no config) → `no-dark-variant` → `no-opacity-modifier` →
+   `no-spectral-color` → `no-undefined-token` (design-system resolution) →
+   `no-raw-css-color` (JS/TS surface only) → `token-constraints` (most configurable) →
+   `no-useless-hover` → `no-component-color-override` (import resolution).
 4. Wire the spectral→semantic replacement map from `colors.json` into
    `context.report({ suggest })` — **and into the message text via `data`**. Suggestions
    do not render on the CLI, so a suggestion-only hint is strictly worse than today's
    console output. The upgrade is the editor quick-fix on top of the message, not instead
-   of it. If Phase 4 confirms `oxlint-tailwindcss` cannot carry the replacement map, this
-   is where a thin custom `no-spectral-color` comes back to hold it.
+   of it. The map is a rule option read at load — `no-spectral-color` is ours, so there is
+   no generated-config step and no question of whether it survives.
 5. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
    from today's `colors.json` contents, `oxlint-tailwindcss` declared as a peer
    dependency, and the versioning policy that new rules ship disabled and join
@@ -701,7 +700,7 @@ target is gone. Per contract:
 - The `scripts/lint-color/rules/` reference in `colors.schema.json`.
 - Any `package.json` script, CI step, or hook invoking the old runner.
 - Any `color-lint-ignore` comments left in the application codebase — they were converted
-  to `oxlint-disable` / `stylelint-disable` in Phase 5 and are easy to strand.
+  to `oxlint-disable` in Phase 5 and are easy to strand.
 
 **Verify by search, not by memory.** `lint-color`, `color-lint-ignore`, `migration`,
 `legacy`, and the old rule id numbers should each return zero hits across both repos.

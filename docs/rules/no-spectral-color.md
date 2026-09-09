@@ -2,9 +2,9 @@
 rule: no-spectral-color
 legacy-id: 4
 status: agreed
-disposition: off-the-shelf
+disposition: custom
 bias: false-positives
-files: ["*.tsx", "*.ts", "*.css"]
+files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---
 
 # no-spectral-color
@@ -25,7 +25,8 @@ developer to guess.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
-> it does not.
+> it does not. `deferred` blocks assert nothing — they document coverage that is planned but
+> unimplemented; see [Deferred: CSS surface](#deferred-css-surface).
 
 ## Promises to catch
 
@@ -34,8 +35,8 @@ authors.
 
 The rule is **context-free**: it asks "is this string a forbidden class?" and never needs to
 know which element the string reaches. It therefore runs over the broad sweep — every string
-literal and every static template literal in a `.tsx`, `.ts` or `.css` file, regardless of
-the position it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments,
+literal and every static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless
+of the position it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments,
 `cva` / `tv` variant maps and `.ts` object-literal constants all fall in for free, because
 the strings are simply there and no special-case plumbing distinguishes them. Interpolated
 template literals are scanned for complete classes in their static text, and for a colour
@@ -49,9 +50,9 @@ it. The accepted cost is the string that *is* a palette class but never reaches 
 `bias: false-positives` that is the deliberate trade, and `oxlint-disable` is the escape
 hatch.
 
-`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
-module as the Oxlint side, so `@apply` and class strings in JS/TS are governed by one policy
-rather than two that drift.
+Stylesheets are not on this surface. `@apply bg-red-500` in a `.css` file is a violation of
+the same policy and will be caught when the CSS surface lands; today it is unenforced. See
+[Deferred: CSS surface](#deferred-css-surface).
 
 ### Every colour-carrying prefix
 
@@ -205,12 +206,6 @@ const button = cva("rounded", {
 const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 ```
 
-```css caught
-.card {
-  @apply bg-red-500 text-slate-50;
-}
-```
-
 ### Dynamically assembled class names
 
 A colour-carrying prefix immediately preceding an interpolation is a violation even though
@@ -315,13 +310,11 @@ fetch("/assets/blue-500.png");
 ### The token-definition files
 
 The files named by the `tokenFiles` option are where the palette is legitimately consumed —
-a semantic token has to be defined as *something*. Those files are exempt.
-
-```css allowed
-@theme {
-  --color-danger: var(--color-red-500);
-}
-```
+a semantic token has to be defined as *something*. Those files are exempt. Today the
+exemption costs nothing, because those files are `.css` and no `.css` file is linted at all;
+it becomes load-bearing the moment the CSS surface lands. `tokenFiles` itself is unaffected
+by the scope change — the rule reads it to derive the semantic token set, so it is an
+*input*, not a linted surface.
 
 ## Declared blind spots
 
@@ -361,6 +354,42 @@ file — so this rule stays quiet and the question moves to design review.
 <div className="bg-brand" />
 ```
 
+## Deferred: CSS surface
+
+Not a blind spot. A blind spot is something this contract has decided not to catch; what
+follows is something it has decided not to catch **yet**. The linter reads `.js`, `.jsx`,
+`.ts` and `.tsx` only, so the cases below are unenforced today and are recorded so that
+adding the CSS surface is an implementation task rather than a fresh design argument.
+
+The fenced blocks here are tagged `deferred`. The harness executes `caught`, `allowed` and
+`blindspot` blocks only, so nothing in this section asserts anything about the current
+implementation.
+
+### `@apply` class lists
+
+A palette class reached through `@apply` is the same violation as one written in a
+`className`, and the same policy decides it. Coverage was previously described as belonging
+to a `/stylelint` entry point; that entry point is not part of the package shape, so when the
+CSS surface lands the mechanism is an open choice and only the promise below is fixed.
+
+```css deferred
+.card {
+  @apply bg-red-500 text-slate-50;
+}
+```
+
+### The token-definition files, once `.css` is linted
+
+The `tokenFiles` exemption exists for exactly this: a semantic token has to be defined as
+*something*, and that something is a palette value. When `.css` becomes a linted surface the
+files named by `tokenFiles` stay exempt wholesale.
+
+```css deferred
+@theme {
+  --color-danger: var(--color-red-500);
+}
+```
+
 ## Relationship to other rules
 
 - **`no-undefined-token`** partitions the same surface without overlapping it. A class under
@@ -384,9 +413,9 @@ file — so this rule stays quiet and the question moves to design review.
 
 ## Message
 
-Two message ids, because the replacement map covers only part of the palette and a message
-cannot be conditional. The token file is named through `data`, never hardcoded — the
-consuming project decides where its tokens live.
+Two ids for the static case, because the replacement map covers only part of the palette and
+a message cannot be conditional. The token file is named through `data`, never hardcoded —
+the consuming project decides where its tokens live.
 
 ```
 messageId: spectralColorWithReplacement
@@ -401,16 +430,26 @@ text:      "{{className}} — spectral color class; use a semantic token from {{
             instead of the {{family}} palette"
 ```
 
-**This rule does not emit the dynamic-interpolation diagnostic.** A7b's
-`dynamicColorClass` is owned by [`token-constraints`](./token-constraints.md), and the
-reason is structural rather than editorial: this rule's disposition is `off-the-shelf`,
-delegated to `oxlint-tailwindcss` restricted-classes, which matches literal class patterns
-and cannot detect a colour prefix standing against an interpolation. A rule that cannot
-implement a diagnostic cannot own it.
+A third id for the dynamic case, which this rule owns.
 
-`` className={`bg-${tone}-500`} `` is therefore caught — but reported by
-`token-constraints`, which is a custom rule and can see it. This rule stays silent there
-rather than double-reporting the same site.
+```
+messageId: dynamicColorClass
+data:      { prefix }
+text:      "{{prefix}}- is built from an interpolated value, so no rule can check which
+            token it names. Map to complete class names instead — e.g.
+            const CLASSES = { danger: \"bg-danger\" } — or use a --color-* custom property."
+```
+
+**`dynamicColorClass` must name the escape hatch**, not merely report the violation. It is
+the one diagnostic here with no correct token to suggest, so without the alternative in the
+text it reads as "you may not do this" with no way forward.
+
+Ownership sits here because the colour prefix is the visible half of the defect and the
+escape hatch the message names is this rule's standing recommendation everywhere else. The
+rule is authored in-house, so nothing about detecting a prefix standing against an
+interpolation is out of reach. `no-undefined-token`, `no-opacity-modifier` and
+`no-dark-variant` stay silent on `` `bg-${tone}-500` `` so that one unknowable string yields
+one report.
 
 The replacement token must appear in the message text, not only in a suggestion:
 suggestions do not render in any CLI output format, and naming the token is the whole value
