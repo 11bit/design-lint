@@ -1,0 +1,46 @@
+docs/migration-plan.md
+  s_c7afd02668d88a::t_5d9b1cabe0136b 641,646-647,649,651,653-654,656-694,731-736,743-744,752,758,762,766
+src/extract/sweep.js
+  s_c7afd02668d88a::t_a2be022391e169 1-32
+test/policy/variants.test.js
+  s_c7afd02668d88a::t_edae3619d00914 1-101
+test/policy/tokenize.test.js
+  s_c7afd02668d88a::t_38c9b12c855e52 1-86
+src/extract/index.js
+  s_c7afd02668d88a::t_5c611c2d96b5a8 1-26
+src/policy/tokenize.js
+  s_c7afd02668d88a::t_1b43a374910749 1-37,42-90
+  s_c7afd02668d88a::t_8530faa0d35a40 38-41
+test/extract/sweep.test.js
+  s_c7afd02668d88a::t_d566f2e95ec133 1-41,44-81
+  s_c7afd02668d88a::t_c043badc9d58e2 42-43
+src/extract/sources.js
+  s_c7afd02668d88a::t_deda4583990fdc 1-46
+test/extract/element.test.js
+  s_c7afd02668d88a::t_80585ef2d5a0d0 1-104
+src/policy/variants.js
+  s_c7afd02668d88a::t_1203a269439edb 1-115
+test/extract/corpus.test.js
+  s_c7afd02668d88a::t_af39ba2b593d22 1-96,98-100
+  s_c7afd02668d88a::t_0295c272cd45d8 97
+test/extract/probe.js
+  s_c7afd02668d88a::t_c0dd18a1d70308 1-58
+src/extract/element.js
+  s_c7afd02668d88a::t_1ceb8115c2bd3e 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "1b3c48f8678da665d25a5ba3b942ad589a56a7e4",
+  "prompts": {},
+  "sessions": {
+    "s_c7afd02668d88a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5eda914-da2d-47e5-9713-9a4edc52ca7b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
