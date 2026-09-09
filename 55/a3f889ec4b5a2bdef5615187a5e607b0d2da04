@@ -1,0 +1,39 @@
+docs/migration-plan.md
+  s_a8f8f42ea80943::t_dec37093cc654a 445-447
+  s_a8f8f42ea80943::t_caaf79538886cd 758-778
+  s_a8f8f42ea80943::t_0d571b0b06a03c 687-689,788-801
+  s_a8f8f42ea80943::t_e35f2a483814d3 691,696-725,780-787
+test/fixtures/theme.css
+  s_a8f8f42ea80943::t_8b688feea0f4b3 1-18
+src/policy/design-system.js
+  s_a8f8f42ea80943::t_413b98e4052388 1-184
+src/policy/tokens.js
+  s_a8f8f42ea80943::t_aa7c2232e4e526 1-52
+test/policy/design-system.test.js
+  s_a8f8f42ea80943::t_5502fb3e8c858b 1-13,16-17,20-54,56-136
+  s_a8f8f42ea80943::t_ab88d7b5e3653a 14-15,18-19,55
+test/policy/tokens.test.js
+  s_a8f8f42ea80943::t_e2328f4e659115 1-52
+package.json
+  s_a8f8f42ea80943::t_a9acd0edc529ff 12
+src/policy/load.js
+  s_a8f8f42ea80943::t_5bc0e6848c8f6b 1-84
+package-lock.json
+  s_a8f8f42ea80943::t_629549698e9bae 12,1793-1799
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "55a3f889ec4b5a2bdef5615187a5e607b0d2da04",
+  "prompts": {},
+  "sessions": {
+    "s_a8f8f42ea80943": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11cead9a-3b29-44b2-8b38-e16e5c0de531",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
