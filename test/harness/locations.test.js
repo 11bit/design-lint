@@ -38,8 +38,28 @@ import { rules } from "../../src/rules/index.js";
  * would silently be 0-based.
  */
 export const FIXTURES = {
-  // Filled in by Phase 5 step 4, one rule at a time, as each contract flips to
-  // `status: implemented`.
+  "no-style-color": [
+    {
+      name: "each offending property, at the property and not at the prop or the element",
+      code: [
+        "const theme = getTheme();",
+        "<div",
+        "  style={{",
+        '    fontWeight: "bold",',
+        "    color: theme.accent,",
+        "  }}",
+        "/>;",
+        "<svg>",
+        '  <rect style={{ fill: "red", stroke: "blue" }} />',
+        "</svg>;",
+      ].join("\n"),
+      errors: [
+        { messageId: "colorInStyleProp", line: 5, column: 5, endLine: 5, endColumn: 24 },
+        { messageId: "colorInStyleProp", line: 9, column: 18, endLine: 9, endColumn: 29 },
+        { messageId: "colorInStyleProp", line: 9, column: 31, endLine: 9, endColumn: 45 },
+      ],
+    },
+  ],
 };
 
 RuleTester.describe = describe;

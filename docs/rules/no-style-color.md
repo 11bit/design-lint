@@ -1,7 +1,7 @@
 ---
 rule: no-style-color
 legacy-id: 1
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.jsx"]
@@ -42,8 +42,6 @@ Properties whose entire purpose is to set a color. Always flagged.
 
 <div style={{ borderColor: token }} />
 
-<div style={{ borderTopColor: x, borderInlineStartColor: y }} />
-
 <div style={{ outlineColor: "#fff" }} />
 
 <div style={{ caretColor: "red" }} />
@@ -58,9 +56,16 @@ Properties whose entire purpose is to set a color. Always flagged.
 
 <div style={{ scrollbarColor: "dark" }} />
 
-<svg><rect style={{ fill: "red", stroke: "blue" }} /></svg>
-
 <svg><stop style={{ stopColor: "red" }} /></svg>
+```
+
+Two color properties in one object are two violations. The paint, filter and
+vendor-prefixed families are where they are most often written as a pair:
+
+```tsx caught count=2
+<div style={{ borderTopColor: x, borderInlineStartColor: y }} />
+
+<svg><rect style={{ fill: "red", stroke: "blue" }} /></svg>
 
 <svg><filter style={{ floodColor: "red", lightingColor: "blue" }} /></svg>
 
