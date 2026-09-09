@@ -1,0 +1,80 @@
+test/harness/contracts.js
+  s_c7afd02668d88a::t_cdd5145031ecc7 22-42,112-113,115,121,125,134
+  s_c7afd02668d88a::t_5286b649fb64cd 106,126-127,130-133,135-137,145
+  s_c7afd02668d88a::t_222f12771b6ae0 5-6,172-205
+  s_c7afd02668d88a::t_e74d56b9bafbf8 1-4,7-21,43-105,107-111,114,116-120,122-124,128-129,138-144,146-171,206
+src/rules/no-useless-hover.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+src/rules/no-undefined-token.js
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+package.json
+  s_c7afd02668d88a::t_beba41582d267a 1-14
+test/harness/options.js
+  s_c7afd02668d88a::t_3c20f2627f78dd 1-18
+src/rules/no-dark-variant.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+src/rules/no-style-color.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+test/harness/README.md
+  s_c7afd02668d88a::t_56eb78de4a0159 1-76
+src/rules/no-raw-color.js
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+docs/rules/token-constraints.md
+  s_c7afd02668d88a::t_a5f70de266591f 40-52,316,318-322,327,329-333,339,341-345,402-416,418,601,603-607
+test/harness/parse.test.js
+  s_c7afd02668d88a::t_271b633ea077df 4,18-23,39,41-42
+  s_c7afd02668d88a::t_fff5e239c33125 1-3,5-17,24-38,40,43-46
+src/rules/index.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-26
+test/harness/contracts.test.js
+  s_c7afd02668d88a::t_59058e5b73ae4b 1-97
+.gitignore
+  s_c7afd02668d88a::t_7066e6a8ad5733 1
+src/rules/no-opacity-modifier.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+test/harness/corpus.test.js
+  s_c7afd02668d88a::t_271b633ea077df 4,45-47,54-55,64-65
+  s_c7afd02668d88a::t_23836f664314e9 23-30,32,63
+  s_c7afd02668d88a::t_32dbc6dca19629 1-3,5-22,31,33-44,48-53,56-62,66-69
+docs/evasion-matrix.md
+  s_c7afd02668d88a::t_adc338bf32c97e 156-165
+docs/migration-plan.md
+  s_c7afd02668d88a::t_7066e6a8ad5733 533,603-639
+src/rules/token-constraints.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+src/rules/no-component-color-override.js
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+src/rules/no-spectral-color.js
+  s_c7afd02668d88a::t_222f12771b6ae0 12-14
+  s_c7afd02668d88a::t_85ea2d50b66b08 1-11,15-21
+package-lock.json
+  s_c7afd02668d88a::t_ef1cf34ee296c2 1-2042
+test/harness/baseline.json
+  s_c7afd02668d88a::t_df48ee1c5ccd32 1-14
+test/harness/coverage.test.js
+  s_c7afd02668d88a::t_fabb03888c975e 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "ff400c6e5efc7ead99de9e91a1e5425dc1f7ddcd",
+  "prompts": {},
+  "sessions": {
+    "s_c7afd02668d88a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5eda914-da2d-47e5-9713-9a4edc52ca7b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
