@@ -480,7 +480,7 @@ Two risks recorded here have since been **retired**: `oxlint.config.ts` is not m
 experimental in current documentation, and LSP support for JS plugins is not missing but
 shipped. Both came from reading the changelog rather than the spike.
 
-### Phase 1 — Write the nine contracts
+### Phase 1 — Write the nine contracts ✅ DONE — **AGREED**
 
 *No code.*
 
@@ -494,67 +494,110 @@ For each rule, a contract with three sections:
 
 Section 3 is what makes "sure it lints what it promises" achievable.
 
-Open questions this phase must resolve:
-
-- **Does `token-constraints` apply inside `cva()` / `tv()` variant maps?** Phase 0 forced
-  this one, and A7 answered it: the broad sweep sees `cva()` base, variants and
-  compoundVariants as ordinary strings, so the token rules cover it and
-  `no-component-color-override` does not.
-- **Do the rules cover color classes in `.ts` object-literal maps?** Phase 0 found
-  answered by A7: the broad sweep sees them.
-- Should `no-component-color-override` see through `cn(className, "bg-primary")` where
-  `className` is a prop?
-- Is excluding Storybook files intent, or convenience?
-- Does `no-dark-variant` care about `.dark &` selectors and `prefers-color-scheme` blocks
-  in CSS, or only the `dark:` utility?
-- Is `group-hover:` / `peer-hover:` in scope for `no-useless-hover` and `token-constraints`?
-- Per rule: **are false positives or false negatives worse?** The current implementation is
-  conservative everywhere. Prioritising completeness pushes the other way — toward
-  aggressive flagging with `oxlint-disable` as the escape hatch. This must be an explicit
-  line in each contract, not an emergent property.
-- For any rule offering suggestions: **what order are they in, and does the message text
-  stand alone without them?** Both are consequences of Phase 0 findings, and both are
-  cheaper to decide once here than nine times during implementation.
-
 Contracts live in `docs/rules/<name>.md` — prose and test corpus in one file, with
 `caught` / `allowed` / `blindspot` fenced blocks extracted and executed by the harness, so
 declared blind spots are asserted rather than aspirational. See
 [`no-style-color.md`](./rules/no-style-color.md) for the format.
 
-#### Status: all nine drafted
+#### Status: all nine agreed
 
-All nine contracts exist at `status: draft`, with ~190 tagged case blocks between them.
-None is `agreed` — each carries open questions that block it.
+All nine contracts are at `status: agreed`, carrying **205 tagged case blocks** between
+them — 90 `caught`, 61 `allowed`, 40 `blindspot`, 14 `deferred`. Each declares its `bias`
+and its `files` scope in frontmatter. No `Open questions` section and no `[cross-rule]`
+marker survives in any of them.
 
-**Cross-rule questions must be reconciled before any contract is agreed.** They are marked
-`[cross-rule]` in the contracts and cannot be settled inside a single one:
+The triage that got them there is [`open-questions.md`](./open-questions.md) — **18
+decisions, none open**. It is scaffolding and is deleted in Phase 6; its decisions live in
+the contracts and in the `recommended` preset.
 
-| Question | Contracts affected | State |
-| --- | --- | --- |
-| Does a `hover:` token policy bind `group-hover:` / `peer-hover:`? | `token-constraints`, `no-useless-hover` | **Contracts disagree.** Both agree variants must match by *segment*, not substring. They differ on whether `group-hover:bg-primary` must still satisfy `allowed["hover:"]`. Turns on whether the `-hover` suffix rule is about *this element's* hover state or about hover-triggered colour generally. |
-| Do rules apply to `.ts` as well as `.tsx`? | All nine | Raised everywhere, settled nowhere. `no-style-color` and the JSX-scoped rules say `.tsx` only; the token rules say both. That may be correct — but it must be a decision. |
-| Do rules apply to `.css`? | The four token rules, `no-raw-color` | Bound to the `@apply` regression above. |
-| Are Storybook files excluded? | Several | Currently excluded wholesale by `isStorybookFile`. Intent or convenience, still unknown. |
-| Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | `no-raw-color`, `no-dark-variant` | Same family as the `.dark &` / `prefers-color-scheme` question. |
-| Does `cva()` fall inside each rule's scope? | `token-constraints`, `no-component-color-override`, the token rules | Settled in the contract pass. |
+**The cross-rule questions are settled.** Each was one question asked from several sides,
+and each resolution is now text in the contracts rather than a row here:
 
-**Exit:** nine contracts reviewed and agreed.
+| Question | Resolution |
+| --- | --- |
+| Does a `hover:` token policy bind `group-hover:` / `peer-hover:`? | **Both contracts were wrong, in opposite directions (A2, A3).** A config key ending in `:` names a variant *family*. `token-constraints` uses the `hover` family (`hover`, `group-hover`, `peer-hover`, `has-hover`); `no-useless-hover` uses a **self-hover** predicate (`hover`, `not-hover`, `[&:hover]`). Neither set contains the other, so one shared predicate cannot serve both. |
+| Do rules apply to `.ts` as well as `.tsx`? | **Split by family (B1).** The six token rules take `.ts` `.tsx` `.js` `.jsx` — a class string outlives its element. The three JSX rules take `.tsx` `.jsx` only: a `style` prop or a JSX element cannot syntactically exist elsewhere, so scanning is pure cost. |
+| Do rules apply to `.css`? | **Not yet — deferred, not abandoned.** See [Scope](#scope-javascript-and-typescript-only). Five contracts carry a `Deferred: CSS surface` section with inert case blocks the harness does not execute. |
+| Are Storybook files excluded? | **Yes, by default, and configurably (C).** The question was unanswerable as stated because nobody remembers whether the original exclusion was intent or convenience; as a preset default with a glob it stops needing an answer. |
+| Is `light-dark(var(--a), var(--b))` a sanctioned theming mechanism? | **No — banned outright, tokens or not (B5).** It is a second theming mechanism competing with custom properties, which is the argument that bans `dark:`. Owned by `no-dark-variant`; `no-raw-color` still inspects the arguments, so the literal form reports under both. |
+| Does `cva()` fall inside each rule's scope? | **Yes for the token rules, no for `no-component-color-override` — by consequence, not by decision (B3).** A7's broad sweep sees `cva()` base, `variants` and `compoundVariants` as ordinary strings; A10 matches JSX elements by import source, and a `cva()` call is not a JSX element. |
+
+Two decisions were refined after the triage was written, and the contracts are
+authoritative over it: **A3**'s `not-hover:` exclusion is scoped to token policy, and
+**A11**'s blind spot is scoped to declaration *values*. Two more were overtaken by the
+scope change: the triage's B1 and B2 still describe `.css` as a linted surface and a
+`/stylelint` entry point, both of which are now deferred.
+
+**Exit met:** nine contracts reviewed and agreed.
 
 ### Phase 2 — Build the evasion corpus
 
-For each contract, enumerate every syntactic route to the forbidden thing and write it as
-a failing test *first*:
+**The contracts are the corpus.** Phase 1 put prose and cases in one file precisely so
+there is no second place for a test to live, and it left 205 tagged blocks behind. Phase 2
+does not start a corpus; it makes that one *complete* and, for the first time, *executed*.
+
+#### 1. Enumerate every route against every rule
+
+For each contract, walk the route list and give every cell a disposition — a tagged case
+block, or a recorded reason the route cannot reach that rule:
 
 string literal · static template literal · dynamic template literal · `cn` / `clsx` /
 `twMerge` / `cva` / `tv` · variable indirection · object lookup maps · array joins ·
-string concatenation · props spread · multi-line JSX · `.ts` constants files · the CSS side
+string concatenation · props spread · multi-line JSX · `.ts` constants files
 
-Then run the corpus against the **current** implementation. Every pass is coverage we
-already have; every failure is a hole we now know about and can consciously close or
-declare. This replaces the old-output snapshot as the safety net — and unlike a snapshot,
-it points forward.
+The routes are not equally interesting per family, and that asymmetry is the point. For the
+six token rules most cells fall out of A7's broad sweep — every string literal and static
+template-literal segment is seen regardless of context — so the work is confirming the
+sweep's edges, not writing thirty near-identical blocks. For the three JSX rules every
+route is a separate extraction question, because `<Button className={...}>` must be
+resolved to an element before it means anything. That is where the corpus earns its cost.
 
-**Exit:** every corpus case has a pass/fail result and a decision attached.
+A route that lands in *Deliberately allows* or *Declared blind spots* is as complete an
+answer as one that lands in *Promises to catch*. What is not acceptable is a cell with no
+block and no sentence.
+
+#### 2. Build the harness
+
+The corpus is prose until something runs it. The harness — `test/harness/`, listed in the
+[package shape](#package-shape) but owned by no phase until now — extracts `caught` /
+`allowed` / `blindspot` blocks from the contracts and drives `RuleTester`. It skips
+`deferred` blocks, which describe work not yet done.
+
+Built here against **empty rule stubs**, it produces exactly the failing-test baseline this
+phase was always meant to produce: every `caught` block red, every `allowed` and
+`blindspot` block green because a stub reports nothing. Phase 5 turns the first group green
+without being allowed to turn the second red.
+
+It also does the cheap checking that nothing currently does at all: every block parses as
+`tsx`, every `count=` annotation is well-formed, and every rule named in frontmatter has a
+contract and vice versa.
+
+Two Phase 0 constraints govern it, and they are cheaper to honour now than to retrofit in
+Phase 5: `new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "tsx" } } })`,
+and `ruleTester.run()` at top level. **Author it ESLint-first** — ESLint's `RuleTester`
+requires suggestion assertions where Oxlint's does not, so a corpus written against Oxlint
+does not port back.
+
+#### What this phase no longer does
+
+Earlier revisions ran the corpus against the **current implementation**, counting every
+pass as coverage we already had. That step is dropped, for two independent reasons:
+
+- **It cannot run.** This repo is an extraction — no `package.json`, no `src/`, no
+  `styles.css`, no `tailwindcss`. The PoC does not execute here, and standing it up in the
+  application repo would cost more than the answer is worth.
+- **The answer stopped being load-bearing.** Every contract already carries a *Deltas from
+  the current implementation* table written against the source, so the holes are known and
+  written down. Re-deriving them by execution would confirm what the contracts say and
+  bind us, once more, to a proof of concept the plan has already declared non-authoritative.
+
+The safety net it provided is now the harness plus the `blindspot` blocks: a hole is either
+closed or asserted, and CI fails if a future change silently starts catching something we
+declared we do not catch.
+
+**Exit:** every route × rule cell carries a disposition; the harness runs the corpus in CI
+against stubs; the baseline is green except for the `caught` blocks, and that failure count
+is recorded here as the number Phase 5 must drive to zero.
 
 ### Phase 3 — Build the class-string extractor
 
@@ -604,24 +647,22 @@ Phase numbering is unchanged so that references elsewhere still resolve.
 
 ### Phase 5 — Write the nine rules, wire the suggestions, cut over
 
-By now this is mechanical; the thinking happened in Phases 1–3.
+By now this is mechanical; the thinking happened in Phases 1–3, and the corpus that
+defines "done" is already written and already failing.
 
 0. **Verify editor/LSP integration** (~1 hour, in the app repo). Carried over from
    Phase 0, which could not run it. Confirm custom-rule diagnostics *and* suggestions
    appear in the editor. Suggestions are invisible on the CLI, so if the editor path is
    broken they are invisible everywhere — and step 4 below is built on them. Do this
    before writing rule code, not after.
-1. Port the 72 tests to `RuleTester` against empty stubs. Watch them fail.
-   Two Phase 0 gotchas govern this step:
-   - `new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "tsx" } } })`
-     is **mandatory**. Without `eslintCompat` columns are 0-based and all 72 ported column
-     assertions are off by one; without the `tsx` lang, nothing parses.
-   - `ruleTester.run()` must be called at **top level**. The port is therefore not
-     find-and-replace over the existing `describe` / `it` nesting — budget for restructuring.
-   - **Author the corpus ESLint-first.** Phase 0b found ESLint's `RuleTester` *requires*
-     suggestion assertions where Oxlint's does not, so a corpus written against Oxlint
-     will not port to ESLint, while one written against ESLint runs under both.
-2. Add the Phase 2 corpus cases for all nine rules.
+1. Port the 72 surviving PoC tests into the contracts, as ordinary tagged blocks the
+   Phase 2 harness already runs. Anything they assert that a contract does not is either a
+   gap in the contract or behaviour the contracts deliberately changed — decide per case,
+   do not port on autopilot. The `RuleTester` configuration and the ESLint-first rule are
+   settled in [Phase 2](#phase-2--build-the-evasion-corpus); the port is not
+   find-and-replace over the existing `describe` / `it` nesting, so budget for
+   restructuring.
+2. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
 3. Implement in risk order. The three formerly-delegated token rules are small and share
    `/policy`, so they come early and de-risk the shared machinery before the intricate
    ones land on top of it:

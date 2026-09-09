@@ -14,9 +14,18 @@
 >   **self-hover** predicate (`hover`, `not-hover`, `[&:hover]`). Neither set contains the
 >   other, so one shared predicate cannot serve both. `no-dark-variant` resolves the
 >   identical question the same way, catching `not-dark:`.
-> - **A11's blind spot is scoped to declaration *values*.** `@apply bg-[#ff0000]` inside a
->   token file is still caught, because `@apply` is a separate check owned by `/stylelint`
->   and `tokenFiles` wires only into the raw-value rule's `ignoreFiles`.
+> - **A11's blind spot is scoped to declaration *values*.** A raw colour in an ordinary
+>   styling declaration inside a token file is unlinted; the exemption is whole-file, which
+>   is what the mechanism actually provides.
+> - **The CSS surface is deferred, and the scope narrowed to JS/TS.** Everything below that
+>   treats `.css` as a linted surface, names a `/stylelint` entry point, or delegates rules
+>   to a third-party package is superseded — see the plan's
+>   [Scope](./migration-plan.md#scope-javascript-and-typescript-only) and
+>   [No third-party rule packages](./migration-plan.md#no-third-party-rule-packages).
+>   This lands hardest on **B1**, whose file table still lists `.css`, and **B2**, whose
+>   whole answer was the `/stylelint` entry point. All nine rules are ours, so **D**'s
+>   references to Phase 4 and to `off-the-shelf` dispositions are dead too: Phase 4 is
+>   retired.
 
 The nine contracts raise **50 open questions**. The `[cross-rule]` ones are the same
 question asked from several sides, so they collapse to **30 distinct**.
@@ -27,15 +36,16 @@ supplied — changed what most of them *mean*:
 | Class | Count | Who decides | Blocks |
 | --- | --- | --- | --- |
 | **Mechanism** | 11 → **0 left** ✅ | You, now | Phase 3 (the extractor and `/policy`) |
-| **Scope** | 6 → **0 left** ✅ | You, now | Phase 4 |
+| **Scope** | 6 → **0 left** ✅ | You, now | Phase 2 (the corpus) |
 | **Policy** | 11 | Nobody — becomes a preset default | Nothing |
 | **Settled or deferred** | 2 | Already answered | Nothing |
 
 **You need to answer 17, not 50.** Every one carries a recommendation.
 
-**Progress: 18 resolved, 0 open.** ✅ All mechanism and scope questions answered. All mechanism questions are answered; only scope remains. A1, A6 and B2 were already settled by the plan's own
-package shape. A2 and A3 are answered below. Resolved questions keep their heading and are
-marked **ANSWERED**.
+**Progress: 18 resolved, 0 open.** ✅ Every mechanism and scope question is answered, the
+policy questions are preset defaults, and all nine contracts are `agreed`. A1, A6 and B2
+were already settled by the plan's own package shape. Resolved questions keep their
+heading and are marked **ANSWERED**.
 
 ---
 
