@@ -44,6 +44,7 @@ without an explicit `options=` then runs under.
 | `corpus.test.js` | every case runs against its real rule |
 | `contracts.test.js` | structural checks — rule/contract pairing, tags, fixtures, self-contradiction |
 | `coverage.test.js` | how many promises are still unmet, against `baseline.json` |
+| `locations.test.js` | where each rule points — the one thing the corpus does not assert |
 | `options.js` | options the corpus needs that a contract should not have to name, such as paths |
 
 ## While the rules are stubs
@@ -65,6 +66,27 @@ rediscover:
   `RuleTester.it` around each `run()` therefore does nothing — by collection time it holds
   whatever was assigned last. The pending/normal switch travels in the test case's *name*
   instead, where one dispatcher can read it.
+
+## Locations live outside the corpus
+
+A case asserts `errors: count` and nothing more, so nothing in the corpus says *where* a
+rule points — a rule reporting every violation on line 1 would be green across all of it.
+`locations.test.js` is that assertion, deliberately kept out of the contract format:
+
+- An expectation carrying a location must also carry a `messageId` or a `message`.
+  `errors: [{ line }]` is refused outright, so locations in contracts would mean message
+  ids in contracts — and contracts ship as specifications, where a rule's message ids are
+  internals.
+- Expectations are positional. A `count=3` case would need three ordered entries and a
+  defined report order.
+- Most cases are a single line, where a line assertion says nothing.
+- A contract with a `preamble` has it prepended to every case, so any line number in one
+  would be an offset into harness plumbing.
+
+What keeps the file honest is that **a rule whose contract says `status: implemented` must
+have a fixture here**, and the fixture must be one a lazy rule could not satisfy: every
+expectation a full span, nothing on line 1, violations on more than one line. Both are
+tests, so neither is a convention anyone has to remember.
 
 ## What the harness cannot do yet
 

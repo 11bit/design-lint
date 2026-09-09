@@ -814,9 +814,32 @@ defines "done" is already written and already failing.
    column, and a rule reporting every violation on line 1 would be green. The proof of
    concept did assert report locations, because scanning braces by hand made getting them
    wrong a live failure mode. An AST rule gets locations right nearly by construction, and
-   "nearly by construction" is the kind of claim the corpus exists to refuse. **Open
-   decision**, because the contract format ships: a `line=` fence attribute the harness
-   turns into `errors: [{ line }]`, or a few location assertions kept outside the corpus.
+   "nearly by construction" is the kind of claim the corpus exists to refuse.
+
+   ✅ **Resolved: locations are asserted outside the corpus, in
+   [`test/harness/locations.test.js`](../test/harness/locations.test.js). The contract
+   format does not grow a `line=` attribute.** Three of the four reasons are properties of
+   Oxlint's `RuleTester` rather than preferences, and were measured rather than assumed:
+
+   - An expectation carrying a location must also carry a `messageId` or a `message` —
+     `errors: [{ line }]` is refused at runtime with *"Test error must specify either a
+     `messageId` or `message`"*. A `line=` attribute would therefore put **message ids into
+     the contracts**, and a contract is a specification that ships; message ids are rule
+     internals.
+   - Expectations are positional, so a `count=3` case needs three ordered entries and a
+     defined report order to match them against — list syntax on a fence attribute, for a
+     format that ships.
+   - Most cases are one line long, where a line assertion is vacuous. The risk is
+     concentrated in the cases that span lines or report more than once.
+   - Contracts with a `preamble` have it prepended to every case, so a line number written
+     in one would be an offset into harness plumbing rather than into the case.
+
+   The known weakness of keeping them outside is that nothing makes anyone write them, so
+   the file carries the obligation as a test: **a rule whose contract says
+   `status: implemented` must have a location fixture**, and each fixture must be one no
+   lazy rule could satisfy — every expectation a full span (`line`, `column`, `endLine`,
+   `endColumn`), no violation on line 1, and violations on more than one line. Step 4 adds
+   one fixture per rule as that rule lands.
 3. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
 4. Implement in risk order. The three formerly-delegated token rules are small and share
    `/policy`, so they come early and de-risk the shared machinery before the intricate
@@ -874,6 +897,7 @@ only makes sense as a comparison, it does not survive the move.
 | The mechanism-ships-policy-is-supplied principle, and the versioning policy | `CONTRIBUTING.md` |
 | Rule-authoring conventions — external data via `options` never filesystem reads in `create()`, plain `create` over `createOnce`, `messageId` + `data`, suggestions must duplicate into message text, never order a destructive suggestion first | `docs/rules/README.md` |
 | `RuleTester` setup — `eslintCompat: true`, `parserOptions.lang: "tsx"`, top-level `run()` | `docs/rules/README.md` |
+| Why report locations are asserted outside the corpus, and the fixture every rule owes | `docs/rules/README.md` |
 | The contract format — `caught` / `allowed` / `blindspot` blocks, frontmatter fields, how the harness extracts them | `docs/rules/README.md` |
 | The options-replace-not-merge footgun, and the `jsPlugins` / factory config shape | `README.md` |
 | Index of the nine rules, with what each covers and how they divide the surface | `docs/rules/README.md` |
