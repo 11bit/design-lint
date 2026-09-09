@@ -30,7 +30,7 @@ Three components replace one bespoke runner:
 | Component | Responsibility |
 | --- | --- |
 | `oxlint` + [`oxlint-tailwindcss`](https://oxlint-tailwindcss.pages.dev/) | 5 of 9 rules, as configuration only |
-| Local Oxlint JS plugin (4 rules) | The rules no off-the-shelf tool provides |
+| Local Oxlint JS plugin (5 rules) | The rules no off-the-shelf tool provides — four JSX-shaped, plus raw colours in SVG attributes and string constants (decision B4) |
 | `stylelint` + [`stylelint-declaration-strict-value`](https://github.com/AndyOGo/stylelint-declaration-strict-value) | Raw color values in `.css` files |
 
 **The deliverable is a published package**, not configuration embedded in one
@@ -133,7 +133,7 @@ import { designLint } from "@evil-martians/design-lint/preset";
 export default defineConfig(
   designLint({
     tokenFiles: ["src/styles.css"],
-    componentsDirectory: "src/components/ui",
+    componentSources: ["@/components/ui/*"],
   }),
 );
 ```
@@ -211,9 +211,12 @@ suggestions, now for a second reason.
   working rules is worse — but it must be a stated dependency, not a surprise.
 - **New rules ship disabled.** Adding a rule to `recommended` breaks builds on
   `npm update`. New rules land off by default and join `recommended` only on a major.
-- **`componentsDirectory` cannot stay a filesystem convention.** It is the shadcn
-  assumption baked into `no-component-color-override`. Distribution needs a fallback — an
-  explicit component list, or a glob — for projects without that directory.
+- **`componentsDirectory` cannot stay a filesystem convention.** It was the shadcn
+  assumption baked into `no-component-color-override`. **RESOLVED by A10:** the watched set
+  now comes from matching the *import source* — `componentSources: ["@/components/ui/*"]` —
+  so the rule reads no filesystem, derives no paths from its own location, and has nothing
+  to keep in sync. It also closes the one-name-per-filename hole for free, since
+  `CardHeader` is a named import like any other.
 - **Rule options replace, they do not merge — and failure is silent.** A consumer writing
   `"design/no-component-color-override": "error"` to bump a severity **wipes the preset's
   options and produces zero diagnostics, exit 0.** The rule appears enabled and catches
@@ -271,16 +274,19 @@ const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 ```
 
 The current line-wise scanner catches these because it extracts every string literal in
-the file. This is a real coverage loss, not a wash. It needs a Phase 4 verdict under this
-plan's own "do not quietly ship the gap" standard — narrow the contract, or keep a thin
-custom rule for the `.ts` surface.
+the file.
+
+**RESOLVED by A7.** The five token rules keep a broad, context-free sweep over every string
+literal and static template literal in the file — `cva()`, `cn()` arguments and `.ts`
+object-literal maps all fall in for free. `oxlint-tailwindcss` covers what it covers; our
+own token rules cover this surface. No verdict needed and no coverage lost.
 
 ---
 
 ## Rules with no off-the-shelf equivalent
 
-Four rules must be written as a local Oxlint JS plugin. All four are JSX-shaped, which is
-why they benefit most from the move to a real AST.
+**Five** rules must be written as a local Oxlint JS plugin. Four are JSX-shaped, which is
+why they benefit most from the move to a real AST; the fifth was added by decision B4.
 
 | # | Rule | Why nothing covers it |
 | --- | --- | --- |
@@ -288,10 +294,11 @@ why they benefit most from the move to a real AST.
 | 10 | `no-useless-hover` | No published equivalent found. `jsx-a11y/no-noninteractive-element-interactions` is adjacent but solves an accessibility problem, not a hover-affordance one. |
 | 11 | `no-component-color-override` | [`eslint-plugin-primer-react`'s `no-system-props`](https://github.com/primer/eslint-plugin-primer-react/blob/main/docs/rules/no-system-props.md) is the closest published cousin, but it is Primer-specific. The generic form — discover components from a directory, flag color classes passed to them — does not exist as a package. |
 | 5 | `token-constraints` | Prefix-scoped allow lists (`text-` may only use `*content*`/`*foreground*`) are more expressive than a flat deny list. Approximable with negative-lookahead regexes, but unreadable and unmaintainable as config. |
+| 2* | raw colours in SVG attributes and string constants | Added by **B4**. `stylelint-declaration-strict-value` only sees `.css`; `oxlint-tailwindcss` only inspects class strings — so `<circle fill="#ff0000" />` and `const SERIES = ["#ff0000"]` are invisible to both. A7's broad sweep does not close it either: the token rules ask *"is this a forbidden class?"*, and `#ff0000` is not a class. Small to build — the raw-colour matcher the CSS surface already needs, applied to the sweep's output. Owned by `no-raw-css-color`, whose disposition is now three-way. |
 
-### Design constraints for these four
+### Design constraints for these five
 
-- **All external data arrives via rule `options`** — token sets, `uiComponents`, the
+- **All external data arrives via rule `options`** — token sets, component sources, the
   replacement map. Discovery (filesystem reads, Tailwind resolution) happens **once at
   plugin-module load**, never inside `create()`. This keeps `RuleTester` usable and avoids
   a per-file filesystem hit. It also preserves the property the current system has: adding
