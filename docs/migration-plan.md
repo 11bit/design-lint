@@ -530,7 +530,7 @@ scope change: the triage's B1 and B2 still describe `.css` as a linted surface a
 
 **Exit met:** nine contracts reviewed and agreed.
 
-### Phase 2 — Build the evasion corpus
+### Phase 2 — Build the evasion corpus ✅ DONE
 
 **The contracts are the corpus.** Phase 1 put prose and cases in one file precisely so
 there is no second place for a test to live, and it left 205 tagged blocks behind. Phase 2
@@ -600,9 +600,43 @@ The safety net it provided is now the harness plus the `blindspot` blocks: a hol
 closed or asserted, and CI fails if a future change silently starts catching something we
 declared we do not catch.
 
-**Exit:** every route × rule cell carries a disposition; the harness runs the corpus in CI
-against stubs; the baseline is green except for the `caught` blocks, and that failure count
-is recorded here as the number Phase 5 must drive to zero.
+**Exit met.** Every route × rule cell carries a disposition; the harness runs the corpus
+against stubs; **400 promises are unmet**, recorded per rule in
+`test/harness/baseline.json`, and that is the number Phase 5 drives to zero.
+
+| Rule | Promises unmet | Allowed | Blind spots |
+| --- | --- | --- | --- |
+| `token-constraints` | 69 | 60 | 13 |
+| `no-component-color-override` | 68 | 25 | 15 |
+| `no-spectral-color` | 53 | 17 | 5 |
+| `no-raw-color` | 45 | 31 | 10 |
+| `no-opacity-modifier` | 38 | 12 | 7 |
+| `no-style-color` | 36 | 16 | 8 |
+| `no-useless-hover` | 34 | 58 | 20 |
+| `no-dark-variant` | 31 | 8 | 8 |
+| `no-undefined-token` | 26 | 13 | 6 |
+| **Total** | **400** | **240** | **92** |
+
+The suite is green: 1,691 assertions, of which the 400 unmet promises run inverted while
+their contracts are `status: agreed`. Fourteen `deferred` blocks are counted and not
+executed — the size of the CSS deferral, visible rather than forgotten.
+
+**What the build turned up**, none of it visible from reading the contracts:
+
+- **Six cases contradicted themselves.** In `token-constraints`, the same class was
+  asserted as caught in one section and allowed in another, because five blocks assumed a
+  policy other than the baseline and said so *in italic prose*. The format now carries
+  named `options=` fixtures, and `contracts.test.js` fails on any case that disagrees with
+  itself under the same options.
+- **The corpus needs a channel for the semantic token set**, not only for options. One
+  block already varies it. This is a requirement on `/policy`'s interface in Phase 3: it
+  must accept a resolved token set, not only a list of `tokenFiles` paths.
+- **A rule with no `meta.schema` rejects options outright**, so even the stubs need one.
+  Phase 0 recorded that the schema is enforced; that it is also *required* before options
+  are accepted at all is the sharper form of the same fact.
+- **Vitest collects `describe` callbacks eagerly and runs them late**, which defeats the
+  obvious way of switching test behaviour around a `run()` call. Documented in
+  [`test/harness/README.md`](../test/harness/README.md) so it is not rediscovered.
 
 ### Phase 3 — Build the class-string extractor
 

@@ -37,13 +37,19 @@ is not a declared `--color-*` token is somebody else's problem; see
 > it does not. Because this rule is configuration-driven, every block also assumes a
 > configuration — the **baseline** below unless the block says otherwise.
 
-**Baseline options** assumed by every block that does not state its own:
+**Baseline options** assumed by every block that does not name its own. A block that needs
+different policy names a fixture defined the same way — `options=deny-all`, and so on — so
+the configuration a case runs under is executed rather than described.
 
-```
-allowed: { "text":   ["*foreground*", "primary", "link*"],
-           "border": ["border*", "input", "ring"],
-           "hover:": ["*-hover"] }
-denied:  { "*": ["*-foreground"] }
+```json options=baseline
+{
+  "allowed": {
+    "text": ["*foreground*", "primary", "link*"],
+    "border": ["border*", "input", "ring"],
+    "hover:": ["*-hover"]
+  },
+  "denied": { "*": ["*-foreground"] }
+}
 ```
 
 **Baseline semantic tokens** (the `--color-*` names the design system declares):
@@ -307,25 +313,36 @@ own, or the `"*"` fallback.
 <div className="from-muted-foreground" />
 ```
 
-A prefix-specific deny list replaces the fallback rather than adding to it. *Assumes
-`denied: { "*": ["*-foreground"], text: ["warning"] }` and no `allowed`.*
+A prefix-specific deny list replaces the fallback rather than adding to it.
 
-```tsx caught
+```json options=deny-text-warning
+{ "denied": { "*": ["*-foreground"], "text": ["warning"] } }
+```
+
+```tsx caught options=deny-text-warning
 <div className="text-warning" />
 ```
 
 An allow list containing only `*` permits everything; a deny list containing only `*` bans
-everything. *Assumes `denied: { "*": ["*"] }` and no `allowed`.*
+everything.
 
-```tsx caught
+```json options=deny-all
+{ "denied": { "*": ["*"] } }
+```
+
+```tsx caught options=deny-all
 <div className="bg-primary" />
 
 <div className="text-muted" />
 ```
 
-An empty allow list is a total ban for its prefix. *Assumes `allowed: { text: [] }`.*
+An empty allow list is a total ban for its prefix.
 
-```tsx caught
+```json options=empty-text-allow
+{ "allowed": { "text": [] } }
+```
+
+```tsx caught options=empty-text-allow
 <div className="text-primary" />
 
 <div className="text-foreground" />
@@ -382,10 +399,23 @@ stripped before the test.
 
 The mechanism is general: any key ending in `:` is a variant policy, and `hover:` is not
 special-cased. The same family test applies, so one `"focus:"` key covers `focus`,
-`group-focus` and `peer-focus` with no new code. *Assumes the baseline plus
-`"focus:": ["*-focus"]` in `allowed`, and `primary-focus` in the semantic token set.*
+`group-focus` and `peer-focus` with no new code. The fixture also assumes `primary-focus` in
+the semantic token set, which arrives through `tokenFiles` rather than through `options` — see
+[the harness note on token sets](#configuration).
 
-```tsx caught
+```json options=focus-policy
+{
+  "allowed": {
+    "text": ["*foreground*", "primary", "link*"],
+    "border": ["border*", "input", "ring"],
+    "hover:": ["*-hover"],
+    "focus:": ["*-focus"]
+  },
+  "denied": { "*": ["*-foreground"] }
+}
+```
+
+```tsx caught options=focus-policy
 <div className="focus:bg-primary" />
 
 <div className="focus:hover:bg-primary" />
@@ -568,10 +598,13 @@ policy and a variant policy reports once, against the first failure in resolutio
 <div className="stroke-primary" />
 ```
 
-An empty deny list opts a prefix out of the fallback. *Assumes
-`denied: { "*": ["*-foreground"], bg: [] }` and no `allowed`.*
+An empty deny list opts a prefix out of the fallback.
 
-```tsx allowed
+```json options=bg-opt-out
+{ "denied": { "*": ["*-foreground"], "bg": [] } }
+```
+
+```tsx allowed options=bg-opt-out
 <div className="bg-muted-foreground" />
 ```
 

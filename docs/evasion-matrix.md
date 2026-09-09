@@ -153,3 +153,13 @@ Recommendation: **one mechanism, the preset `overrides` glob, verified first.** 
 then carry no glob lists at all, with one exception that is not file policy —
 `no-raw-color`'s `tokenFiles`, which is an input the rule needs for other reasons and whose
 whole-file exemption is decision **A11**.
+
+
+**The corpus can vary options, but not the token set.** `token-constraints` has a block
+assuming `primary-focus` exists as a semantic token, and the token set is derived by
+`/policy` from `tokenFiles` rather than passed as an option — so the fixture can express the
+policy half of that case and not the other half. This is a requirement on Phase 3 rather
+than a defect here: `/policy`'s public interface must accept a **resolved token set**, not
+only a list of paths, or every variation needs its own fixture stylesheet. It is the first
+concrete entry on the list Phase 3 exists to produce, "names every input it needs rather
+than discovering any".
