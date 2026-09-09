@@ -2,7 +2,7 @@ import { describe, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 
 import { executable, label, loadContracts } from "./contracts.js";
-import { rules } from "../../src/rules/index.js";
+import { ruleFor } from "./options.js";
 
 /**
  * The corpus, executed.
@@ -39,7 +39,7 @@ const config = {
 export const baseline = [];
 
 for (const contract of loadContracts()) {
-  const rule = rules[contract.rule];
+  const rule = ruleFor(contract.rule);
   const implemented = contract.status === "implemented";
 
   const cases = executable(contract);

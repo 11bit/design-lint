@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 
 import { loadContracts } from "./contracts.js";
-import { optionsFor } from "./options.js";
-import { rules } from "../../src/rules/index.js";
+import { optionsFor, ruleFor } from "./options.js";
 
 /**
  * Where a rule points.
@@ -71,7 +70,7 @@ const config = {
 };
 
 for (const [ruleName, fixtures] of Object.entries(FIXTURES)) {
-  new RuleTester(config).run(`${ruleName} — report locations`, rules[ruleName], {
+  new RuleTester(config).run(`${ruleName} — report locations`, ruleFor(ruleName), {
     valid: [],
     invalid: fixtures.map((f) => ({
       name: f.name,
