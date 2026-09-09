@@ -12,14 +12,14 @@ supplied — changed what most of them *mean*:
 
 | Class | Count | Who decides | Blocks |
 | --- | --- | --- | --- |
-| **Mechanism** | 11 → **4 left** | You, now | Phase 3 (the extractor and `/policy`) |
+| **Mechanism** | 11 → **0 left** ✅ | You, now | Phase 3 (the extractor and `/policy`) |
 | **Scope** | 6 → **5 left** | You, now | Phase 4 |
 | **Policy** | 11 | Nobody — becomes a preset default | Nothing |
 | **Settled or deferred** | 2 | Already answered | Nothing |
 
 **You need to answer 17, not 50.** Every one carries a recommendation.
 
-**Progress: 9 resolved, 9 open.** A1, A6 and B2 were already settled by the plan's own
+**Progress: 13 resolved, 5 open.** All mechanism questions are answered; only scope remains. A1, A6 and B2 were already settled by the plan's own
 package shape. A2 and A3 are answered below. Resolved questions keep their heading and are
 marked **ANSWERED**.
 
@@ -172,16 +172,23 @@ The message must name that escape hatch — a lookup of complete class names, or
 
 *Contract: `no-style-color` 3 — `const s = {color:"red"}; <div style={s} />`.*
 
-**Recommendation: no, keep as a declared blind spot.** Bounded and declared beats the slide
-toward general dataflow analysis. Revisit only if it shows up in practice.
+**ANSWERED — no, a declared blind spot.** `style={s}` and `className={s}` stay unresolved.
+Documented under *Declared blind spots* and asserted by the harness, so if a future change
+starts catching them CI fails and forces the doc to be updated. Bounded and honest beats
+the slide toward dataflow analysis, where every answer to "how many levels, which scopes"
+is arbitrary and gets re-argued in review. Revisit only if it shows up in practice.
 
 ### A9. Does an interactive JSX ancestor exempt its descendants?
 
 *Contract: `no-useless-hover` 3.*
 
-**Recommendation: yes, within the same expression.** It is the common correct pattern. The
-residual false positive — a wrapper component that renders a button — is documented and
-accepted, which is consistent with that rule's `false-negatives` bias.
+**ANSWERED — yes, within the same expression, at any depth.** Walk up the JSX tree; if any
+ancestor is interactive, stay silent. `<button><span className="hover:text-primary">` is a
+common and correct pattern, and flagging it would buy simplicity with noise.
+
+The residual false positive — a wrapper component that renders a `<button>`, where the
+ancestor is not visible in the expression — remains, and is documented rather than fixed.
+That is consistent with this rule's `false-negatives` bias.
 
 ### A10. How is the watched component set derived?
 
@@ -194,9 +201,32 @@ identifiers, read recursively.
 But *Consequences to design around* now says `componentsDirectory` cannot survive as a
 filesystem convention, and *nothing may derive paths from its own location*.
 
-**Recommendation: exported identifiers, with an explicit list or glob as the configured
-alternative.** The directory scan becomes one strategy the preset defaults to, not the
-mechanism.
+**ANSWERED — match the import source.** A JSX element is watched when its identifier was
+imported from a path matching a configured pattern. This replaces the triage's original
+recommendation (scan the directory for exported identifiers), which still read the
+filesystem and still assumed a directory convention.
+
+```
+config:  componentSources: ["@/components/ui/*"]
+
+import { Card, CardHeader } from "@/components/ui/card";
+
+✗ <CardHeader className="bg-primary" />     ✗ <Card className="text-danger" />
+
+— <Card /> imported from elsewhere: not watched
+— dynamic import(): declared blind spot
+```
+
+Why it wins on every distribution constraint at once:
+
+- **No filesystem access** and **no path derived from the plugin's own location** — the
+  information is already in the file being linted.
+- **Nothing to keep in sync.** An explicit name list drifts silently the moment someone
+  adds a component; a directory scan needs the consumer to have that directory.
+- **Compound members are free.** `CardHeader` is a named import like any other, which
+  closes the rule's largest live hole (one PascalCase name per filename) without special
+  handling.
+- Precedent: `eslint-plugin-primer-react` resolves components the same way.
 
 ### A11. Is the definition-scoped token-file exemption achievable?
 
@@ -206,9 +236,24 @@ The contract *requires* definition-scoped (a literal in a `--color-*` declaratio
 allowed; an ordinary styling declaration in the same file is caught). Stylelint's
 `ignoreFiles` only gives whole-file.
 
-**Recommendation: keep the requirement and let Phase 4 answer it.** The contract's `caught`
-block is executed, so if the tool cannot do it the test fails loudly rather than the gap
-passing unnoticed. That is the mechanism working as designed.
+**ANSWERED — whole-file, and declared as a blind spot.** The exemption matches what
+Stylelint's `ignoreFiles` actually provides. A raw colour anywhere in a token file is
+unlinted, including in an ordinary styling rule.
+
+```css
+/* src/styles.css — exempt in full */
+@theme { --color-primary: oklch(0.7 0.15 250); }   ✓ the definition
+.some-component { color: #ff0000; }                 ✓ also allowed — the blind spot
+```
+
+This **reverses the contract's requirement**, which asked for definition-scoped exemption.
+`no-raw-css-color` must move that from *Promises to catch* into *Declared blind spots*,
+where the harness asserts it — so if a future change starts catching it, CI fails and the
+doc is updated rather than the behaviour drifting silently.
+
+Chosen over letting Phase 4 discover it: the capability is already known to be absent, so
+promising it would be promising something we expect to fail. Declaring the limit is the
+honest form of the same information.
 
 ---
 
