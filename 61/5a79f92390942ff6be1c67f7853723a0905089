@@ -1,0 +1,27 @@
+src/rules/token-constraints.js
+  s_5c54fd76d4025e::t_ad7e85ffd96042 1-5,7,10-30,32-62,66-99,101-134,137-427
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_ad7e85ffd96042 62-91
+test/harness/options.js
+  s_5c54fd76d4025e::t_ad7e85ffd96042 60-88,91
+test/harness/baseline.json
+  s_5c54fd76d4025e::t_ad7e85ffd96042 12
+docs/rules/token-constraints.md
+  s_5c54fd76d4025e::t_ad7e85ffd96042 4,44-47,197-206,254-265,268-269,454-456,459-465,471,991,995-1001,1027-1033,1072,1091
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "615a79f92390942ff6be1c67f7853723a0905089",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
