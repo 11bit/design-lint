@@ -1,0 +1,35 @@
+test/harness/corpus.test.js
+  s_5c54fd76d4025e::t_65ce210ca2d88e 5
+  s_5c54fd76d4025e::t_39c8691745fda8 42
+src/rules/no-spectral-color.js
+  s_5c54fd76d4025e::t_c39e51037f8156 51,53-58
+  s_5c54fd76d4025e::t_31fb1e46e27fd1 76-78,91-96
+  s_5c54fd76d4025e::t_fc9cfd7b2fb0fc 184,186-189,191-192,194,197
+  s_5c54fd76d4025e::t_54e439660360ea 118-123
+src/plugin.js
+  s_5c54fd76d4025e::t_65970a32799923 1-46
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_2b399044e6f06a 5
+  s_5c54fd76d4025e::t_a6cdd2e4be7c98 119
+docs/rules/no-spectral-color.md
+  s_5c54fd76d4025e::t_5e36eb6bda3908 529-539,542-546
+test/harness/options.js
+  s_5c54fd76d4025e::t_65970a32799923 4,8,30-37,57-58,64-77,81-89
+  s_5c54fd76d4025e::t_489f121fab8c3e 90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "2506fb3de38500a39f930d127b6924ec3a1a6659",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
