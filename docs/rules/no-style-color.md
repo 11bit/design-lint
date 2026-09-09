@@ -1,7 +1,7 @@
 ---
 rule: no-style-color
 legacy-id: 1
-status: draft
+status: agreed
 disposition: custom
 bias: false-positives
 files: ["*.tsx"]
@@ -69,8 +69,9 @@ Properties whose entire purpose is to set a color. Always flagged.
 
 ### Color-capable shorthands
 
-Properties that may carry a color among other values. Flagged on the key alone — see
-[Open questions](#open-questions) for whether this should narrow to value inspection.
+Properties that may carry a color among other values. Flagged on the key alone; see
+[Configuration](#configuration) for the `shorthandProperties` option that narrows this to
+value inspection.
 
 ```tsx caught
 <div style={{ background: "red" }} />
@@ -200,8 +201,10 @@ assertion and force this document to be updated.
 
 ### Indirect style values
 
-The object does not appear at the call site. Resolving it requires cross-statement or
-cross-module analysis that this rule does not attempt.
+The object does not appear at the call site. Resolving it would require cross-statement
+analysis, which decision A8 declined: bounded and declared beats the slide toward dataflow
+analysis, where every answer to *how many levels, which scopes* is arbitrary and gets
+re-argued in review. Revisit only if it shows up in practice.
 
 ```tsx blindspot
 const s = { color: "red" };
@@ -260,45 +263,37 @@ No autofix — choosing the replacement token requires intent this rule cannot i
 A suggestion offering the custom-property rewrite was considered and rejected: the
 generated property name would be a guess.
 
-## Open questions
+## Configuration
 
-Each blocks `status: agreed`.
+| Option | `recommended` default | Overriding it |
+| --- | --- | --- |
+| `allowTokenValues` | `false` | `true` permits `style={{ color: "var(--color-primary)" }}`. See below — the default is deliberate. |
+| `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its literal value looks like it carries a colour. Quieter, and misses `boxShadow: shadowVar`. |
+| `exclude` | `["**/*.stories.tsx"]` | A preset-level `overrides` glob, not rule logic — no rule derives a path from its own location. Stories are where ad-hoc inline colour is most tempting and least harmful. |
 
-1. **Is `style={{ color: "var(--color-primary)" }}` a violation?**
-   It uses a token, so the stated rationale ("bypasses the token system") does not apply.
-   But it still cannot carry variants, and it still beats every class in the cascade.
-   *Recommendation: flag it.* The custom-property escape hatch above already covers the
-   legitimate need, and allowing `var()` here creates a second, weaker way to do the same
-   thing. If we allow it, that must be an explicit `allowed` case, not silence.
+**`var()` values are a violation by default.** `style={{ color: "var(--color-primary)" }}`
+does use a token, so the headline rationale does not apply to it. It is still flagged: it
+cannot carry a variant, and it still beats every class in the cascade. The custom-property
+escape hatch documented above covers the legitimate need, and allowing `var()` here would
+create a second, weaker way to do the same thing.
 
-2. **Do the color-capable shorthands flag on the key alone, or only when the value looks
-   like it contains a color?** Key-only is complete but will flag `filter: "blur(4px)"`,
-   `boxShadow: "none"`, and `backgroundImage: "url(...)"`. Value inspection is quieter but
-   misses `boxShadow: shadowVar`.
-   *Recommendation: key-only, consistent with `bias: false-positives`.* These properties
-   are rare in a Tailwind codebase and `oxlint-disable` is cheap. Revisit if the noise is real.
+**Colour-capable shorthands flag on the key alone.** Complete, and consistent with
+`bias: false-positives`. It will flag `filter: "blur(4px)"`, `boxShadow: "none"` and
+`backgroundImage: "url(...)"`, which are rare in a Tailwind codebase and cheap to
+`oxlint-disable`. Value inspection is available via `shorthandProperties: "value"` if the
+noise proves real.
 
-3. **Should one level of variable indirection be resolved?**
-   `const s = { color: "red" }; <div style={s} />` is currently allowed and explicitly
-   tested as allowed. An AST rule could trace a `const` in the same scope.
-   *Recommendation: keep as a blind spot for v1.* It is a real hole, but a bounded and
-   declared one, and closing it invites scope creep toward general dataflow analysis.
+### Distribution
 
-4. **Are Storybook files excluded?** The current runner skips them wholesale via
-   `isStorybookFile`. Unclear whether that was intent or convenience. Stories are exactly
-   where ad-hoc inline color is most tempting and least harmful.
+This rule reads nothing from disk and resolves no path relative to the package. It needs no
+token set and no design-system resolution — the colour-property list is a fact about CSS,
+not about any project — which makes it the only rule of the nine with no required option.
 
-5. **Does this rule apply to `.ts` files at all?** The current runner scans them, but a
-   `style` prop only exists in JSX, so for *this* rule the answer is almost certainly no.
-   Style objects declared in `.ts` constants files fall under open question 3.
-
-   The question matters project-wide, though, and Phase 0 sharpened it:
-   `oxlint-tailwindcss` does **not** see color classes in `.ts` object-literal maps
-   (`const badgeColor = { danger: "bg-red-500" }`), while the current line-wise scanner
-   does. That is a real regression for `token-constraints`, `no-spectral-color`, and
-   `no-component-color-override`. It does not affect `no-style-color`, but the file-scope
-   decision should be made once across all nine contracts rather than nine times.
-   *Recommendation for this rule: `.tsx` only.*
+That has one consequence worth stating: the **options-replace-not-merge** footgun cannot
+silence this rule. A consumer writing `"design/no-style-color": "error"` to bump severity
+wipes the preset's options and falls back to `defaultOptions`, which is the recommended
+policy. Elsewhere that mistake produces zero diagnostics at exit 0; here it produces the
+correct behaviour.
 
 ## Deltas from the current implementation
 

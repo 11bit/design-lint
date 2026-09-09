@@ -1,7 +1,7 @@
 ---
 rule: no-dark-variant
 legacy-id: 9
-status: draft
+status: agreed
 disposition: off-the-shelf
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.css"]
@@ -9,12 +9,15 @@ files: ["*.tsx", "*.ts", "*.css"]
 
 # no-dark-variant
 
-**The `dark:` variant must not appear in application code.**
+**Theming happens in the token file. No second mechanism.**
+
+Concretely: the `dark:` variant must not appear in application code, and neither must
+`light-dark()`.
 
 The design system resolves themes in exactly one place: the `--color-*` custom properties in
-`colorTokenFiles`. `bg-card` is dark-mode-correct because `--color-card` has a dark value,
-and every component that uses it becomes correct at the same moment. A `dark:` variant opts
-one element out of that arrangement and re-decides the theme locally.
+the files named by `tokenFiles`. `bg-card` is dark-mode-correct because `--color-card` has a
+dark value, and every component that uses it becomes correct at the same moment. A `dark:`
+variant opts one element out of that arrangement and re-decides the theme locally.
 
 The cost is not stylistic. Each `dark:bg-slate-800` is a theme fork that no token change can
 reach, that the next theme (high-contrast, a second brand) will not have an answer for, and
@@ -28,7 +31,30 @@ system had not named, and branched instead of asking for it.
 
 ## Promises to catch
 
-The `dark:` variant on any class, in any class string the project authors.
+The `dark:` variant on any class, and any use of `light-dark()`, in any string the project
+authors.
+
+The rule is **context-free**: it asks "does this string carry a `dark:` segment or a
+`light-dark()` call?" and never needs to know which element the string reaches. It runs over
+the broad sweep — every string literal and every static template literal in a `.tsx`, `.ts`
+or `.css` file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge`
+arguments, `cva` / `tv` variant maps and `.ts` object-literal constants are all in, for free.
+
+`dark` is matched **as a variant segment**, never as a substring. Segmentation comes from
+`/policy`, splits on `:` at bracket depth zero, and strips named-group suffixes — so
+`bg-dark-muted` is a token name, `[@media(prefers-color-scheme:dark)]:` is a single
+arbitrary-variant segment, and `md:dark:hover:` is three segments of which the second
+matches. Position in a stacked chain is therefore irrelevant by construction rather than by
+regex luck.
+
+`not-dark:` **is** caught. A3's inverse carve-out exists for `not-hover:`, where a `-hover`
+token would read backwards; there is no such reading here. `not-dark:` depends on the same
+`.dark` root class this design system does not use, so it is the same fork seen from the
+other side.
+
+`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
+module, so `@apply dark:bg-card` and a `light-dark()` declaration value are governed by one
+policy rather than two that drift.
 
 ### As the only variant
 
@@ -56,6 +82,10 @@ Position in the chain is irrelevant; so is what else is in it.
 <div className="lg:dark:focus-visible:ring-primary" />
 
 <div className="dark:[&>svg]:text-muted" />
+
+<div className="not-dark:bg-card" />
+
+<div className="group-hover/nav:dark:text-foreground" />
 ```
 
 ### On non-colour utilities
@@ -64,8 +94,15 @@ Taken deliberately, and it is the widest reading available. `dark:` is a theme b
 markup whatever it modifies, and the mechanism it depends on — a `.dark` class toggled on
 the document root — is the mechanism this design system does not use. Allowing
 `dark:` on layout utilities would also make the rule's boundary a matter of judging each
-utility, which is exactly the ambiguity a lint rule should not have. See
-[Open questions](#open-questions): the asset-swap case is the real cost of this position.
+utility, and would give `dark:border-slate-700` and `dark:border-0` different answers for
+reasons no reader will retain.
+
+The known cost is the light/dark asset swap — one `<img>` with `dark:hidden` next to another
+with `hidden dark:block`, the standard Tailwind idiom for a logo, with no token-based
+equivalent because the thing that changes is a file rather than a colour. The answer is
+`oxlint-disable` at the two or three sites, and if the pattern turns out to be common, a
+`<ThemedImage>` component — not a narrower rule. `flagNonColorUtilities` exists for a project
+that disagrees; see [Configuration](#configuration).
 
 ```tsx caught
 <div className="dark:hidden" />
@@ -103,6 +140,48 @@ const themeClass = { night: "dark:bg-black", day: "bg-white" };
 }
 ```
 
+### The variant interpolated
+
+`dark:` is statically present. Nothing about the interpolation makes the theme fork less
+real, and unlike an interpolated colour the rule's entire subject is visible in the source.
+
+```tsx caught
+<div className={`dark:${utility}`} />
+
+<div className={`dark:bg-card ${extra}`} />
+```
+
+### `light-dark()`
+
+Banned outright, tokens on both sides or not.
+
+```css caught
+.panel {
+  color: light-dark(#000, #fff);
+}
+
+.card {
+  background: light-dark(var(--color-fg), var(--color-fg-dark));
+}
+```
+
+```tsx caught
+<div className="bg-[light-dark(var(--color-fg),var(--color-fg-dark))]" />
+```
+
+The all-tokens form is the one worth arguing about, and it is still a violation. A
+`--color-*` token *already* resolves per theme — that is what makes it a token — so
+`light-dark()` does the job a second time, in a place the token file cannot see. The
+property that makes a theme change safe is that one file decides every colour; a
+`light-dark()` in a component takes one colour back out of that file's reach and leaves it
+looking compliant. Two tokens spliced together at the call site is a fork with better
+spelling.
+
+Ownership sits here rather than with `no-raw-css-color` because the defect is the
+*mechanism*, not the values inside it. `no-raw-css-color` separately inspects the arguments,
+so `light-dark(#000, #fff)` reports under both rules — the same property-versus-value
+division of labour those two contracts already document.
+
 ### Every offending class reports separately
 
 ```tsx caught count=2
@@ -113,8 +192,9 @@ const themeClass = { night: "dark:bg-black", day: "bg-white" };
 
 ### `dark` as a token segment, not a variant
 
-The trailing colon is what makes it a variant. A token may legitimately be named for a
-dark surface.
+Segmentation is what separates these, not a substring search. `dark` appearing inside a
+utility body is never a variant segment, and a token may legitimately be named for a dark
+surface.
 
 ```tsx allowed
 <div className="bg-dark-muted" />
@@ -149,6 +229,19 @@ it, and banning it would ban the design system's own switch.
 <div className="bg-card text-card-foreground border-border" />
 ```
 
+### `light-dark()` inside the token-definition files
+
+The ban is on a *second* theming mechanism, and inside `tokenFiles` there is no second one —
+that is the file where a `--color-*` property is given its per-theme value, and
+`light-dark()` is one legitimate way to write that. The same exemption `.dark &` gets in
+those files, for the same reason.
+
+```css allowed
+@theme {
+  --color-fg: light-dark(oklch(0.2 0 0), oklch(0.98 0 0));
+}
+```
+
 ## Declared blind spots
 
 Not caught, by decision.
@@ -156,18 +249,23 @@ Not caught, by decision.
 ### Dark theming in CSS selectors
 
 `.dark &` and `@media (prefers-color-scheme: dark)` are the *implementation* of the theme,
-not a violation of it — inside `colorTokenFiles` they are how `--color-card` gets a dark
+not a violation of it — inside the `tokenFiles` they are how `--color-card` gets a dark
 value, and a rule that flagged them would flag the design system itself. Outside those
 files, in a component stylesheet, they are the same offence as `dark:` and are equally
 unwanted.
 
-This rule does not report either, in either location. Oxlint JS plugins cannot read CSS
-selectors, and the distinction that matters — which file the selector is in — is a
-Stylelint configuration (`selector-disallowed-list` / `at-rule-disallowed-list` with
-`colorTokenFiles` in `ignoreFiles`), not a rule this contract can promise. Recorded here as
-a limit so the gap is visible rather than assumed closed. This resolves the open question
-the migration plan raises: the `dark:` utility is in scope, CSS-level dark theming is
-delegated.
+This rule does not report either, in either location. The package's `/stylelint` entry point
+covers the CSS surface it was scoped to — `@apply` class lists and declaration values, which
+is how `@apply dark:bg-card` and `light-dark()` above are enforced — but a `.dark &`
+*selector* is neither. Closing it is a `selector-disallowed-list` /
+`at-rule-disallowed-list` configuration with `tokenFiles` in `ignoreFiles`, sharing the same
+`ignoreFiles` list as the raw-value setup; the sensible time to add it is alongside that
+setup in Phase 4, since deciding both together is cheaper than deciding either alone. Until
+it exists, dark theming in a component stylesheet is unenforced, and that is stated here
+rather than implied.
+
+The scope line stands regardless: the `dark:` utility and `light-dark()` are this rule's,
+selector-level dark theming is delegated.
 
 ```css blindspot
 .panel {
@@ -185,12 +283,25 @@ delegated.
 }
 ```
 
-### Dynamic composition
+### The variant itself interpolated, or concatenated
+
+`dark:` is only caught when `dark` is statically a variant segment. An interpolated *variant*
+is not one, and `+` is not a template literal — the bare `"dark:"` the broad sweep sees is a
+prefix with no class attached, and treating it as a violation would report a fragment rather
+than a defect.
 
 ```tsx blindspot
 <div className={`${theme}:bg-card`} />
 
 <div className={"dark:" + utility} />
+```
+
+### Use sites with no literal of their own
+
+The broad sweep catches the string where it is written, not where it is used.
+
+```tsx blindspot
+<div className={THEME_CLASSES[mode]} />;
 ```
 
 ### Theme branching in JavaScript
@@ -221,15 +332,35 @@ const bg = useTheme() === "dark" ? "bg-card" : "bg-popover";
 - **`no-undefined-token`** evaluates the class with variants stripped, so it neither
   suppresses nor is suppressed by this rule.
 - **`token-constraints`** and **`no-useless-hover`** own the `hover:` variant. This rule
-  owns `dark:` only, and takes no position on any other variant.
+  owns `dark:` and `light-dark()` only, and takes no position on any other variant.
+- **`no-raw-css-color`** inspects the *arguments* of a `light-dark()` call; this rule bans
+  the call. `light-dark(#000, #fff)` therefore reports from both, and correctly: the
+  mechanism is unsanctioned and the values are raw. The all-tokens form reports only here.
+- **Dynamically assembled class names belong to `no-spectral-color`.** `` `dark:${u}` ``
+  reports here because `dark:` is statically present; `` `${theme}:bg-card` `` reports from
+  neither, because nothing forbidden is visible in it.
 
 ## Message
 
+The token file is named through `data`, never hardcoded — the consuming project decides
+where its tokens live.
+
 ```
 messageId: darkVariant
-data:      { className, utility }
+data:      { className, utility, tokenFile }
 text:      "{{className}} — dark: variant not allowed; theming is resolved by the
-            --color-* tokens in styles.css, so use a semantic token for {{utility}}"
+            --color-* tokens in {{tokenFile}}, so use a semantic token for {{utility}}"
+```
+
+A second id for `light-dark()`, because the fix is different: there is no paired class to
+collapse, only a call to delete once the token carries both values.
+
+```
+messageId: lightDarkFunction
+data:      { source, tokenFile }
+text:      "{{source}} — light-dark() is a second theming mechanism; a --color-* token
+            already resolves per theme, so give the property both values in {{tokenFile}}
+            and reference the token here"
 ```
 
 No autofix and no suggestion. The correct rewrite is the paired light class collapsed into
@@ -237,35 +368,35 @@ one semantic token — `dark:bg-slate-800 bg-white` becomes `bg-card` — which 
 reading a sibling class this rule does not model, and choosing a token this rule cannot
 name.
 
-## Open questions
+## Configuration
 
-Each blocks `status: agreed`.
+Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
+consuming project overrides in its own config — none is a fact baked into the rule.
 
-1. **Is `dark:` on a non-colour utility a violation?**
-   The contract says yes. The known cost is the light/dark asset swap — one `<img>` with
-   `dark:hidden` next to another with `hidden dark:block` — which is the standard Tailwind
-   idiom for a logo and has no token-based equivalent, because the thing that changes is a
-   file, not a colour. *Recommendation: keep flagging it, with
-   `oxlint-disable` at the two or three asset-swap sites.* The alternative — allowing
-   `dark:` on utilities judged non-colour — makes the rule's boundary depend on a
-   per-utility classification and gives `dark:border-slate-700` and `dark:border-0`
-   different answers for reasons no reader will retain. If the swap pattern turns out to be
-   common, the right fix is a `<ThemedImage>` component, not a narrower rule.
+| Option | `recommended` | Overriding it |
+| --- | --- | --- |
+| `flagNonColorUtilities` | `true` | `false` limits reporting to `dark:` on a class that sets a colour, which buys back the asset-swap idiom at the price of a per-utility boundary. The default is the widest reading, deliberately. |
+| `flagLightDark` | `true` | `false` allows `light-dark()` outside the token files. A project that has genuinely chosen `light-dark()` *as* its theming mechanism sets this and stops using `--color-*` variants — the two are alternatives, not a spectrum. |
+| `tokenFiles` | `["src/styles.css"]` | The files exempted wholesale. This is where `light-dark()` and `.dark &` are legitimate, because it is where a token gets its per-theme value. Also feeds Stylelint's `ignoreFiles`. |
+| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because a story demonstrating both themes is the one place a theme fork is the subject; a project that disagrees sets this to `[]`. |
 
-2. **Should the CSS side be enforced, and by what?**
-   The blind spot above delegates `.dark &` and `prefers-color-scheme` to Stylelint but no
-   such config exists yet. *Recommendation: add it in Phase 4 alongside the
-   `declaration-strict-value` setup*, since both need the same `ignoreFiles` list and
-   deciding them together is cheaper. Until it exists, dark theming in a component
-   stylesheet is unenforced, and that should be stated rather than implied.
+Whether `dark:` is banned at all is itself policy — a project using Tailwind's `dark:` as
+its theming mechanism turns this rule off entirely rather than configuring it. The rule
+carries the mechanism for detecting a theme fork; the decision that a theme fork is wrong
+belongs to the preset.
 
-3. **Does the rule apply to `.css` files at all after the migration?** **[cross-rule]**
-   The `@apply dark:bg-card` case above is promised and nothing in the planned architecture
-   covers it. See open question 3 in `no-spectral-color`.
+### Distribution
 
-4. **Do the rules cover colour classes in `.ts` object-literal maps?** **[cross-rule]**
-   The `themeClass` case above is promised and `oxlint-tailwindcss` does not see it. See
-   open question 4 in `no-spectral-color`.
+- **The rule reads no files and derives no path from its own location.** `tokenFiles` and
+  `ignoreGlobs` arrive through `options`; nothing is discovered, and the `.dark` class name
+  is never inferred from a Tailwind config on disk.
+- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
+  `settings` is not inherited through `extends`. The consumer supplies it in its own config;
+  the preset cannot.
+- **Rule options replace, they do not merge.** A consumer writing
+  `"…/no-dark-variant": "error"` to bump a severity wipes the preset's options, including
+  `tokenFiles` — so the token file itself starts reporting its own `light-dark()`. To change
+  severity alone, restate the options.
 
 ## Deltas from the current implementation
 
@@ -278,12 +409,15 @@ variants and `!` are still attached. It is the closest of the four to its contra
 | Case | Today | Under this contract |
 | --- | --- | --- |
 | `dark:bg-primary`, `md:dark:`, `hover:dark:` | caught | caught |
-| `dark:hidden`, `dark:border-0` | caught | caught |
-| `bg-dark-muted`, `text-darkness` | allowed — `dark:` is preceded by `-` | allowed |
+| `dark:hidden`, `dark:border-0` | caught | caught, under `flagNonColorUtilities` |
+| `bg-dark-muted`, `text-darkness` | allowed — `dark:` is preceded by `-` | allowed — by segmentation, not by luck |
 | `className="dark"` (theme root) | allowed | allowed |
-| `@apply dark:bg-card` | caught | caught |
-| `` className={`dark:${u}`} `` | missed — template literals are never extracted | blind spot, explicitly |
-| `.dark &` in a component stylesheet | not examined | blind spot, delegated to Stylelint |
+| `not-dark:bg-card` | missed — `/(?:^\|:)dark:/` sees a `-` before `dark:` | caught |
+| `@apply dark:bg-card` | caught | caught, via `/stylelint` |
+| `light-dark(var(--a), var(--b))` | not examined | caught |
+| `` className={`dark:${u}`} `` | missed — template literals are never extracted | caught |
+| `const themeClass = { night: "dark:bg-black" }` | caught at the literal | caught at the literal; the *use site* is the blind spot |
+| `.dark &` in a component stylesheet | not examined | blind spot, delegated to a Stylelint selector list |
 | `dark:bg-slate-800` | 2 reports (this rule + `no-spectral-color`) | 2 reports |
 
 This is the only one of the four palette-class rules that never sees a normalised class —

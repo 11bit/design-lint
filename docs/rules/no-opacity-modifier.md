@@ -1,7 +1,7 @@
 ---
 rule: no-opacity-modifier
 legacy-id: 3
-status: draft
+status: agreed
 disposition: off-the-shelf
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.css"]
@@ -30,6 +30,23 @@ and gives it a name that says what it is for.
 A `/`-suffixed opacity modifier on a class that sets a **colour**. The colour's origin does
 not matter — semantic token, palette class or arbitrary value are all equally derived at the
 call site.
+
+The rule is **context-free**: it asks "does this string contain a colour class with a
+modifier?" and never needs to know which element the string reaches. It runs over the broad
+sweep — every string literal and every static template literal in a `.tsx`, `.ts` or `.css`
+file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge` arguments,
+`cva` / `tv` variant maps and `.ts` object-literal constants are all in, for free, because
+the strings are simply there.
+
+Two gates keep that breadth quiet, and both come from `/policy` rather than from where the
+string was found. The class must sit under a **derived** colour prefix, and its body must
+actually name a colour — which is what stops `text-sm/6` being reported. Variants are
+stripped **by segment**, with bracket depth respected, so `[@media(hover:hover)]:` is one
+segment and `bg-[image:var(--x)]` is never split at its inner colon.
+
+`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
+module, so `@apply bg-primary/50` and `className="bg-primary/50"` are governed by one policy
+rather than two that drift.
 
 ### On semantic tokens
 
@@ -85,12 +102,28 @@ variable. All four are the same thing.
 <div className="bg-primary/[var(--overlay-alpha)]" />
 ```
 
+`/100` is included. It is a no-op alpha and almost always left over from an edit, "delete
+the `/100`" is the cheapest fix available, and exempting it would mean the rule's boundary
+depends on arithmetic rather than on syntax. It is separately configurable all the same —
+see [Configuration](#configuration).
+
+```tsx caught
+<div className="bg-primary/100" />
+```
+
 ### With variants and important
+
+Variants are stripped by segment before the modifier is located, so position in the chain
+and the contents of an arbitrary variant are both irrelevant.
 
 ```tsx caught
 <div className="hover:bg-primary/50" />
 
 <div className="md:dark:focus-visible:ring-primary/40" />
+
+<div className="group-hover/nav:bg-primary/40" />
+
+<div className="[@media(hover:hover)]:bg-primary/50" />
 
 <div className="!bg-primary/50" />
 
@@ -113,10 +146,27 @@ const overlay = cva("fixed", {
 const scrimClass = { light: "bg-white/60", dark: "bg-black/60" };
 ```
 
+```tsx caught
+<div className={`bg-primary/50 ${extra}`} />
+
+const scrim = "bg-black/50";
+```
+
 ```css caught
 .scrim {
   @apply bg-primary/50;
 }
+```
+
+### The modifier interpolated
+
+The `/` is statically present and it sits on a class the rule has already established is a
+colour, so the defect is visible even though the alpha is not. Whatever the interpolation
+resolves to, a call site is choosing an opacity the design system has never seen — which is
+the entire thing this rule exists to stop.
+
+```tsx caught
+<div className={`bg-primary/${alpha}`} />
 ```
 
 ### Every offending class reports separately
@@ -152,8 +202,20 @@ aspect-ratio utilities use it for a fraction, and none of them touches colour.
 
 The one genuinely dangerous near-miss. `text-` is a colour prefix *and* a font-size prefix,
 and `text-sm/6` is the font-size / line-height shorthand — an extremely common class with no
-colour in it at all. Deciding this correctly requires knowing whether the class body names a
-colour, not just whether the prefix can carry one.
+colour in it at all.
+
+Prefix matching alone cannot separate these, which is why the verdict comes from resolving
+the class through the Tailwind design system in `/policy`: `text-sm` generates a `font-size`
+declaration, `text-primary` generates a `color` declaration, and only the second is this
+rule's business. The same derivation supplies the prefix set itself, which is how
+`inset-ring-`, `text-shadow-` and every per-side border family arrive without anyone
+maintaining a list.
+
+Where the resolver is unavailable, `/policy` falls back to prefix matching plus a deny list
+of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths). The fallback is
+strictly worse and is documented as such; an off-the-shelf restricted-classes regex can
+express only the fallback, which is why a pattern including `text` is the first thing Phase 4
+must probe.
 
 ```tsx allowed
 <div className="text-sm/6 text-lg/7 text-base/loose" />
@@ -181,9 +243,17 @@ different consequences, and banning it belongs to a rule about layering, not tok
 <div className="bg-primary opacity-50" />
 ```
 
+### Non-colour classes that survive segment-aware parsing
+
+```tsx allowed
+<div className="bg-[image:var(--hero)]" />
+
+<div className="[@media(hover:hover)]:bg-primary" />
+```
+
 ### The token-definition files
 
-A translucent token has to be defined somewhere, and `colorTokenFiles` is where.
+A translucent token has to be defined somewhere, and the `tokenFiles` option is where.
 
 ```css allowed
 @theme {
@@ -195,19 +265,32 @@ A translucent token has to be defined somewhere, and `colorTokenFiles` is where.
 
 Not caught, by decision.
 
-### Dynamic composition
+### String concatenation
+
+The `+` operator is not a template literal, so the class and the modifier are two unrelated
+expressions rather than one string with a hole in it.
 
 ```tsx blindspot
-<div className={`bg-primary/${alpha}`} />
-
 <div className={"bg-primary/" + alpha} />
 ```
 
-### Indirection through a variable
+### A colour prefix interpolated before the modifier is reached
+
+`` `bg-${tone}/50` `` is a dynamically assembled class name, which reports once from
+`token-constraints` under `dynamicColorClass`. This rule stays silent rather than adding a
+second report of the same unknowable string — its own subject, the modifier, is only half
+the defect there.
 
 ```tsx blindspot
-const scrim = "bg-black/50";
-<div className={scrim} />;
+<div className={`bg-${tone}/50`} />
+```
+
+### Use sites with no literal of their own
+
+The broad sweep catches the string where it is written, not where it is used.
+
+```tsx blindspot
+<div className={SCRIMS[mode]} />;
 ```
 
 ### Alpha reached by another mechanism
@@ -234,6 +317,10 @@ The same result, arrived at without a modifier. Each belongs to a different rule
   faded. Neither rule suppresses the other.
 - **`token-constraints`** constrains which token may pair with which prefix. It is
   indifferent to the modifier, so a class can violate both.
+- **Dynamically assembled class names belong to `no-spectral-color`.** The split is by which
+  subject is statically visible: `` `bg-primary/${alpha}` `` has a real colour class and a
+  real `/`, so it reports here; `` `bg-${tone}/50` `` has neither resolved, so it reports
+  there, once.
 
 ## Message
 
@@ -248,33 +335,31 @@ No autofix and no suggestion: the replacement is a token that does not exist yet
 rule cannot invent its name or its value. The message's job is to make the fix — add a token
 — the obvious next step rather than to perform it.
 
-## Open questions
+## Configuration
 
-Each blocks `status: agreed`.
+Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
+consuming project overrides in its own config — none is a fact baked into the rule.
 
-1. **How is "is this class a colour?" decided?**
-   Prefix matching alone is wrong: it flags `text-sm/6`. Two options. (a) Resolve the class
-   through the Tailwind design system and check whether the generated declaration is a
-   colour property — exact, and the machinery already exists for `no-undefined-token`. (b)
-   Prefix matching plus a deny list of known non-colour `text-` bodies (`xs`…`9xl`,
-   `[…px]`). *Recommendation: (a) where the resolver is available, (b) as the fallback.* An
-   off-the-shelf restricted-classes regex can only express (b), so this is the first thing
-   Phase 4 must probe: a pattern of the shape `/(bg|border|ring|…)-[^\s\/]+\/\d/` is safe,
-   but the same pattern including `text` is not.
+| Option | `recommended` | Overriding it |
+| --- | --- | --- |
+| `allowFullOpacity` | `false` | `true` stops reporting `/100` and `/[100%]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
+| `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
+| `tokenFiles` | `["src/styles.css"]` | The files exempted wholesale, because a translucent token has to be defined somewhere. Also feeds Stylelint's `ignoreFiles`. |
+| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
 
-2. **Is a modifier of `/100` a violation?**
-   It is a no-op alpha and almost always left over from an edit. *Recommendation: flag it.*
-   It costs nothing under `bias: false-positives`, and "delete the `/100`" is the cheapest
-   fix in the codebase.
+### Distribution
 
-3. **Does the rule apply to `.css` files at all after the migration?** **[cross-rule]**
-   The `@apply` case above is promised, and nothing in the planned three-component
-   architecture covers it. See open question 3 in `no-spectral-color` — one decision, four
-   contracts.
-
-4. **Do the rules cover colour classes in `.ts` object-literal maps?** **[cross-rule]**
-   The `scrimClass` case above is promised and `oxlint-tailwindcss` does not see it. See
-   open question 4 in `no-spectral-color`.
+- **The rule reads no files and derives no path from its own location.** `tokenFiles`,
+  `colorPrefixes` and `ignoreGlobs` arrive through `options`; the design system is built once
+  at plugin-module load from a path the consumer supplied, never inside `create()`.
+- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
+  `settings` is not inherited through `extends`. The consumer supplies it in its own config;
+  the preset cannot. It is also what makes the exact colour test above available rather than
+  the deny-list fallback.
+- **Rule options replace, they do not merge.** A consumer writing
+  `"…/no-opacity-modifier": "error"` to bump a severity wipes the preset's options,
+  including `tokenFiles` — so token-definition files start reporting. To change severity
+  alone, restate the options.
 
 ## Deltas from the current implementation
 
@@ -289,12 +374,16 @@ last `/` to be all digits, and requires the part before the `/` to start with on
 | --- | --- | --- |
 | `bg-primary/50`, `hover:bg-primary/50` | caught | caught |
 | `w-1/2` | allowed — `w-1` matches no colour prefix | allowed |
-| **`text-sm/6`** | **caught — false positive**; `text-sm` starts with `text-` | allowed |
+| **`text-sm/6`** | **caught — false positive**; `text-sm` starts with `text-` | allowed — the colour test resolves the class, it does not match the prefix |
 | `bg-primary/[0.5]`, `/[50%]`, `/[var(--a)]` | missed — suffix is not all digits | caught |
-| `inset-ring-primary/30` | missed — prefix absent from `TAILWIND_COLOR_PREFIXES` | caught |
+| `inset-ring-primary/30` | missed — prefix absent from `TAILWIND_COLOR_PREFIXES` | caught — the prefix set is derived |
 | `bg-primary/auto` | allowed | allowed |
-| `` className={`bg-primary/${a}`} `` | missed — template literals are never extracted | blind spot, explicitly |
+| `bg-primary/100` | caught | caught, under `allowFullOpacity: false` |
+| `[@media(hover:hover)]:bg-primary/50` | caught by accident — variants are not segmented | caught by construction |
+| `` className={`bg-primary/${a}`} `` | missed — template literals are never extracted | caught |
+| `const scrim = "bg-black/50"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | `bg-red-500/50` | 2 reports (this rule + `no-spectral-color`) | 2 reports |
 
-`text-sm/6` is the only known false positive in the current rule and the reason open
-question 1 exists. It has no test in either direction.
+`text-sm/6` was the only known false positive in the current rule, and it is fixed by
+deriving the colour test from the Tailwind design system rather than from a hand-written
+prefix list. It has no test in either direction today; it needs one in both.

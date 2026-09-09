@@ -1,7 +1,7 @@
 ---
 rule: no-useless-hover
 legacy-id: 10
-status: draft
+status: agreed
 disposition: custom
 bias: false-negatives
 files: ["*.tsx"]
@@ -23,19 +23,78 @@ interaction, or — when the visual change belongs to a *descendant* of the inte
 element — use `group-hover:` / `peer-hover:`, which name their hover target explicitly.
 Both are [Deliberately allowed](#deliberately-allows).
 
-This rule is deliberately quiet where interactivity is invisible at the call site. It
-reports only on a **closed list of intrinsic HTML elements that are never interactive**,
-and never on a capitalized component — see [Declared blind spots](#declared-blind-spots)
-and [Open questions](#open-questions) for why.
+This rule is deliberately quiet where interactivity is invisible at the call site. By
+default it reports only on a **closed list of intrinsic HTML elements that are never
+interactive**, and never on a capitalized component — see
+[Declared blind spots](#declared-blind-spots) for why, and
+[Configuration](#configuration) for the option that opts back in.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
 > it does not.
 
+## What counts as a hover variant
+
+Variant parsing is not this rule's job. `/policy` splits a class into variant segments —
+respecting bracket depth, so `[@media(hover:hover)]:` is one segment, and stripping named
+group suffixes, so `group-hover/nav` is `group-hover` — and answers whether a segment
+belongs to the **`hover` family**. A segment joins that family when it is `hover` or ends
+in `-hover`, with two deliberate carve-outs:
+
+| Segment | In the `hover` family? | Reported by this rule? |
+| --- | --- | --- |
+| `hover` | yes | **yes** — the element claims its own hover state |
+| `group-hover`, `group-hover/nav` | yes | no — the hover target is an ancestor |
+| `peer-hover`, `peer-hover/input` | yes | no — the hover target is a sibling |
+| `has-hover`, `group-has-hover` | yes | no — the hover target is a descendant |
+| `not-hover` | **no** — the inverse | **yes** — rule-local, see below |
+| `[@media(hover:hover)]` | **no** — a device capability, not an element state | no |
+| `[&:hover]` | no (not a named segment) | **yes** — see below |
+
+Family membership is shared with `token-constraints`, which uses it to decide *which token*
+a hover-triggered colour may name. That question is about hover-triggered colour in
+general, so the whole family binds there. This rule asks a narrower question — *does this
+element promise that it responds to the pointer?* — so it reports on the **self-hover**
+subset only. `group-hover:` and `peer-hover:` are one family with `hover:` and still name a
+different element as the target, which is exactly why they are the recommended repair here
+rather than a second offence.
+
+`[&:hover]:` is a **rule-local addition**, not family membership: it is the arbitrary-variant
+spelling of `&:hover`, it asserts the element's own hover state just as `hover:` does, and
+it must not be an escape hatch from a rule whose entire subject is that assertion.
+
+`not-hover:` is a **rule-local addition**, on the same footing as `[&:hover]:`. It sits
+outside the shared family predicate, and correctly so — that predicate exists to answer
+*which token may a hover-triggered colour name*, and requiring a `-hover` token for the
+**not**-hovered state reads backwards. But that argument is about token naming, and this
+rule asks a different question. `not-hover:bg-primary` conditions the element's appearance
+on the pointer, so the affordance is promised just as surely as with `hover:`.
+
+The two rules therefore use two predicates, deliberately:
+
+| Rule | Predicate | Members |
+| --- | --- | --- |
+| `token-constraints` | the `hover` **family** | `hover`, `group-hover`, `peer-hover`, `has-hover` |
+| `no-useless-hover` | **self-hover-dependent** | `hover`, `not-hover`, `[&:hover]` |
+
+Neither set contains the other, which is why one shared predicate cannot serve both. The
+family predicate stays in `/policy` unchanged; this rule layers its own on top.
+`no-dark-variant` resolves the identical question the same way, catching `not-dark:`.
+
 ## Promises to catch
 
-A `hover:` variant appearing in a class string that statically reaches the `className` of a
-non-interactive intrinsic element.
+A self-hover variant appearing in a class string that statically reaches the `className` of
+a non-interactive intrinsic element.
+
+The rule resolves `className` on a specific element through the **precise AST walk**
+(`/policy`'s context-dependent extractor), not the broad string sweep the token rules get.
+Two consequences that were live defects in the proof of concept:
+
+- **Only `className` is inspected.** No other attribute is scanned, so
+  `title="hover: to preview"` is not a class string and never reports.
+- **The walk unwraps `cn()` / `clsx()` / `twMerge()` arguments in any position**, at any
+  nesting depth, including template literals — which string-literal scanning missed
+  entirely.
 
 **One report per element**, not per offending class. The element is the defect; the
 individual classes are symptoms of it. The report names the first offending class.
@@ -44,6 +103,8 @@ individual classes are symptoms of it. The report names the first offending clas
 
 The rule reports only on these tags. It is a closed list, so a tag outside it is never
 reported — that is what makes the promise below complete rather than aspirational.
+Membership is a fact about HTML, not about any one codebase, which is why the list is
+mechanism and ships with the rule.
 
 - **Flow / sectioning** — `div`, `span`, `p`, `h1`–`h6`, `hgroup`, `section`, `article`,
   `aside`, `header`, `footer`, `main`, `nav`, `figure`, `figcaption`, `blockquote`,
@@ -60,8 +121,8 @@ reported — that is what makes the promise below complete rather than aspiratio
 `audio`, `video`, `canvas`, `area`, `map`, and any custom element (a lowercase tag
 containing `-`) are absent by design.
 
-The `interactiveElements` option removes further names from this list; the shipped
-`colors.json` sets it to `["tr", "td", "th"]`.
+The `interactiveElements` option removes further names from this list; the `recommended`
+preset sets it to `["tr", "td", "th"]`. See [Configuration](#configuration).
 
 ```tsx caught
 <div className="hover:bg-primary" />
@@ -79,9 +140,10 @@ The `interactiveElements` option removes further names from this list; the shipp
 <svg className="hover:fill-primary" />
 ```
 
-### Every form the `hover` variant takes
+### Every form the self-hover variant takes
 
-The variant must be recognised as a variant, by segment, not as a substring.
+The variant is recognised by segment, never as a substring. Stacked variants are tested
+per segment, so a `hover` segment anywhere in the stack reports.
 
 ```tsx caught
 <div className="hover:bg-primary" />
@@ -104,22 +166,19 @@ The variant must be recognised as a variant, by segment, not as a substring.
 
 <div className="hover:bg-primary/50" />
 
-<div className="not-hover:bg-primary" />
-
 <div className="[&:hover]:bg-primary" />
 
 <div className="md:[&:hover]:bg-primary" />
-```
 
-`not-hover:` is caught for the same reason as `hover:` — the element's appearance is still
-conditioned on being hovered, so the affordance is still being promised. `[&:hover]:` is
-the arbitrary-variant spelling of exactly the same selector and must not be an escape
-hatch.
+<div className="not-hover:bg-primary" />
+
+<div className="md:not-hover:bg-primary" />
+```
 
 ### Class strings reached through composition
 
-The `className` value may be any of these shapes. Every string literal that can reach the
-attribute is scanned.
+The `className` value may be any of these shapes. The precise walk follows nesting to any
+depth.
 
 ```tsx caught
 <div className={"hover:bg-primary"} />
@@ -257,7 +316,15 @@ An element whose tag is chosen at runtime is not the tag it is written as.
 ### Descendants of an interactive element
 
 When a lexically enclosing JSX element in the same expression is interactive, the pointer
-is over that element too, and the hover styling has a real target.
+is over that element too, and the hover styling has a real target. The rule walks up the
+JSX tree and stays silent if **any ancestor at any depth** in the same expression is
+interactive — by tag, by handler, by attribute, or by being polymorphic.
+
+This is cheap on an AST (`node.parent`, upward) and it removes a whole class of
+correct-but-flagged code. The counter-argument is real: `hover:` on the span fires only
+when the pointer is over the span, which is subtly different from hovering the button, and
+`group-hover:` expresses the intent better. But that is a style preference, not a broken
+affordance, and this rule is about broken affordances.
 
 ```tsx allowed
 <button>
@@ -271,14 +338,23 @@ is over that element too, and the hover styling has a real target.
 <div role="button">
   <span className="hover:text-primary" />
 </div>
+
+<button>
+  <span>
+    <em className="hover:underline">Save</em>
+  </span>
+</button>
 ```
+
+The exemption is **lexical and stops at the component boundary**, which leaves one known
+false positive — see [Accepted false positives](#accepted-false-positives).
 
 ### `group-hover:` and `peer-hover:` — the sanctioned idiom
 
-These variants do not claim the element is hoverable. They say "restyle me when *that*
-element is hovered", which is precisely the correct construction for a non-interactive
-descendant of an interactive ancestor, or a sibling of an interactive peer. They are never
-reported by this rule.
+These variants are in the `hover` family but do not claim the element is hoverable. They
+say "restyle me when *that* element is hovered", which is precisely the correct
+construction for a non-interactive descendant of an interactive ancestor, or a sibling of
+an interactive peer. They are never reported by this rule.
 
 ```tsx allowed
 <div className="group-hover:bg-primary" />
@@ -303,16 +379,9 @@ reported by this rule.
 `has-hover:` / `group-has-hover:` are allowed for the same reason: the hover target is a
 descendant, not this element.
 
-### `hover:` outside a class channel
-
-The rule inspects `className` only. `hover:` occurring in prose, data attributes, or a
-media-feature query is not a variant.
+### Variants outside the `hover` family
 
 ```tsx allowed
-<div title="hover: to preview" />
-
-<div data-tooltip="hover: me" aria-label="hover: me" />
-
 <div className="[@media(hover:hover)]:bg-primary" />
 
 <div className="supports-[hover:hover]:bg-primary" />
@@ -320,10 +389,25 @@ media-feature query is not a variant.
 <div className="pointer-fine:bg-primary" />
 ```
 
+`[@media(hover:hover)]:` is a device capability rather than an element state, so it is
+outside both the family predicate and this rule's self-hover predicate. `supports-[…]` and
+`pointer-fine:` are the same shape of thing.
+
+### `hover:` outside a class channel
+
+The rule inspects `className` only, so `hover:` occurring in prose or a data attribute is
+never even parsed as a variant.
+
+```tsx allowed
+<div title="hover: to preview" />
+
+<div data-tooltip="hover: me" aria-label="hover: me" />
+```
+
 ### Tags exempted by configuration
 
-With the shipped `interactiveElements: ["tr", "td", "th"]`, table rows and cells carry an
-intentional row-level highlight and are exempt.
+With the `recommended` preset's `interactiveElements: ["tr", "td", "th"]`, table rows and
+cells carry an intentional row-level highlight and are exempt.
 
 ```tsx allowed
 <tr className="hover:bg-muted" />
@@ -363,7 +447,12 @@ that flagged every unrecognised component would report the majority of a real co
 "known interactive components" would silently miss every component not yet on the list —
 the exact failure mode this contract exists to prevent.
 
-So the rule reports on intrinsic tags only, and says so out loud.
+So by default the rule reports on intrinsic tags only, and says so out loud. A closed
+non-interactive intrinsic list fails in neither direction, because membership is a fact
+about HTML rather than about this codebase; an interactive-component allow-list fails in
+both, invisibly. A project that wants the coverage anyway names the components explicitly
+through `nonInteractiveComponents` ([Configuration](#configuration)), which is opt-in
+precisely so the failure mode is chosen rather than inherited.
 
 ```tsx blindspot
 <Card className="hover:bg-primary" />
@@ -406,6 +495,10 @@ const cls = "hover:bg-primary";
 <div className={`${base} ${modifier}`} />;
 ```
 
+One level of variable indirection is deliberately not resolved, consistently with the other
+JSX-scoped rules: bounded and honest beats the slide toward dataflow analysis, where "how
+many levels, which scopes" has no non-arbitrary answer.
+
 ### `group` / `peer` markers on a non-interactive ancestor
 
 `group-hover:` is allowed unconditionally. Verifying that the ancestor carrying `group` is
@@ -422,7 +515,8 @@ same expression — a rule that works sometimes, silently.
 ### `cva()` / `tv()` variant maps
 
 A variant map is where classes are *defined*, not where they are attached to an element.
-The tag they land on is unknown at the definition site. This rule is JSX-scoped by design.
+The tag they land on is unknown at the definition site. This rule is JSX-scoped by design,
+and the precise AST walk keys on a JSX element, which a `cva()` call is not.
 
 ```tsx blindspot
 const row = cva("rounded-md", {
@@ -433,7 +527,8 @@ const row = cva("rounded-md", {
 ### The `class` attribute
 
 Only `className` is inspected. `class` is not a React prop; if a Preact or Solid surface
-ever lands in this codebase, that is a change to this contract, not an oversight in it.
+ever lands in a consuming codebase, that is a change to this contract, not an oversight in
+it.
 
 ```tsx blindspot
 <div class="hover:bg-primary" />
@@ -448,21 +543,109 @@ parse CSS.
 const css = ".card:hover { background: var(--color-primary); }";
 ```
 
+## Accepted false positives
+
+Distinct from a blind spot: this one the rule *does* report, knowing it may be wrong.
+
+The ancestor exemption is lexical, so a wrapper component that renders an interactive
+element is invisible to it:
+
+```tsx
+function Row({ children }) {
+  return <div className="hover:bg-muted">{children}</div>;
+}
+```
+
+`Row` is reported, and may nonetheless be rendered inside a `<button>` by every one of its
+callers. This is the one place the rule flags something it cannot prove is wrong, and it is
+accepted rather than declared: the same shape is also the single most common *genuine*
+instance of the defect, and `// oxlint-disable-next-line` at the definition costs one line
+and documents the intent for the next reader. If it turns out to be noisy in practice, the
+fix is to require an interactivity signal on the wrapper (a handler, `role`, or `asChild`)
+rather than to stop reporting.
+
+## Configuration
+
+Mechanism ships; policy is supplied. The closed intrinsic-tag list, the family predicate,
+and the ancestor walk are mechanism and are not configurable. Everything below is policy,
+shipped as a `recommended` default that a consuming project overrides.
+
+| Option | Type | `recommended` default | Overriding it |
+| --- | --- | --- | --- |
+| `interactiveElements` | `string[]` | `["tr", "td", "th"]` | Removes further names from the non-interactive list, so they stop reporting |
+| `nonInteractiveComponents` | `string[]` | `[]` | Opts named PascalCase components *into* reporting |
+
+### `interactiveElements`
+
+Names the elements a project treats as interactive despite the tag. Table rows and cells
+are the default entry because a row-level hover highlight is a deliberate, near-universal
+affordance in data tables — it is a policy of this design system, not a fact about HTML,
+which is exactly why it is an option rather than a hole in the closed list.
+
+The option accepts **both intrinsic tag names and PascalCase component names**. The config
+*shape* is mechanism; what goes in it is policy. Component entries are inert while
+`nonInteractiveComponents` is empty, which is the default state — they take effect only for
+components that list has opted in. Where a name appears in both lists, `interactiveElements`
+wins: silence is the tie-break under `bias: false-negatives`.
+
+### `nonInteractiveComponents`
+
+The opt-in for the [capitalized-component blind spot](#capitalized-components). Empty by
+default, because a project that lists nothing gets a rule that fails in neither direction.
+A project that lists `["Card", "Badge"]` accepts responsibility for keeping the list current
+and for the false positives that follow when one of those components later gains an
+`onClick` — a maintenance cost the default declines to impose.
+
+### Storybook and other excluded files
+
+Story files are where non-interactive demo markup is most common and least harmful. They
+are excluded by **a glob in the preset, not a path check inside the rule** — nothing in this
+rule inspects a filename, and nothing derives a path from its own location. The
+`recommended` preset emits an `overrides` entry disabling this rule for
+`["**/*.stories.tsx"]`; a consumer passes a different glob to the factory, or an empty one
+to lint stories like anything else. The exclusion is therefore visible in config rather
+than compiled into a rule, which is the whole reason it stopped being an open question.
+
+### File scope
+
+`.tsx` only, per the JSX rule family. A `hover:` class can only become an affordance by
+landing on a JSX element, and JSX cannot syntactically exist in `.ts`, so scanning `.ts`
+here is pure cost — nothing can match. Class strings in `.ts` constants files are the token
+rules' surface, via the broad sweep.
+
+### The options-replace footgun
+
+Oxlint **replaces** rule options rather than merging them. A consumer who writes
+
+```jsonc
+"design/no-useless-hover": "error"   // just bumping severity
+```
+
+wipes the preset's options entirely. For this rule that is survivable but not silent:
+`interactiveElements` reverts to `[]` and `<tr className="hover:bg-muted">` starts
+reporting across the codebase. Noisy is the correct failure direction — the rule has **no
+required option**, so there is no configuration under which it silently reports nothing.
+The correct form of a severity bump is to re-pass the options alongside it.
+
 ## Relationship to other rules
 
-- **`token-constraints`** also matches on the `hover:` variant, to require that
-  `hover:`-scoped colors use a `*-hover` suffixed token. It has the identical substring
-  bug (`rawTok.includes("hover:")`). The decision this contract takes — `hover`,
-  `group-hover`, and `peer-hover` are three *different* variants and must be matched by
-  segment, never by substring — binds both rules. See
-  [Open questions](#open-questions) 1, marked **[cross-rule]**.
-- **`no-component-color-override`** is JSX-scoped like this rule but keyed on the
-  component set, which is capitalized by construction. Since this rule never reports on a
-  capitalized tag, the two never fire on the same element.
+- **`token-constraints`** matches on the same `hover` family, to require that
+  hover-triggered colours use a `*-hover` suffixed token. Both rules consume one
+  segment-aware predicate from `/policy`, so `group-hover:` and `peer-hover:` are the same
+  family as `hover:` in both. The rules differ in what they do with that: `token-constraints`
+  binds the whole family, because *which* element is hovered is irrelevant to which token a
+  hover-triggered colour may name; this rule reports only the self-hover subset, because
+  *which* element is hovered is the entire question it asks.
+- **`no-component-color-override`** is JSX-scoped like this rule but keyed on components
+  resolved by import source, which are capitalized by construction. Since this rule reports
+  on capitalized tags only when `nonInteractiveComponents` is explicitly configured, the two
+  overlap only in that opt-in configuration — and then they report different defects on the
+  same element, correctly.
 - **`no-style-color`** governs the `style` channel. Hover cannot be expressed inline at
   all, which is part of that rule's rationale; there is no overlap.
 - **`no-dark-variant`** is the other variant-shaped rule. It bans a variant outright; this
-  one bans a variant *in a context*. They share no logic.
+  one bans a variant *in a context*. They share the `/policy` segmentation and no logic
+  beyond it.
 
 ## Message
 
@@ -482,81 +665,8 @@ No suggestion either. The only mechanically expressible option is "remove the cl
 which is destructive; `oxlint --fix-suggestions` applies index 0 without prompting, and a
 lone destructive suggestion would therefore be applied as if it were the answer. The
 message already names both alternatives in text, which is where they have to be — CLI
-output never renders suggestions.
-
-## Open questions
-
-Each blocks `status: agreed`.
-
-1. **[cross-rule] Are `group-hover:` and `peer-hover:` in scope?**
-   This contract says no, unconditionally, and treats the current substring match as a
-   false-positive bug. The idiom is the *recommended* construction for exactly the
-   situation the rule exists to fix, so reporting it teaches the wrong lesson.
-   *Recommendation: out of scope here, and matched by segment rather than substring in
-   both rules.* The consequence for `token-constraints` is separate and needs its own
-   answer: does `group-hover:bg-primary` have to satisfy `allowed["hover:"]`
-   (`*-hover` suffixed tokens)? *Recommendation there: yes* — the token still styles a
-   hover state and should still name a hover token — but that must be a deliberate
-   decision in that contract, not a side effect of this one.
-
-2. **Should unrecognised capitalized components be flagged?**
-   The alternative to the closed intrinsic-tag list is to flag every component not on an
-   interactive allow-list, which is what the current implementation does.
-   *Recommendation: keep the blind spot.* An allow-list of interactive components is
-   unmaintainable and, worse, fails silently in the direction this project has decided is
-   unacceptable — a new interactive component is a false positive, and a new
-   non-interactive one is a false negative, and neither is visible. A closed
-   non-interactive intrinsic list fails in neither direction, because membership is a
-   fact about HTML rather than about this codebase.
-   If we want the coverage anyway, the honest version is a separate, explicitly
-   opt-in option (`nonInteractiveComponents: [...]`) rather than a default.
-
-3. **Does an interactive JSX ancestor in the same expression exempt its descendants?**
-   This contract says yes ([Deliberately allows](#deliberately-allows)). It is cheap on an
-   AST — walk `node.parent` — and it removes a whole class of correct-but-flagged code
-   (`<button><span className="hover:underline">`).
-   *Recommendation: keep it.* The counter-argument is real: `hover:` on the span fires only
-   when the pointer is over the span, which is subtly different from hovering the button,
-   and `group-hover:` expresses the intent better. But that is a style preference, not a
-   broken affordance, and this rule is about broken affordances.
-
-   The exemption is **lexical and stops at the component boundary**, which leaves one
-   known false positive:
-
-   ```tsx
-   function Row({ children }) {
-     return <div className="hover:bg-muted">{children}</div>;
-   }
-   ```
-
-   `Row` is reported, and may nonetheless be rendered inside a `<button>` by every one of
-   its callers. This is the one place the rule flags something it cannot prove is wrong,
-   and it is accepted rather than declared: the same shape is also the single most common
-   *genuine* instance of the defect, and `// oxlint-disable-next-line` at the definition
-   costs one line and documents the intent for the next reader. If it turns out to be
-   noisy in practice, the fix is to require an interactivity signal on the wrapper (a
-   handler, `role`, or `asChild`) rather than to stop reporting.
-
-4. **Should `interactiveElements` also accept component names?**
-   The option is currently documented as "additional HTML tags". Under this contract
-   components are never flagged anyway, so component entries would be inert.
-   *Recommendation: keep it tag-only and say so in `colors.schema.json`.* Reopen only if
-   open question 2 resolves the other way.
-
-5. **[cross-rule] Are Storybook files excluded?**
-   The current runner skips them wholesale via `isStorybookFile`. Unclear whether that was
-   intent or convenience. For this rule specifically, stories are where non-interactive
-   demo markup is most common and least harmful.
-   *Recommendation: drop the hard-coded path check and express the exclusion as an
-   `oxlint` `overrides` entry*, so the decision is visible in config rather than compiled
-   into a rule. This must be answered the same way for all nine contracts.
-
-6. **[cross-rule] Do the custom rules apply to `.ts` as well as `.tsx`?**
-   For this rule the answer is forced — `.ts` cannot contain JSX, so there is nothing to
-   scan. *Recommendation for this rule: `.tsx` only.* The general question, and the
-   `.ts` object-literal coverage regression behind it, is raised in
-   [`no-style-color.md`](./no-style-color.md) open question 5 and must be settled once
-   across all nine contracts.
+output never renders suggestions, and `meta.docs.url` does not render under Oxlint either,
+so the message is the only channel this rule has.
 
 ## Deltas from the current implementation
 
@@ -573,16 +683,17 @@ attribute regexes.
 | `<div className="group-hover:bg-primary" />` | caught (false positive) | allowed |
 | `<div className="peer-hover:bg-primary" />` | caught (false positive) | allowed |
 | `<div className="[@media(hover:hover)]:bg-primary" />` | caught (false positive) | allowed |
-| `<div title="hover: to preview" />` | caught (false positive — every quoted attribute is scanned) | allowed |
+| `<div title="hover: to preview" />` | caught (false positive — every quoted attribute is scanned) | allowed (only `className` is read) |
 | ``<div className={`hover:bg-primary`} />`` | missed (template literals are not scanned) | caught |
 | `<div className="[&:hover]:bg-primary" />` | missed | caught |
-| `<div className="not-hover:bg-primary" />` | caught | caught |
+| `<div className="not-hover:bg-primary" />` | caught | caught — rule-local self-hover predicate |
 | `<div onMouseEnter={fn} className="hover:bg-primary" />` | caught (handler list omits it) | allowed |
 | `<div onFocus={fn} className="hover:bg-primary" />` | caught (handler list omits it) | allowed |
 | `<div role={computedRole} className="hover:bg-primary" />` | caught (role regex requires a quoted literal) | allowed |
 | `<div as="button" className="hover:bg-primary" />` | caught | allowed |
 | `<button><span className="hover:underline" /></button>` | caught | allowed |
-| `<Card className="hover:bg-primary" />` | caught | blind spot |
+| `<button><span><em className="hover:underline" /></span></button>` | caught | allowed (any depth) |
+| `<Card className="hover:bg-primary" />` | caught | blind spot (unless `nonInteractiveComponents` lists it) |
 | `<Dialog.Trigger className="hover:bg-primary" />` | allowed (`.Trigger` / `.Close` suffix) | blind spot |
 | `<Comp className="hover:bg-primary" />` | allowed (hard-coded name) | blind spot |
 | `<form className="hover:bg-muted" />` | caught | allowed (outside the closed list) |
@@ -591,8 +702,9 @@ attribute regexes.
 | `<div className="hover:bg-a hover:text-b" />` | 1 report | 1 report |
 | `<div className={cn("hover:bg-primary")} />` | caught | caught |
 | `<div className="md:hover:bg-primary" />` | caught | caught |
+| `*.stories.tsx` | skipped by a hard-coded `isStorybookFile` check | skipped by a preset `overrides` glob |
 
 The `TableRow` and `Comp` special cases and the `.Trigger` / `.Close` suffix heuristic all
-disappear, subsumed by the decision not to report on capitalized tags at all. The
-`interactiveElements` option survives unchanged and becomes the only configuration
-surface.
+disappear, subsumed by the decision not to report on capitalized tags by default. The
+`interactiveElements` option survives, widened to accept component names, and is joined by
+`nonInteractiveComponents`.

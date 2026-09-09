@@ -1,7 +1,7 @@
 ---
 rule: no-spectral-color
 legacy-id: 4
-status: draft
+status: agreed
 disposition: off-the-shelf
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.css"]
@@ -15,12 +15,13 @@ files: ["*.tsx", "*.ts", "*.css"]
 the theme moves, carries no meaning a designer can redefine, and gives the next reader no
 way to tell whether the red is "danger", "brand" or "someone had a hex code handy". The
 design system's entire premise is that colour is addressed semantically — `bg-danger`,
-`text-info-content` — and that `styles.css` is the single place those resolve. Every
+`text-info-content` — and that the token file is the single place those resolve. Every
 spectral class is a private fork of the palette embedded in a component.
 
-The replacement is always a semantic token. Where the mapping is known,
-`design-system/lint/colors.json` records it under `no-spectral-color.replacement`, and the
-diagnostic must name the token rather than leave the developer to guess.
+The replacement is always a semantic token. Where the mapping is known, the rule's
+`replacement` option records it — supplied by the consuming project, defaulted by the
+`recommended` preset — and the diagnostic must name the token rather than leave the
+developer to guess.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
@@ -28,9 +29,29 @@ diagnostic must name the token rather than leave the developer to guess.
 
 ## Promises to catch
 
-Any class whose colour value comes from a Tailwind palette family, in any class string the
-project authors — a `className` literal, an argument to `cn` / `clsx` / `twMerge`, a
-`cva` / `tv` variant map, or an `@apply` directive.
+Any class whose colour value comes from a Tailwind palette family, in any string the project
+authors.
+
+The rule is **context-free**: it asks "is this string a forbidden class?" and never needs to
+know which element the string reaches. It therefore runs over the broad sweep — every string
+literal and every static template literal in a `.tsx`, `.ts` or `.css` file, regardless of
+the position it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments,
+`cva` / `tv` variant maps and `.ts` object-literal constants all fall in for free, because
+the strings are simply there and no special-case plumbing distinguishes them. Interpolated
+template literals are scanned for complete classes in their static text, and for a colour
+prefix left dangling against an interpolation (see
+[Dynamically assembled class names](#dynamically-assembled-class-names)).
+
+Precision is not what keeps this quiet. The gate is a palette family name followed by a
+scale step under a colour-carrying prefix, and a random string cannot accidentally satisfy
+it. The accepted cost is the string that *is* a palette class but never reaches a
+`className` — a chart series colour, a prop on a non-DOM component. It reports anyway. Under
+`bias: false-positives` that is the deliberate trade, and `oxlint-disable` is the escape
+hatch.
+
+`.css` is covered by the package's `/stylelint` entry point, which reads the same `/policy`
+module as the Oxlint side, so `@apply` and class strings in JS/TS are governed by one policy
+rather than two that drift.
 
 ### Every colour-carrying prefix
 
@@ -134,8 +155,15 @@ The forbidden thing is the colour, so nothing attached to it makes it acceptable
 
 `black` and `white` are palette values with the scale omitted. They are the same violation:
 `text-white` on a themed surface is exactly the case `*-content` / `*-foreground` tokens
-exist to solve, and it is the one that breaks first when a light theme is added. See
-[Open questions](#open-questions) — this is the noisiest line in the contract.
+exist to solve, and it is the one that breaks first when a light theme is added.
+
+They are also common, sometimes legitimately correct over a photograph or a fixed-colour
+brand surface, and the replacement map has no entry for either — so this is the noisiest
+line in the contract, and the only part of it with its own switch. `flagFixedColors`
+defaults to `true`, consistent with `bias: false-positives`. If a first real run returns a
+large count that is mostly image overlays, the answer is to turn that one option off — not
+to weaken the rule — and to name the overlay colour as a token. See
+[Configuration](#configuration).
 
 ```tsx caught
 <div className="bg-white text-black" />
@@ -145,10 +173,24 @@ exist to solve, and it is the one that breaks first when a light theme is added.
 
 ### Wherever class strings are authored
 
+Position is irrelevant. These are all just strings to the broad sweep.
+
 ```tsx caught
 <div className={cn("bg-red-500", className)} />
 
 <div className={clsx(isOn && "text-blue-600")} />
+```
+
+```tsx caught
+<div className={`bg-red-500 ${extra}`} />
+
+<div className={`rounded ${base} text-blue-200`} />
+
+const tone = "bg-red-500";
+```
+
+```tsx caught
+const chartSeries = ["text-blue-500"];
 ```
 
 ```tsx caught count=2
@@ -167,6 +209,25 @@ const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 .card {
   @apply bg-red-500 text-slate-50;
 }
+```
+
+### Dynamically assembled class names
+
+A colour-carrying prefix immediately preceding an interpolation is a violation even though
+the interpolated value is unknowable. The value could be `red-500` or it could be `primary`,
+and nothing static can tell — which is the point: a class assembled at the call site defeats
+every guarantee the token system offers, and this is the one hole the system cannot tolerate.
+
+This rule owns the diagnostic for the whole token family. The prefix is what makes it
+checkable, and the fix is the same one this rule recommends everywhere else: a lookup of
+complete class names, or a `--color-*` custom property.
+
+```tsx caught
+<div className={`bg-${tone}-500`} />
+
+<div className={`text-${x}`} />
+
+<div className={`border-t-${side}`} />
 ```
 
 ## Deliberately allows
@@ -228,10 +289,33 @@ span from two rules with two different fixes.
 <div className="text-[--color-brand]" />
 ```
 
+### Interpolation under a prefix that carries no colour
+
+The A7b gate is the prefix, not the backtick. A template literal whose interpolation sits
+under a non-colour utility is ordinary code.
+
+```tsx allowed
+<div className={`p-${size}`} />
+
+<div className={`grid-cols-${n} gap-2`} />
+```
+
+### Strings that are not classes
+
+The broad sweep hands the rule every string in the file; the gate discards the ones that
+cannot be a palette class. A family name with no prefix is not a class, and a path is a
+single whitespace-delimited token that starts with neither.
+
+```tsx allowed
+const chartSeries = ["slate-500", "500"];
+
+fetch("/assets/blue-500.png");
+```
+
 ### The token-definition files
 
-`colorTokenFiles` is where the palette is legitimately consumed — a semantic token has to
-be defined as *something*. Those files are exempt.
+The files named by the `tokenFiles` option are where the palette is legitimately consumed —
+a semantic token has to be defined as *something*. Those files are exempt.
 
 ```css allowed
 @theme {
@@ -243,25 +327,28 @@ be defined as *something*. Those files are exempt.
 
 Not caught, by decision.
 
-### Dynamic composition
+### String concatenation
 
-The family or the scale is not present in the source.
+The `+` operator is not a template literal, so the prefix and the interpolation are two
+unrelated expressions rather than one string with a hole in it. A7b's gate does not reach
+it, and reconstructing it would be the first step of dataflow analysis.
 
 ```tsx blindspot
-<div className={`bg-${family}-500`} />
-
-<div className={`bg-red-${scale}`} />
-
 <div className={"bg-" + tone} />
+
+<div className={["bg", family, "500"].join("-")} />
 ```
 
-### Indirection through a variable
+### Use sites with no literal of their own
+
+The broad sweep catches the string where it is *written*, which is what closes the `.ts`
+constants gap. What it cannot do is report the place the string is *used*, because no class
+appears there. This matters when the definition lives outside the linted file set.
 
 ```tsx blindspot
-const tone = "bg-red-500";
-<div className={tone} />;
-
 <div className={TONES[kind]} />;
+
+<div className={toneFromServer} />;
 ```
 
 ### The palette re-exported under a semantic name
@@ -272,17 +359,6 @@ file — so this rule stays quiet and the question moves to design review.
 
 ```tsx blindspot
 <div className="bg-brand" />
-```
-
-### Palette names outside a class position
-
-With AST-based extraction the rule only sees strings that can reach a `className`, so a
-palette-looking string elsewhere is out of scope rather than suppressed.
-
-```tsx blindspot
-const chartSeries = ["slate-500", "text-blue-500"];
-
-fetch("/assets/blue-500.png");
 ```
 
 ## Relationship to other rules
@@ -298,11 +374,19 @@ fetch("/assets/blue-500.png");
 - **`token-constraints`** governs which *semantic* token may be used with which prefix. It
   never fires on a spectral class, because a spectral class has no semantic token to
   constrain.
+- **Dynamically assembled class names report here and only here.** `` `bg-${tone}` `` is
+  unknowable, so every rule in the family has an equal claim on it and none can resolve it.
+  Giving all four the diagnostic would produce four reports of one defect with one fix, so
+  this rule owns it: the colour prefix is the visible half, and the escape hatch the message
+  names is this rule's standing recommendation. `no-undefined-token`, `no-opacity-modifier`
+  and `no-dark-variant` stay silent unless their *own* subject — an undefined token, a `/`
+  modifier, a `dark:` segment — is statically present in the string.
 
 ## Message
 
 Two message ids, because the replacement map covers only part of the palette and a message
-cannot be conditional.
+cannot be conditional. The token file is named through `data`, never hardcoded — the
+consuming project decides where its tokens live.
 
 ```
 messageId: spectralColorWithReplacement
@@ -312,10 +396,21 @@ text:      "{{className}} — spectral color class; use {{prefix}}-{{replacement
 
 ```
 messageId: spectralColor
-data:      { className, family, scale }
-text:      "{{className}} — spectral color class; use a semantic token from styles.css
+data:      { className, family, scale, tokenFile }
+text:      "{{className}} — spectral color class; use a semantic token from {{tokenFile}}
             instead of the {{family}} palette"
 ```
+
+**This rule does not emit the dynamic-interpolation diagnostic.** A7b's
+`dynamicColorClass` is owned by [`token-constraints`](./token-constraints.md), and the
+reason is structural rather than editorial: this rule's disposition is `off-the-shelf`,
+delegated to `oxlint-tailwindcss` restricted-classes, which matches literal class patterns
+and cannot detect a colour prefix standing against an interpolation. A rule that cannot
+implement a diagnostic cannot own it.
+
+`` className={`bg-${tone}-500`} `` is therefore caught — but reported by
+`token-constraints`, which is a custom rule and can see it. This rule stays silent there
+rather than double-reporting the same site.
 
 The replacement token must appear in the message text, not only in a suggestion:
 suggestions do not render in any CLI output format, and naming the token is the whole value
@@ -325,50 +420,34 @@ No autofix. A suggestion applying the replacement is offered where one exists, a
 listed first — it is the non-destructive option, and `oxlint --fix-suggestions` applies
 index 0 unprompted.
 
-## Open questions
+## Configuration
 
-Each blocks `status: agreed`.
+Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
+consuming project overrides in its own config — none is a fact baked into the rule.
 
-1. **Are `black` and `white` violations?**
-   The contract above says yes. They are fixed values that cannot follow a theme, and every
-   `text-white` on a coloured surface is a `*-content` token waiting to be named. But they
-   are also common, and legitimately correct over a photograph or a fixed-colour brand
-   surface, and the replacement map has no entry for either. *Recommendation: flag them,
-   consistent with `bias: false-positives`.* Revisit after the first real run: if the count
-   is large and mostly overlays, split them into a separately configurable pattern rather
-   than dropping them.
+| Option | `recommended` | Overriding it |
+| --- | --- | --- |
+| `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
+| `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
+| `tokenFiles` | `["src/styles.css"]` | The files exempted wholesale, because a semantic token has to be defined as something. Also feeds Stylelint's `ignoreFiles`. |
+| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 
-2. **Is the replacement map essential to this rule, or a nice-to-have?**
-   This determines the disposition. *Recommendation: nice-to-have, and the disposition
-   stands at `off-the-shelf`.* Two reasons. First, the map covers `text` and `bg` only, nine
-   families of twenty-two, and narrow scale ranges — the majority of spectral classes (every
-   neutral, every `border-*`, `ring-*`, `divide-*`) get no replacement today, so the rule's
-   value plainly does not depend on it. Second, Phase 0 verified that `oxlint-tailwindcss`
-   restricted-classes supports a **custom message per pattern**, and the map is 27 entries
-   that mechanically expand to 27 patterns (`green-400...600` → `bg-green-(400|500|600)`).
-   The map therefore survives as generated config, not as a custom rule. The cost is a build
-   step that regenerates `.oxlintrc` from `colors.json`, replacing today's read-at-runtime
-   property. If Phase 4 finds per-pattern messages cannot carry it after all, this becomes a
-   thin custom rule whose only job is the map — that is the fallback the migration plan
-   already anticipates.
+The `replacement` map's disposition is settled: `off-the-shelf` stands. It is 27 entries
+expanding mechanically to 27 restricted-class patterns with a custom message each, which
+Phase 0 verified works. The open item is the build-step trade — regenerating `.oxlintrc` from
+the policy file, replacing today's read-at-runtime property — and that belongs to Phase 4.
 
-3. **Does the rule apply to `.css` files at all after the migration?** **[cross-rule]**
-   The contract above claims `@apply bg-red-500` in a component stylesheet. Oxlint JS
-   plugins cannot read CSS, and `stylelint-declaration-strict-value` inspects declaration
-   *values*, not `@apply` class lists — so nothing in the planned three-component
-   architecture covers it. This is an unsurfaced regression, and it affects all four
-   palette-class rules identically. *Recommendation: keep the promise and close the gap with
-   a small Stylelint rule (`at-rule-disallowed-list` or a
-   `declaration-property-value-allowed-list` over `@apply`), with `colorTokenFiles` in
-   `ignoreFiles`.* If that is rejected, the `.css` promise must be demoted to a declared
-   blind spot in all four contracts rather than left implied.
+### Distribution
 
-4. **Do the rules cover colour classes in `.ts` object-literal maps?** **[cross-rule]**
-   `const badgeColor = { danger: "bg-red-500" }` is listed as `caught` above. Phase 0 found
-   `oxlint-tailwindcss` does not see it, while the current scanner does. *Recommendation:
-   keep the promise.* Variant maps in `.ts` constants files are exactly where a palette
-   class hides longest. Phase 4 records either a narrowed contract or a thin custom rule for
-   the `.ts` surface — the decision must be the same one across all nine contracts.
+- **The rule reads no files and derives no path from its own location.** `tokenFiles`,
+  `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered.
+- **`settings.tailwindcss.entryPoint` is mandatory** for `oxlint-tailwindcss`, and
+  `settings` is not inherited through `extends`. The consumer must supply it in its own
+  config; the preset cannot ship it. The same path usually belongs in `tokenFiles`.
+- **Rule options replace, they do not merge.** A consumer writing
+  `"…/no-spectral-color": "error"` to bump a severity wipes the preset's options — including
+  the whole `replacement` map — and gets the bare `spectralColor` message everywhere. To
+  change severity alone, restate the options.
 
 ## Deltas from the current implementation
 
@@ -384,17 +463,21 @@ line by line.
 | `bg-red-500`, `ring-offset-blue-200`, `divide-x-red-500` | caught | caught |
 | `hover:`, `md:dark:`, `!`-important forms | caught | caught |
 | `bg-red-500/50` | caught (also by `no-opacity-modifier`) | caught, twice |
-| `bg-white`, `text-black` | allowed | caught |
-| `` className={`bg-red-500 ${x}`} `` | missed — `extractStringLiterals` matches `"` and `'` only, never a backtick | blind spot, explicitly |
-| `bg-[image:var(--x)]` | mangled — `normalizeTwToken` splits on the **last** `:`, yielding `var(--x)]` | allowed, explicitly |
-| `"text-blue-500"` in a non-class array | caught | out of scope (AST extraction) |
+| `bg-white`, `text-black` | allowed | caught, under `flagFixedColors` |
+| `` className={`bg-red-500 ${x}`} `` | missed — `extractStringLiterals` matches `"` and `'` only, never a backtick | caught — the broad sweep reads template literals |
+| `` className={`bg-${tone}-500`} `` | missed | caught — by `token-constraints` under `dynamicColorClass` |
+| `bg-[image:var(--x)]` | mangled — `normalizeTwToken` splits on the **last** `:`, yielding `var(--x)]` | allowed, explicitly; segmentation is bracket-depth aware |
+| `"text-blue-500"` in a non-class array | caught | caught — the broad sweep is context-free by design |
+| `const tone = "bg-red-500"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | Replacement hint for `divide-x-red-500` | would compose `divide-<semantic>`, dropping `-x` | prefix is reconstructed from the full class |
 | `inset-ring-red-500`, `text-shadow-sky-300` | caught (the scan is prefix-independent) | caught |
 
 `TAILWIND_COLOR_PREFIXES` in `shared.js` is missing `inset-ring`, `inset-shadow` and
 `text-shadow`. It does not affect detection here — the segment scan never consults it — but
 it does affect the replacement hint, and it affects `no-opacity-modifier` and
-`no-undefined-token`, which gate on it.
+`no-undefined-token`, which gate on it. Under this contract the prefix set is derived from
+the Tailwind design system in `/policy` rather than hand-maintained, so the hint reconstructs
+the full prefix (`divide-x-`, `inset-ring-`) instead of guessing at it.
 
 The source comment claims returning a message "signals the orchestrator to stop checking
 this token further". It does not: `linter.js` runs every rule against every token and

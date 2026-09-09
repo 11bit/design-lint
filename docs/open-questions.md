@@ -4,6 +4,20 @@
 > contracts from `draft` to `agreed`. Its decisions land in the contracts and in the
 > `recommended` preset; nothing here outlives them.
 
+> **Status: complete.** All nine contracts are `status: agreed`. Two decisions were refined
+> during the contract pass and the refinements are authoritative over the text below:
+>
+> - **A3's `not-hover:` exclusion is scoped to token policy.** It was reasoned from token
+>   naming ("a `-hover` token reads backwards"), which does not transfer to the rules that
+>   ask whether styling is hover-dependent. `token-constraints` uses the `hover` **family**
+>   (`hover`, `group-hover`, `peer-hover`, `has-hover`); `no-useless-hover` uses a
+>   **self-hover** predicate (`hover`, `not-hover`, `[&:hover]`). Neither set contains the
+>   other, so one shared predicate cannot serve both. `no-dark-variant` resolves the
+>   identical question the same way, catching `not-dark:`.
+> - **A11's blind spot is scoped to declaration *values*.** `@apply bg-[#ff0000]` inside a
+>   token file is still caught, because `@apply` is a separate check owned by `/stylelint`
+>   and `tokenFiles` wires only into the raw-value rule's `ignoreFiles`.
+
 The nine contracts raise **50 open questions**. The `[cross-rule]` ones are the same
 question asked from several sides, so they collapse to **30 distinct**.
 

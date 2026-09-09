@@ -1,10 +1,10 @@
 ---
 rule: no-raw-css-color
 legacy-id: 2
-status: draft
-disposition: off-the-shelf
+status: agreed
+disposition: mixed
 bias: false-positives
-files: ["*.css", "*.tsx"]
+files: ["*.tsx", "*.ts", "*.css"]
 ---
 
 # no-raw-css-color
@@ -25,10 +25,31 @@ a semantic utility class in markup. Where a genuinely new color is needed, the f
 a token, not to inline the value — see [Deliberately allows](#deliberately-allows) for the
 narrow set of values that are not colors in this sense.
 
-This rule spans two file types and two tools: `.css` declarations
-(`stylelint-declaration-strict-value`) and Tailwind arbitrary values in `.tsx`
-(`oxlint-tailwindcss`). The surfaces are kept in separate subsections throughout, and
-[Open questions](#open-questions) asks whether they should be separate rules.
+## Disposition: three surfaces, three owners
+
+This rule's `disposition` is `mixed`. One rationale and one value surface are enforced by
+three different mechanisms, and nothing available covers more than its own third:
+
+| Surface | Owner |
+| --- | --- |
+| `.css` declarations and `@apply` | `stylelint-declaration-strict-value`, via the package's `/stylelint` entry point (off-the-shelf) |
+| Tailwind arbitrary values (`bg-[#ff0000]`) in `.tsx` / `.ts` | `oxlint-tailwindcss` restricted classes (off-the-shelf) |
+| SVG presentation attributes and string constants in `.tsx` / `.ts` | **a custom rule in our plugin** |
+
+The third row is decision **B4**. Nothing off-the-shelf reaches it:
+`stylelint-declaration-strict-value` only sees `.css`, and `oxlint-tailwindcss` only
+inspects class strings, so `fill="#ff0000"` is invisible to both. The broad sweep
+(decision A7) does not close it either — the token rules ask *"is this a forbidden Tailwind
+class?"*, and `#ff0000` is not a class. The custom rule asks the other question, *"is this
+string a raw color?"*, and its implementation is the raw-color matcher the CSS surface
+already needs, applied to the broad sweep's output. It is the fifth custom rule in the
+package.
+
+`.css` files are enforced by Stylelint; `.ts` and `.tsx` by Oxlint (decision B1 — the token
+family covers all three file types, and the `.ts` object-literal map is the reason). The
+surfaces are kept in separate subsections throughout, and the one remaining
+[deferred question](#deferred-questions) is whether they should be separate rules — now a
+three-way cut rather than a two-way one.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
@@ -88,6 +109,9 @@ keeps adding properties, and every omission is a silent hole. The value-scoped m
 is incomplete in the other direction: it cannot see `red`. Requiring only one of them would
 be promising coverage this rule does not have.
 
+Both models are on in `recommended`, and the value-scoped backstop is a documented option
+rather than a debate — see [Configuration](#configuration) for what turning it off costs.
+
 **The color-carrying property list**, which the property-scoped half must cover in full:
 
 `color` · `background-color` · `border-color` · `border-top-color` ·
@@ -105,11 +129,16 @@ and the shorthands and color-capable properties:
 `text-shadow` · `filter` · `backdrop-filter` · `border-image` · `border-image-source` ·
 `mask-image` · `list-style` · `list-style-image` · `-webkit-text-stroke` · `caret`
 
+The full 148-name CSS named-color set is enforced, and the list is **generated, not
+hand-typed** — see [Configuration](#configuration). A partial list is the same class of
+silent hole as a stale property list.
+
 ### Reporting granularity
 
 One report per **declaration** on the CSS surface, regardless of how many literals the value
-contains — `background: linear-gradient(#fff, #000)` is one problem, not two. On the TSX
-surface, one report per offending **class token**, JSX attribute, or string literal.
+contains — `background: linear-gradient(#fff, #000)` is one problem, not two. On the
+TSX/TS surfaces, one report per offending **class token** (`oxlint-tailwindcss`), and one
+report per offending **JSX attribute or string literal** (the custom rule).
 
 ### CSS: color-only properties
 
@@ -246,6 +275,13 @@ Whether `--brand` is a *sanctioned* token name is not this rule's question — s
 Verified present in the current runner (`linter.js` matches `^@apply\s+(.+?);?\s*$` on the
 trimmed line and runs the full token pipeline over the classes).
 
+**Owner: the package's `/stylelint` entry point** (decision B2), reading the same `/policy`
+module as the Oxlint side, so one policy governs both surfaces and the largest coverage
+regression in the migration stays closed. This is a *different* rule from the raw-value
+check, which matters for the token-file exemption below: `tokenFiles` is wired to the
+raw-value rule's `ignoreFiles` only, so `@apply bg-[#ff0000]` inside a token file is still
+caught. The whole-file blind spot covers raw literals in declaration values, not classes.
+
 ```css caught
 .a { @apply bg-[#ff0000]; }
 
@@ -264,7 +300,7 @@ trimmed line and runs the full token pipeline over the classes).
 .b { @apply bg-[var(--color-primary)]; }
 ```
 
-### TSX: Tailwind arbitrary values
+### TSX/TS: Tailwind arbitrary values
 
 ```tsx caught
 <div className="bg-[#ff0000]" />
@@ -308,9 +344,13 @@ Every offending token in one class string is reported separately:
 <div className="bg-[#ff0000] text-[#00ff00]" />
 ```
 
-### TSX: class strings wherever they are built
+### TSX/TS: class strings wherever they are built
 
-The class-string surface is whatever the shared class-string extractor can see.
+The class-string surface is whatever the shared class-string extractor can see. Under
+decision A7 that is the **broad sweep**: every string literal and every static template
+literal in the file, context-free, in `.tsx` and `.ts` alike. `cn()` / `clsx()` /
+`twMerge()` arguments, `cva()` bases and variants, and object-literal maps in a constants
+file are all simply *there*, with no special-case plumbing.
 
 ```tsx caught
 <div className={cn("bg-[#ff0000]", className)} />
@@ -327,14 +367,23 @@ const badgeColor = { danger: "bg-[#ff0000]", ok: "bg-primary" };
 ```
 
 The last case — a color class in a `.ts`/`.tsx` object-literal map — is the known
-`oxlint-tailwindcss` coverage regression recorded in the migration plan. It is promised
-here; whether the promise is kept by the off-the-shelf rule or by a thin custom rule is a
-Phase 4 verdict, not a licence to drop it.
+`oxlint-tailwindcss` coverage regression recorded in the migration plan, and it is promised
+here. It is kept by the custom rule rather than left to chance: the broad sweep hands that
+string to the raw-color matcher, and a Tailwind arbitrary-value bracket is a *delimited*
+context, so reading `#ff0000` out of `bg-[#ff0000]` does not reopen the
+[embedded-literal blind spot](#color-literals-embedded-in-longer-strings). Phase 4 still
+decides whether `oxlint-tailwindcss` (or its `no-hardcoded-colors`) covers enough of this
+that the second path is redundant — that is a de-duplication question, not a licence to
+drop the promise.
 
-### TSX: color literals outside class strings
+### TSX/TS: color literals outside class strings — the custom rule
 
-A raw color in `.tsx` is a violation whichever channel applies it. The `style` prop case is
-deliberately shared with `no-style-color` — see
+A raw color in `.tsx` or `.ts` is a violation whichever channel applies it. **This is the
+custom rule's surface** (decision B4): SVG presentation attributes and free-standing string
+constants are seen by neither planned off-the-shelf tool, and they are real bypasses — a
+chart library handed `["#ff0000"]`, or an icon whose `fill` was never revisited when the
+palette changed, is one of the most common ways a design system leaks. The `style` prop case
+is deliberately shared with `no-style-color` — see
 [Relationship to other rules](#relationship-to-other-rules).
 
 ```tsx caught
@@ -346,6 +395,8 @@ deliberately shared with `no-style-color` — see
 
 <svg><rect fill="#ff0000" stroke="#00ff00" /></svg>
 
+<svg><path stroke="rgb(0,255,0)" /></svg>
+
 <svg><stop stopColor="#ff0000" /></svg>
 
 <Chart colors={["#ff0000", "#00ff00"]} />
@@ -353,8 +404,10 @@ deliberately shared with `no-style-color` — see
 const CHART_SERIES = "#ff0000";
 ```
 
-A whole-string color literal is caught anywhere in a `.tsx` file, not only in JSX. Without
-property context there is a residual false-positive class — a DOM selector or anchor whose
+A whole-string color literal is caught anywhere in a `.tsx` or `.ts` file, not only in JSX —
+the broad sweep does not care where the string lives, which is exactly the breadth today's
+scanner has and a precise AST walk would have lost. Without property context there is a
+residual false-positive class — a DOM selector or anchor whose
 identifier happens to be hex-only, `"#face"` or `"#decade"` — which `bias: false-positives`
 accepts as suppressible noise. See [Deliberately allows](#deliberately-allows) for the
 non-hex cases that must stay quiet regardless.
@@ -411,6 +464,12 @@ would train developers to suppress it.
 .d { color: light-dark(var(--color-fg-light), var(--color-fg-dark)); }
 ```
 
+Case `.d` is allowed **here and only here**. Decision B5 bans `light-dark()` outright,
+tokens or not, as a second theming mechanism competing with custom properties — but that
+ban is owned by `no-dark-variant`, which flags the mechanism. This rule inspects the
+arguments and finds no literal, so it stays quiet. `light-dark(#000, #fff)` reports under
+both rules.
+
 ```tsx allowed
 <div className="bg-primary text-primary-foreground" />
 
@@ -423,14 +482,19 @@ would train developers to suppress it.
 
 ### The token files
 
-`colorTokenFiles` from `design-system/lint/colors.json` — currently `["src/styles.css"]` —
-define the tokens, so a literal there is the definition, not a bypass.
+`tokenFiles` is **consumer-supplied configuration** — the factory's `tokenFiles` key,
+`["src/styles.css"]` in the `recommended` preset because that is this project's shape, not
+because the linter knows where anyone's tokens live. Nothing is read from disk to discover
+it and no path is derived from the package's own location; see
+[Configuration](#configuration). Those files define the tokens, so a literal there is the
+definition, not a bypass.
 
-The exemption the contract requires is **definition-scoped**, not whole-file: a literal in a
-`--color-*` declaration inside `@theme`, `:root`, or a theme selector is the source of
-truth; an ordinary styling declaration in the same file is a violation like any other. A
-token file that also contains base styles should not become a place where colors can be
-hidden.
+The exemption is **whole-file** (decision A11). It is wired to
+`stylelint-declaration-strict-value`'s `ignoreFiles`, and whole-file is what `ignoreFiles`
+provides. A literal in a `--color-*` declaration is allowed because it is the source of
+truth; a literal in an ordinary styling declaration in the same file is allowed too, and
+that is a **declared blind spot**, not a promise — see
+[The token-file exemption is whole-file](#the-token-file-exemption-is-whole-file).
 
 ```css allowed
 @theme {
@@ -447,15 +511,14 @@ hidden.
 }
 ```
 
-```css caught
-body { background-color: #ffffff; }
-
-.legacy-banner { color: #ff0000; }
-```
-
-Both blocks above are the token file. The `caught` block is what whole-file `ignoreFiles`
-would let through — see [Open questions](#open-questions), which is where this requirement
-is reconciled with the tool.
+An earlier draft of this contract required the exemption to be **definition-scoped** — a
+literal in a `--color-*` declaration allowed, an ordinary styling declaration in the same
+file caught. That requirement is withdrawn. The capability is already known to be absent
+from the tool, so promising it would have been promising a failure; declaring the limit is
+the honest form of the same information, and putting it under
+[Declared blind spots](#declared-blind-spots) means the harness asserts it, so a future
+change that *starts* catching it fails CI and forces this document to be updated rather
+than letting the behaviour drift silently.
 
 ### Comments
 
@@ -562,9 +625,29 @@ const heading = "Rules #1 and #2";
 
 ## Declared blind spots
 
-Not caught, by decision. Each is either statically undecidable or belongs elsewhere.
-Listing them here means a future change that *starts* catching one fails its assertion and
-forces this document to be updated.
+Not caught, by decision. Each is either statically undecidable, unreachable with the chosen
+tool, or belongs elsewhere. Listing them here means a future change that *starts* catching
+one fails its assertion and forces this document to be updated.
+
+### The token-file exemption is whole-file
+
+Decision A11. `tokenFiles` is wired to `stylelint-declaration-strict-value`'s
+`ignoreFiles`, which exempts the file, not the declaration. A raw color anywhere in a token
+file is unlinted — including in an ordinary styling rule that has nothing to do with
+defining a token. A token file that also carries base styles is therefore a place colors
+can hide.
+
+```css blindspot
+body { background-color: #ffffff; }
+
+.legacy-banner { color: #ff0000; }
+```
+
+Both cases are inside a file listed in `tokenFiles`. The mitigation is editorial rather
+than technical: keep `tokenFiles` to files that only define tokens. The narrower the
+list, the smaller this blind spot; a consumer who points it at a large stylesheet has
+exempted that stylesheet. The `@apply` check is unaffected — it is a different rule and does
+not consult `tokenFiles`.
 
 ### Dynamically composed values
 
@@ -583,10 +666,15 @@ const hue = 0;
 <div style={{ color: computeColor(theme) }} />;
 ```
 
-Flagging all dynamic composition was considered and rejected for the TSX surface: template
-literals are how legitimate token-name interpolation is written (``className={`bg-${tone}`}``),
-so a blanket rule would fire constantly on correct code. The line is *literal present or
-not*, and it is the same line every rule in this repo draws.
+The line is *literal present or not*, and it is the same line every rule in this repo draws:
+this rule reports raw colors, and in none of the cases above is one written down.
+
+An earlier draft justified this by calling ``className={`bg-${tone}`}`` legitimate
+token-name interpolation. That justification is retired — decision **A7b** makes a color
+prefix immediately preceding an interpolation a violation, owned by the token rules, with
+the escape hatch (a lookup of complete class names, or a `--color-*` custom property) named
+in the message. The blind spot above survives on its own merits, not on that one: the
+literal genuinely is not there to report.
 
 ### Colors inside `url()` data URIs
 
@@ -600,8 +688,10 @@ scope for both planned tools and for any successor.
 
 ### Color literals embedded in longer strings
 
-Whole-string matching in TSX is deliberate. A color spliced into a larger string is not
-recovered.
+Whole-string matching in TSX/TS is deliberate. A color spliced into a larger string is not
+recovered. The single exception is a Tailwind arbitrary-value bracket — `bg-[#ff0000]` — a
+*delimited* context with a known grammar, which the class surfaces read by design; free
+prose around a literal has no such delimiter and is left alone.
 
 ```tsx blindspot
 const css = "color: #ff0000; padding: 4px";
@@ -649,26 +739,52 @@ rule catches it, and that is the accepted cost of the escape hatch existing.
 - **`no-spectral-color`** owns palette classes (`bg-red-500`). Those are token references —
   wrong tokens, but references — so this rule stays quiet on them. `bg-[#ef4444]` is this
   rule's, even though it is the same color.
-- **`no-dark-variant`** owns theme-switching mechanism. `light-dark()` is the CSS-native
-  form of a `dark:` variant, and this rule catches it only when its arguments are literals.
-  Whether `light-dark(var(--a), var(--b))` should be flagged as a mechanism belongs there —
-  flagged in [Open questions](#open-questions).
+- **`no-dark-variant`** owns theme-switching mechanism, and decision B5 settles
+  `light-dark()`: it is **banned outright, tokens or not**, as a second theming mechanism
+  competing with custom properties — the same argument that bans `dark:`. Ownership of that
+  ban sits there, not here. This rule continues to inspect the *arguments*, so
+  `light-dark(#000, #fff)` reports under both rules and
+  `light-dark(var(--a), var(--b))` reports only under `no-dark-variant`. That is the same
+  property-versus-value division of labour this rule already has with `no-style-color`.
+- **The token rules** (`no-spectral-color`, `no-undefined-token`, `token-constraints`, …)
+  own dynamically assembled *class names*. Decision A7b makes ``className={`bg-${tone}`}``
+  a violation there, because a color prefix before an interpolation defeats every static
+  guarantee. This rule stays quiet on it: no literal color is written down.
 - **`token-constraints`** operates on token names within a prefix. Arbitrary values have no
   token name, so the two never see the same class.
 
 ## Message
 
-Two surfaces, two emitters. Both message texts must stand alone: suggestions do not render
-in any CLI output format, so nothing may live only in a suggestion.
+Three surfaces, three emitters. Every message text must stand alone: suggestions do not
+render in any CLI output format, and `meta.docs.url` is dead under Oxlint, so a diagnostic
+cannot link a developer to this contract. The message text is the only channel, and nothing
+may live only in a suggestion or only here.
+
+Two of the three emitters are not ours. `stylelint-declaration-strict-value` and
+`oxlint-tailwindcss` report under **their own rule ids**, which is the accepted cost of the
+meta-package shape: a consumer suppressing one writes that package's rule id, not ours.
+Only the custom rule reports under this plugin's namespace.
 
 CSS (`stylelint-declaration-strict-value`):
 
 ```
 text: "Raw color {{value}} in `{{property}}` — use a var(--color-*) token.
-       Add one to src/styles.css if none fits."
+       Add one to {{tokenFile}} if none fits."
 ```
 
-TSX (Oxlint):
+`{{tokenFile}}` is the first entry of the consumer's `tokenFiles`, interpolated by the
+preset factory when it builds the Stylelint config. No path is hardcoded — a consumer whose
+tokens live somewhere other than `src/styles.css` is told about their file, not ours. If
+`tokenFiles` is empty the clause degrades to "Add one to your token file".
+
+Tailwind arbitrary values (`oxlint-tailwindcss` restricted classes) carry a per-pattern
+custom message, verified supported in Phase 0:
+
+```
+text: "raw color in `{{class}}` — colors must resolve through a var(--color-*) token"
+```
+
+The custom rule (Oxlint / ESLint):
 
 ```
 messageId: rawColorValue
@@ -691,88 +807,95 @@ appear in the message text via `data`. If more than one token matches, list them
 list would be a guess, emit no suggestion. Nothing destructive is ever offered, so ordering
 is unconstrained here — but the rule stands.
 
-## Open questions
+## Configuration
 
-Each blocks `status: agreed`.
+Mechanism ships; policy is supplied. Everything below is an option with a `recommended`
+default, not a fact about the world. A project that disagrees overrides the option; nobody
+forks a rule.
 
-1. **One rule across two tools, or two rules with two contracts?**
-   Today this is one contract covering a Stylelint rule over `.css` and an
-   `oxlint-tailwindcss` rule over `.tsx`. They share a rationale and a value surface, and
-   nothing else: different tools, different configuration files, different suppression
-   syntax (`stylelint-disable` vs `oxlint-disable`), different message emitters, and — per
-   Phase 4 — potentially different verdicts, since `no-hardcoded-colors` may subsume the
-   TSX half entirely while the CSS half stays Stylelint config.
-   *Recommendation: split into two rules — `no-raw-css-color` (`.css`) and
-   `no-raw-color-utility` (`.tsx`) — but not yet.* Keep one contract through Phase 4, because
+| Option | Surface | `recommended` default | Overriding it |
+| --- | --- | --- | --- |
+| `tokenFiles` | CSS raw values, custom rule | **none — required**, supplied by the consumer (`tokenFiles` on the factory; `["src/styles.css"]` in this project) | Widening it widens the whole-file blind spot; narrowing it makes token definitions report |
+| `namedColors` | all three | `true`, from the generated 148-name CSS set | `false` lets `color: red` and `text-[red]` through — the cheapest bypass of the token system |
+| `valueScopedBackstop` | CSS | `true` (both enforcement models run) | `false` leaves only the property-scoped model, so any property missing from the list is a silent hole |
+| `ignoreValues` | CSS | `["transparent", "currentColor", "inherit", "initial", "unset", "revert", "revert-layer"]` | Removing an entry flags values that are references or cascade operations, which trains developers to suppress the rule |
+| `exclude` | all three | `["**/*.stories.*"]` | Set it to `[]` to lint stories; add globs to exempt more. Applies to both runners |
+
+**`tokenFiles` is one value with two destinations.** The factory takes it once and
+feeds it to `stylelint-declaration-strict-value`'s `ignoreFiles` *and* to the custom rule,
+so the CSS and TS surfaces cannot disagree about which files define tokens. It is required
+rather than defaulted to a path: a default path would be a guess about a consumer's layout,
+and the rules must **fail loudly when it is absent** rather than returning early and
+reporting nothing.
+
+**Storybook.** The current runner skips stories wholesale via `isStorybookFile`, and nobody
+remembers whether that was intent or convenience. As a configurable glob the question stops
+needing an answer: stories are excluded by default because ad-hoc color is most tempting
+and least harmful there, and a project that disagrees writes `exclude: []`.
+
+**Named colors are generated, not hand-typed.** The CSS surface gets the full set for free
+(`stylelint-declaration-strict-value` fails any non-`var()` value), but the class surface
+needs the list explicitly for `text-[red]`. A hand-typed subset is the same class of silent
+hole as a stale property list, so the list is produced from a machine-readable source at
+build time.
+
+### Distribution constraints
+
+- **No filesystem reads, and no path derived from the package's own location.** Every path
+  arrives as input: `tokenFiles` and `exclude` come from the consumer's config, never
+  from a convention about where the plugin is installed. The 148-name color set and the
+  color-property list are static data compiled into the package, not files read at runtime.
+- **Discovery happens once at plugin-module load**, never inside `create()`, so `RuleTester`
+  stays usable and a 200-file run pays no per-file cost.
+- **Rule options replace, they do not merge — and failure is silent.** A consumer writing
+  `"design/no-raw-css-color": "error"` to bump a severity **wipes the preset's options**.
+  Every configured value goes at once: `tokenFiles`, `exclude`, the enforcement-model
+  switches. Both failure modes are bad and neither announces itself — a rule that returns
+  early on missing required options is enabled and catches nothing, exit 0; a rule that
+  carries on reports inside the consumer's own token files, which reads as the linter being
+  broken. This diverges from ESLint flat config, so it will surprise people. The mitigation
+  is the one the plan mandates — **fail loudly** on absent required options rather than
+  returning early, `defaultOptions` carries a usable baseline, and the README documents the
+  footgun. To change severity only, restate the options:
+  `["error", { tokenFiles: ["src/styles.css"] }]`.
+- **Two of the three emitters are peer dependencies.** `oxlint-tailwindcss` and
+  `stylelint-declaration-strict-value` are configured on the consumer's behalf, which
+  couples this contract to their rule names and version ranges and puts their diagnostics
+  under their own rule ids. Stated, not hidden.
+
+## Deferred questions
+
+One question remains, and it is deferred rather than open — it does not block
+`status: agreed`.
+
+1. **One rule, or two, or three?** *(deferred to Phase 4)*
+   This contract now covers three mechanisms: a Stylelint rule over `.css`, an
+   `oxlint-tailwindcss` restricted-classes pattern over `.tsx`/`.ts`, and a custom rule over
+   the same files. They share a rationale and a value surface, and nothing else: different
+   tools, different configuration, different suppression syntax (`stylelint-disable` vs
+   `oxlint-disable`), different rule ids in the output, and — per Phase 4 — potentially
+   different verdicts, since `no-hardcoded-colors` may subsume the arbitrary-value half
+   while the CSS half stays Stylelint config.
+   *Standing recommendation: split, but not yet.* Keep one contract through Phase 4, because
    the audit's central question ("does `no-hardcoded-colors` subsume the hand-written
-   regex?") needs both halves visible in one document to answer. Split at the moment that
-   verdict lands. The sections above are already partitioned by surface, so the split is a
-   cut, not a rewrite. A single contract whose two halves are audited separately, suppressed
-   separately, and may be adopted separately is a contract in name only.
+   regex?") needs the halves visible in one document to answer. Decision B4 changes the
+   shape of the answer rather than the timing: the cut is now **three-way, not two-way**,
+   and the third piece is ours to maintain, which weakens the case for splitting on tool
+   boundaries — a custom rule and a restricted-classes pattern that both run under Oxlint
+   over the same files may be better documented together than apart. The sections above are
+   partitioned by surface either way, so the split stays a cut rather than a rewrite.
 
-2. **Is the definition-scoped token-file exemption achievable, or does it narrow to
-   whole-file?**
-   [Deliberately allows](#deliberately-allows) requires that a literal in a `--color-*`
-   definition inside the token file is allowed while an ordinary styling declaration in the
-   same file is caught. `stylelint-declaration-strict-value` is configured with
-   `ignoreFiles`, which is whole-file. This is the one place the contract knowingly asks for
-   more than the planned tool provides, and Phase 4 must return a verdict rather than let it
-   pass unnoticed.
-   *Recommendation: attempt the scoped form first* — a `disableFix`/`ignoreValues` split, or
-   a second Stylelint rule limited to non-custom-property declarations in the token file. If
-   it cannot be expressed, narrow the contract explicitly and move this case to
-   **Declared blind spots**. Do not adopt `ignoreFiles` and leave the `caught` block above
-   standing; it is executed, so it would fail loudly, which is the intended behaviour.
+The questions this section used to carry are settled and now live as prose:
 
-3. **Does `light-dark(var(--a), var(--b))` violate anything?** [cross-rule]
-   It contains no literal, so this rule is quiet. But it is a theme-switching mechanism
-   living in a component stylesheet, which is exactly what `no-dark-variant` exists to
-   prevent in its `dark:` form. The migration plan already carries the open question of
-   whether `no-dark-variant` extends to `.dark &` selectors and `prefers-color-scheme`
-   blocks; `light-dark()` is the same question in a third syntax and should be answered with
-   them, not here.
-
-4. **Do SVG presentation attributes and `.tsx` string constants have an owner?**
-   `<rect fill="#ff0000" />` and `const CHART_SERIES = "#ff0000"` are promised above and are
-   caught today, because the current scanner reads every string literal in the file.
-   `oxlint-tailwindcss` sees class strings, not arbitrary JSX attributes or free-floating
-   constants, so nothing in the planned replacement covers them.
-   *Recommendation: keep the promise and plan for a thin custom rule.* These are real
-   bypasses — a chart library taking `["#ff0000"]` is one of the most common ways a design
-   system leaks — and dropping them silently is precisely the failure mode the migration
-   standard forbids. If Phase 4 finds `no-hardcoded-colors` reaches them, better; if not,
-   this is a ~30-line addition to the local plugin, not a reason to narrow.
-
-5. **Is the named-color set enforced at full breadth?**
-   The contract requires all 148 CSS named colors within color-carrying properties.
-   `stylelint-declaration-strict-value` gets this for free (any non-`var()` value fails),
-   but the TSX side needs the list explicitly for `text-[red]`.
-   *Recommendation: full set, generated, not hand-typed.* A partial list is the same class
-   of silent hole as the property list, and the set is stable and small enough to inline.
-
-6. **Are Storybook files excluded?** [cross-rule]
-   The current runner skips them wholesale via `isStorybookFile`, for both `.css` and
-   `.tsx`. Unclear whether that was intent or convenience. Stories are where ad-hoc literal
-   color is most tempting and least harmful. The answer should be the same for all nine
-   rules.
-
-7. **Does this rule apply to `.ts` as well as `.tsx`?** [cross-rule]
-   It matters more here than for most: the `.ts` object-literal map
-   (`const badgeColor = { danger: "bg-[#ff0000]" }`) is promised in
-   [Promises to catch](#promises-to-catch), it is caught today, and Phase 0 established that
-   `oxlint-tailwindcss` does not see it. So does `const CHART_SERIES = "#ff0000"` in a
-   constants file. Both are `.ts`-shaped in practice.
-   *Recommendation for this rule: `.ts` and `.tsx` both.* But the file-scope decision is
-   project-wide and should be made once across all nine contracts rather than nine times —
-   it is not settled here.
-
-8. **Is the value-scoped backstop worth its false positives on the CSS surface?**
-   Requiring both enforcement models means a hex in *any* declaration is caught, including
-   properties nobody would think of as color-carrying. No concrete false positive has been
-   identified beyond the `url()` and `content` cases already allowed above.
-   *Recommendation: keep both models.* If real noise appears, narrow the backstop to hex and
-   function heads only (already the case) rather than dropping it — a value-scoped check is
-   the only defence against the property list going stale.
+| Was | Now |
+| --- | --- |
+| Is the definition-scoped token-file exemption achievable? | No — whole-file, and a [declared blind spot](#the-token-file-exemption-is-whole-file) (A11) |
+| Does `light-dark(var(--a), var(--b))` violate anything? | Yes, but under `no-dark-variant`, not here (B5) — see [Relationship to other rules](#relationship-to-other-rules) |
+| Do SVG attributes and string constants have an owner? | Yes — the custom rule (B4), see [Disposition](#disposition-three-surfaces-three-owners) |
+| Does this rule apply to `.ts`? | Yes, `.tsx` `.ts` `.css` (B1) |
+| Is the full named-color set enforced? | Yes, generated — [Configuration](#configuration) |
+| Is the value-scoped backstop worth its noise? | Yes, both models — [Configuration](#configuration) |
+| Are Storybook files excluded? | Yes, via the `exclude` glob — [Configuration](#configuration) |
 
 ## Deltas from the current implementation
 
@@ -791,14 +914,15 @@ line-wise to `.css` and token-wise to string literals extracted from `.ts`/`.tsx
 | `color: ButtonText` (system) | missed | caught |
 | `color: color(display-p3 1 0 0)` | missed | caught |
 | `color: device-cmyk(0 1 1 0)` | missed | caught |
-| `background-color: light-dark(#fff, #000)` | caught (via hex) | caught |
+| `background-color: light-dark(#fff, #000)` | caught (via hex) | caught (and again under `no-dark-variant`, B5) |
+| `color: light-dark(var(--a), var(--b))` | missed | not this rule — reported by `no-dark-variant` (B5) |
 | `color-mix(in oklch, var(--x), red)` | missed | caught |
 | `color: currentColor` / `transparent` / `inherit` | allowed | allowed |
 | `fill: url(#gradient)` | **caught (false positive)** | allowed |
 | `content: "#fff"` | **caught (false positive)** | allowed |
 | `href="#fade"` in TSX | **caught (false positive)** | caught (accepted noise) |
 | `--brand: #ff0000` outside token files | caught | caught |
-| Literal in a token file, outside `@theme` | allowed (whole-file exemption) | caught |
+| Literal in a token file, outside `@theme` | allowed (whole-file exemption) | allowed — [declared blind spot](#the-token-file-exemption-is-whole-file) (A11) |
 | `@apply bg-[#ff0000];` on its own line | caught | caught |
 | `.a { @apply bg-[#f00]; }` on one line | caught, but via the value regex, not the `@apply` path | caught |
 | `@apply` in an exempt file | not checked at all | checked |
@@ -806,8 +930,10 @@ line-wise to `.css` and token-wise to string literals extracted from `.ts`/`.tsx
 | Multiple literals in one declaration | 1 report | 1 report |
 | `#1234567` (7 hex digits, not a valid color) | **caught (false positive)** | allowed |
 | Code after `*/` on a comment-closing line | **not scanned** | scanned |
-| Storybook `.css` / `.tsx` | skipped | [open question 6](#open-questions) |
-| `.ts` object-literal class map | caught | [open question 7](#open-questions) — promised |
+| Storybook `.css` / `.tsx` | skipped | skipped by default, via the configurable `exclude` glob |
+| `.ts` object-literal class map | caught | caught — `.ts` is in scope (B1) and A7's broad sweep sees the string |
+| `<rect fill="#ff0000" />` in TSX | caught | caught, by the custom rule (B4) |
+| `const CHART_SERIES = "#ff0000"` | caught | caught, by the custom rule (B4) |
 
 Three structural properties of today's implementation explain most of the table. The regex
 has no `g` flag and `checkLine` returns after the first match, so a CSS line reports at most
@@ -815,3 +941,9 @@ once. It has no notion of properties, so it can neither see named colors nor tel
 declaration value from a `content` string or a `url()` fragment. And exemption is
 `isExempt`-gated at the whole-file level in `linter.js`, which disables both the raw-color
 check and the `@apply` check for the entire token file.
+
+The last of those three survives, and that is the one behavioural continuity worth naming:
+the exemption stays whole-file (A11), but it is now a *declared* blind spot rather than an
+implementation accident, it is narrowed to the raw-value check rather than covering
+`@apply` too, and the file list arrives as consumer configuration rather than from a
+project-local JSON file the linter reads for itself.
