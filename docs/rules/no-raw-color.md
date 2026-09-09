@@ -1,7 +1,7 @@
 ---
 rule: no-raw-color
 legacy-id: 2
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
@@ -152,10 +152,9 @@ and the shorthands and color-capable properties:
 `accent-` · `caret-` · `decoration-` · `fill-` · `stroke-` · `from-` · `via-` · `to-` ·
 `placeholder-`
 
-The full 148-name CSS named-color set is enforced, and the list — like the property set — is
-**generated, not hand-typed**; see [Configuration](#configuration). A partial list is a
-silent hole. The same generated data serves the CSS declaration surface unchanged when that
-surface lands.
+The full 148-name CSS named-color set is enforced, and the list is **generated, not
+hand-typed**; see [Configuration](#configuration). A partial list is a silent hole. The same
+generated data serves the CSS declaration surface unchanged when that surface lands.
 
 ### Reporting granularity
 
@@ -313,13 +312,19 @@ applies it. The value-scoped backstop reaches these; no attribute or utility pre
 involved.
 
 ```tsx caught
-<Chart colors={["#ff0000", "#00ff00"]} />
-
 const CHART_SERIES = "#ff0000";
 
 export const BRAND = { blue: "#0a7cff" };
 
 const gridStroke = "rgb(200 200 200)";
+```
+
+A series array is as many violations as it has colors, by the same rule that makes
+`"bg-[#f00] text-[#0f0]"` two reports — one per offending thing, and here the thing is the
+string literal:
+
+```tsx caught count=2
+<Chart colors={["#ff0000", "#00ff00"]} />
 ```
 
 A whole-string color literal is caught anywhere in a linted file, not only in JSX — the broad
@@ -721,6 +726,15 @@ appear in the message text via `data`. If more than one token matches, list them
 list would be a guess, emit no suggestion. Nothing destructive is ever offered, so ordering
 is unconstrained here — but the rule stands.
 
+**It is not offered yet, and the reason is an input rather than a decision.** An exact-match
+suggestion needs the tokens' *values*, and the resolved inputs a rule is handed carry only
+their *names*: `tokens` is a set of names, and the design-system policy view answers
+`colorPrefixes`, `colorNames`, `resolves` and `isColorClass` — none of which says what
+`--color-danger` resolves to. Adding a name→value map belongs to `src/policy/design-system.js`,
+which several rules share, so it is a change to make deliberately rather than in passing. Until
+then this rule emits the message alone, which is the channel that has to carry the diagnostic
+regardless: a suggestion renders in no CLI output, so nothing may live only there.
+
 ## Configuration
 
 Mechanism ships; policy is supplied. Everything below is an option with a `recommended`
@@ -758,9 +772,22 @@ and least harmful there, and a project that disagrees writes `exclude: []`.
 
 **Named colors are generated, not hand-typed.** The list is needed explicitly for `text-[red]`
 and `fill="red"`. A hand-typed subset is the same class of silent hole as a stale property
-list, so the list is produced from a machine-readable source at build time. The
-color-carrying property set is generated the same way, from the same build step, and both are
-static data compiled into the package.
+list, so the list is produced from a machine-readable source — Tailwind's own keyword table,
+the only one already installed — by `scripts/generate-color-names.mjs`, and committed as
+static data in `src/policy/color-names.js`. The generator asserts the two counts it expects,
+so a source that moves breaks a script somebody runs rather than a rule in a consumer's CI.
+The 19 CSS system colors come from the same table and the same step.
+
+**The color-carrying property set is derived where it can be, and transcribed where it
+cannot.** An earlier draft of this section claimed the property list was generated from the
+same build step as the color names, and it is not — `src/policy/properties.js` derives the
+color-*only* half from the property name itself (`color`, anything ending in `Color`, and the
+two SVG paints), which is why `borderInlineStartColor` and `WebkitTextFillColor` are covered
+without anybody having remembered them. The shorthand half — `boxShadow`, `filter`,
+`background` and the rest — cannot be derived, because nothing in the name of `filter` says a
+color may be hiding in its value, and it is transcribed from the list above. That is the one
+place in this rule where a stale list can hide, and it is named here rather than papered
+over.
 
 ### Distribution constraints
 

@@ -4,7 +4,7 @@
     "no-component-color-override": 0,
     "no-dark-variant": 0,
     "no-opacity-modifier": 0,
-    "no-raw-color": 45,
+    "no-raw-color": 0,
     "no-spectral-color": 0,
     "no-style-color": 0,
     "no-undefined-token": 0,

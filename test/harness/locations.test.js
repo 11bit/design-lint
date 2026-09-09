@@ -247,6 +247,39 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-raw-color": [
+    {
+      name: "each offending value, at the thing that carries it and not at the file",
+      code: [
+        'const tone = "p-2";',
+        'const SERIES = ["#ff0000", "#00ff00"];',
+        '<div className="bg-[#f00] text-[#0f0]" />;',
+        "<svg>",
+        '  <rect fill="#ff0000" stroke="currentColor" />',
+        "</svg>;",
+        "<div",
+        '  style={{ boxShadow: "0 0 4px #f00, 0 0 8px #00f" }}',
+        "/>;",
+      ].join("\n"),
+      errors: [
+        // The backstop reports the string literal, so the span carries its quotes — there
+        // is no smaller thing to point at, and two colours in one array are two of them.
+        { messageId: "rawColorValue", line: 2, column: 17, endLine: 2, endColumn: 26 },
+        { messageId: "rawColorValue", line: 2, column: 28, endLine: 2, endColumn: 37 },
+        // The class surface reports the class, so the span does *not* carry the quotes: two
+        // arbitrary values in one string literal are two spans, and a rule that reported
+        // the literal would put both at column 16 and be none the wiser.
+        { messageId: "rawColorValue", line: 3, column: 17, endLine: 3, endColumn: 26 },
+        { messageId: "rawColorValue", line: 3, column: 27, endLine: 3, endColumn: 38 },
+        // The attribute, name included — it is the text the author has to edit. The
+        // `stroke` beside it is `currentColor`, a reference, and stays silent.
+        { messageId: "rawColorValue", line: 5, column: 9, endLine: 5, endColumn: 23 },
+        // One report per style property, however many literals the value holds: two hex
+        // colours in one shadow are one value and one edit.
+        { messageId: "rawColorValue", line: 8, column: 12, endLine: 8, endColumn: 51 },
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",
