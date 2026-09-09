@@ -1,0 +1,21 @@
+docs/migration-plan.md
+  s_7e8ab0bd95e6ad::t_3d472bd39195b0 692-693
+docs/open-questions.md
+  s_7e8ab0bd95e6ad::t_edf4cfba603d3a 1-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "68113340943f3b493a37bd08737b19ec259ae3e7",
+  "prompts": {},
+  "sessions": {
+    "s_7e8ab0bd95e6ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba6a48db-5481-4c8f-b9b0-3fdf59bad159",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
