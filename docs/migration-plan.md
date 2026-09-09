@@ -411,8 +411,10 @@ code. Every test input is already a JSX snippet, and the
 | Delete as orchestrator tests | 18 | `linter.test.ts` — rule gating, ignore comments, multi-rule dispatch. All now Oxlint's job. |
 | Deferred with the CSS surface | 20 | `no-raw-color`'s `.css` cases. They return with that surface; the arbitrary-value and string-constant cases port now. |
 
-Rework needed on the 72 that port: message-substring assertions become `messageId` + `data`;
-line assertions move into the `errors` array; `ruleConfig` arguments become `options`.
+Rework needed on the 122 that port: message-substring assertions become `messageId` +
+`data`; line assertions move into the `errors` array; `ruleConfig` arguments become
+`options`. (An earlier revision said 72 here and in Phase 5 step 2 — the pre-decision number,
+from before the delegated rules came in-house. The table above is right: 72 + 50 = 122.)
 
 **These tests are a starting corpus, not proof of coverage.** They were written against
 the implementation, so they confirm known behavior rather than probe for holes. Phase 2
@@ -799,13 +801,22 @@ defines "done" is already written and already failing.
    What is left of this step is wiring only — reading `tokenFiles` once at plugin-module
    load and handing rules the result — which lands with the first rule that needs it rather
    than before all of them.
-2. Port the 72 surviving PoC tests into the contracts, as ordinary tagged blocks the
-   Phase 2 harness already runs. Anything they assert that a contract does not is either a
-   gap in the contract or behaviour the contracts deliberately changed — decide per case,
-   do not port on autopilot. The `RuleTester` configuration and the ESLint-first rule are
-   settled in [Phase 2](#phase-2--build-the-evasion-corpus); the port is not
-   find-and-replace over the existing `describe` / `it` nesting, so budget for
-   restructuring.
+2. ✅ **Port the surviving PoC tests into the contracts — done, and it moved nothing.**
+   All 160 cases were decided individually and the record is in
+   [`docs/poc-test-audit.md`](./poc-test-audit.md): **157 are already in the corpus**, 9 are
+   `color-lint-ignore` tests the runner supersedes, 20 defer with the CSS surface, and one
+   is a real gap. The corpus was built from the evasion matrix rather than from the proof of
+   concept and turns out to subsume it — which this plan predicted in principle under
+   [Existing tests](#existing-tests) without predicting it would be this complete.
+
+   **The one gap is in the harness, not in a contract.** The corpus asserts counts and
+   nothing else — `errors: c.count` — so across all 732 cases no case asserts a line or a
+   column, and a rule reporting every violation on line 1 would be green. The proof of
+   concept did assert report locations, because scanning braces by hand made getting them
+   wrong a live failure mode. An AST rule gets locations right nearly by construction, and
+   "nearly by construction" is the kind of claim the corpus exists to refuse. **Open
+   decision**, because the contract format ships: a `line=` fence attribute the harness
+   turns into `errors: [{ line }]`, or a few location assertions kept outside the corpus.
 3. Drive the Phase 2 baseline to zero. The corpus is already in place and already red.
 4. Implement in risk order. The three formerly-delegated token rules are small and share
    `/policy`, so they come early and de-risk the shared machinery before the intricate
