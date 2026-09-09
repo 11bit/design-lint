@@ -1,0 +1,30 @@
+src/plugin.js
+  s_5c54fd76d4025e::t_af1dac244e8173 1-46
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_a78295a6c66486 5,73
+vitest.config.js
+  s_5c54fd76d4025e::t_f41724fbb8ffd2 1-10
+test/harness/options.js
+  s_5c54fd76d4025e::t_8fd26b8599db45 90
+  s_5c54fd76d4025e::t_a78295a6c66486 4,8,30-37,64-77,81-89
+test/harness/corpus.test.js
+  s_5c54fd76d4025e::t_a78295a6c66486 5,42
+.gitignore
+  s_5c54fd76d4025e::t_5f41875d621286 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "a76f9bb9724e0550f56e36fb0e75759ca5fef52a",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
