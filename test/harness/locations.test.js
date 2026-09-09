@@ -162,6 +162,36 @@ export const FIXTURES = {
       ],
     },
   ],
+  "no-component-color-override": [
+    {
+      name: "each offending class, at the class and not at the attribute or the element",
+      code: [
+        'import { Button } from "@/components/ui/button";',
+        'import { Card, CardHeader } from "@/components/ui/card";',
+        "",
+        '<Card className="rounded-lg border-primary bg-transparent">',
+        "  <CardHeader className={cn(\"p-4\", `text-${tone}`)} />",
+        '  <Button className="hover:bg-red-500/80" />',
+        '  <div className="bg-primary" />',
+        "</Card>;",
+      ].join("\n"),
+      errors: [
+        // Two colour classes in one string, either side of a non-colour one: three spans
+        // are available and the rule has to pick the right two.
+        { messageId: "colorOnComponent", line: 4, column: 29, endLine: 4, endColumn: 43 },
+        { messageId: "colorOnComponent", line: 4, column: 44, endLine: 4, endColumn: 58 },
+        // The interpolated case points at the prefix standing against the hole — the half
+        // of the class that is actually there — inside the template, not at the `cn()` call
+        // or the attribute wrapping it.
+        { messageId: "dynamicColorOnComponent", line: 5, column: 37, endLine: 5, endColumn: 42 },
+        // The variant and the opacity modifier are part of the class the author has to
+        // edit, so they are part of the span.
+        { messageId: "colorOnComponent", line: 6, column: 22, endLine: 6, endColumn: 41 },
+        // Line 7 is the same colour class on a `<div>`, which no import binds. Nothing is
+        // reported there, and a rule that watched names rather than bindings would.
+      ],
+    },
+  ],
   "no-style-color": [
     {
       name: "each offending property, at the property and not at the prop or the element",

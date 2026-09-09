@@ -1,7 +1,7 @@
 ---
 rule: no-component-color-override
 legacy-id: 11
-status: agreed
+status: implemented
 disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.jsx"]
@@ -150,7 +150,12 @@ literals.
 <Button className="placeholder-muted" />
 
 <Card className="from-primary" />
+```
 
+A `via` and a `to` in one string are two colour classes, and the promise above is one
+report per offending class — so this case reports twice, not once.
+
+```tsx caught count=2
 <Card className="via-info to-success" />
 ```
 
@@ -237,13 +242,19 @@ Recognised helpers: `cn`, `clsx`, `classNames`, `cx`, `twMerge`, `twJoin`, `tw`.
 
 <Button className={cn(isActive && "bg-primary")} />
 
-<Button className={isActive ? "bg-primary" : "bg-muted"} />
-
 <Button className={cn({ "bg-primary": isActive })} />
 
 <Button className={cn(["p-2", "bg-primary"])} />
 
 <Button className={cn(base, cn("p-2", clsx("bg-primary")))} />
+```
+
+Both arms of a conditional statically reach the element — the walk takes the consequent and
+the alternate, because it has no idea which one runs — so a conditional between two colour
+classes is two offending classes and two reports.
+
+```tsx caught count=2
+<Button className={isActive ? "bg-primary" : "bg-muted"} />
 ```
 
 **This resolves the migration plan's open question about `cn(className, "bg-primary")`.**

@@ -54,6 +54,43 @@ export const designSystem = designSystemPolicy(await loadDesignSystem(css, { bas
 export const tokens = resolveTokenSet({ css });
 
 /**
+ * The semantic palette `no-component-color-override`'s corpus is written against.
+ *
+ * That rule decides whether a class carries a colour by asking whether its *value* is a
+ * name in the theme's `--color` namespace — `text-destructive` is a colour and `text-sm` is
+ * a font size, and nothing but the theme can tell them apart. Its contract is written in
+ * the semantic vocabulary a design system actually has, so `theme.css`'s four probe names
+ * are not enough: `destructive`, `danger`, `muted`, `info`, `success` and `border` have to
+ * resolve for `text-destructive` to be a colour rather than a typo.
+ *
+ * So this is one more design system, resolved from the fixture stylesheet plus the names
+ * that contract needs. It is deliberately *not* a change to `test/fixtures/theme.css`:
+ * that file is a shared probe surface, and widening the colour namespace under every rule
+ * would move `no-undefined-token`'s and `no-spectral-color`'s verdicts as a side effect of
+ * a third rule's corpus. These names stand in for the consumer stylesheet that
+ * `settings.tailwindcss.entryPoint` names in production, which is exactly the input this
+ * whole file is the load step's stand-in for.
+ */
+const SEMANTIC_PALETTE = [
+  "destructive",
+  "danger",
+  "danger-weak",
+  "danger-content",
+  "muted",
+  "info",
+  "success",
+  "success-content",
+  "border",
+];
+
+export const semanticDesignSystem = designSystemPolicy(
+  await loadDesignSystem(
+    `${css}\n@theme {\n${SEMANTIC_PALETTE.map((name) => `  --color-${name}: oklch(0.7 0.1 25);`).join("\n")}\n}\n`,
+    { base: BASE },
+  ),
+);
+
+/**
  * Only options the corpus actually depends on are listed. A contract that needs to vary one
  * of these per case defines its own `options=` fixture block, which is layered on top.
  */
@@ -96,6 +133,7 @@ const OPTIONS = {
  * system is a fact about the rules rather than about the fixture.
  */
 const RESOLVED = {
+  "no-component-color-override": { designSystem: semanticDesignSystem },
   "no-dark-variant": { designSystem },
   "no-opacity-modifier": { designSystem },
   "no-raw-color": { designSystem, tokens },
