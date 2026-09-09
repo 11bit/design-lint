@@ -1,0 +1,22 @@
+docs/open-questions.md
+  s_7e8ab0bd95e6ad::t_9982376d142420 175-179
+  s_7e8ab0bd95e6ad::t_bf4e0fe00f6405 185-191
+  s_7e8ab0bd95e6ad::t_bc4f2e44df9c68 15,22,204-214,218
+  s_7e8ab0bd95e6ad::t_3b70f17983c09e 215-217,219-229,239-256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "cf210e35e4d363fdb22e573d21806aa5ff2c7191",
+  "prompts": {},
+  "sessions": {
+    "s_7e8ab0bd95e6ad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba6a48db-5481-4c8f-b9b0-3fdf59bad159",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
