@@ -689,6 +689,8 @@ target is gone. Per contract:
 
 - `lint-color/` in full.
 - **This document.**
+- `docs/open-questions.md` — the triage that got the contracts from `draft` to `agreed`.
+  Its decisions live in the contracts and the `recommended` preset by then.
 - The `scripts/lint-color/rules/` reference in `colors.schema.json`.
 - Any `package.json` script, CI step, or hook invoking the old runner.
 - Any `color-lint-ignore` comments left in the application codebase — they were converted
