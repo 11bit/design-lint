@@ -877,6 +877,23 @@ defines "done" is already written and already failing.
    from today's `colors.json` contents, and the versioning policy that new rules ship
    disabled and join `recommended` only on a major. No lint dependencies — `oxlint` is the
    only peer.
+
+   Two facts settle the shape, both measured rather than assumed, and both closing questions
+   Phase 0b left open:
+
+   - **`jsPlugins` takes a specifier, never a plugin object.** Handing it a constructed
+     plugin fails with `data did not match any variant of untagged enum PluginEntry`. So the
+     factory cannot build the plugin and pass it; it can only name it.
+   - **The config file and the plugin module share one process and one module registry.**
+     Same pid, same module instance, config evaluated first. So the factory hands the plugin
+     module its resolved inputs through a shared module — no find-up, no second config parse,
+     and no path derived from the plugin's own location, which the distribution constraints
+     forbid outright.
+
+   Together they fix the entry points: `/preset` is an **async** factory that performs the
+   one filesystem read, resolves the design system and token set, stores them, and returns
+   `{ jsPlugins: ["@evil-martians/design-lint/oxlint"], rules: … }`; `/oxlint` reads what the
+   factory stored and binds it to the rules. A consumer writes `await designLint({…})`.
 7. Adopt it in one real application via `npm install` — not a path reference — and
    confirm green. Installing it the way a consumer would is the only test that the
    packaging works; a `file:` link would hide exactly the resolution problems Phase 0b
