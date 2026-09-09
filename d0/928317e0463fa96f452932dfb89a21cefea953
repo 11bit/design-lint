@@ -1,0 +1,50 @@
+test/harness/baseline.json
+  s_5c54fd76d4025e::t_83254b87e94c19 8
+test/harness/options.js
+  s_5c54fd76d4025e::t_0dd74abecc6209 50-64,71-79
+docs/rules/no-spectral-color.md
+  s_5c54fd76d4025e::t_8a5457dd50e08f 529-544
+  s_5c54fd76d4025e::t_559de2e3f859af 577-583
+  s_5c54fd76d4025e::t_c23358d1e76c06 115,121,123
+  s_5c54fd76d4025e::t_cf324c85413081 228
+  s_5c54fd76d4025e::t_8558cfb4cebafd 4
+  s_5c54fd76d4025e::t_80d476dd3f8980 46-52
+  s_5c54fd76d4025e::t_a89b5c2d6c4c8b 144-152
+  s_5c54fd76d4025e::t_c88e01b9687765 107,190,192,194
+  s_5c54fd76d4025e::t_36bbe59a35596a 98-106
+  s_5c54fd76d4025e::t_0d1cd589b2a9dc 108,153
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_3b760e8358ea07 84-98
+  s_5c54fd76d4025e::t_2ed0d1276c598f 63-83,99-108
+src/rules/no-spectral-color.js
+  s_5c54fd76d4025e::t_a44fae0cdaa6f5 13-14,20-25,27-34,37-42,50-57,79-87,99,111,117-121,131-132,137,142-143,145-146,149,157,166,170,180-195,202,204-209,211,247-248,253-256,258,263,268-288,291,295-298,300,302,304,327-328,337,342,351-356
+  s_5c54fd76d4025e::t_6bcaaed2d59fee 1-5,7,10-12,15-19,26,35-36,43-49,62-78,88-98,100-103,105-110,112,114-116,122-130,133-136,138-141,144,147-148,150-156,158-165,167-169,171-177,196-201,203,210,212-246,249-252,257,259-262,264-267,289-290,292-294,299,301,303,305-326,329-336,338-341,343-350,357-378
+  s_5c54fd76d4025e::t_40ef9a580446eb 113
+src/policy/design-system.js
+  s_5c54fd76d4025e::t_b40c165ce66943 140
+  s_5c54fd76d4025e::t_e3282bfb84067e 47-49,53
+  s_5c54fd76d4025e::t_5f8fa1756c20e4 114-126
+test/policy/design-system.test.js
+  s_5c54fd76d4025e::t_ef72438a94b382 137-164
+test/policy/ignore.test.js
+  s_5c54fd76d4025e::t_9175f628e560c5 1-67
+src/policy/ignore.js
+  s_5c54fd76d4025e::t_809125757d4206 4,8-10,13-17,21,23-25,38-40,47,49-56,59-69,73,75-79,81,84
+  s_5c54fd76d4025e::t_b622cb95053945 1-3,5-7,11-12,18-20,22,26-37,41-46,48,57-58,70-72,74,80,82-83,85-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "d0928317e0463fa96f452932dfb89a21cefea953",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
