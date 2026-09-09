@@ -1,0 +1,23 @@
+test/harness/options.js
+  s_5c54fd76d4025e::t_563c01d176812b 1-7,15-51,55-60
+docs/rules/README.md
+  s_5c54fd76d4025e::t_1ec617c419f8d3 55-60
+test/harness/README.md
+  s_5c54fd76d4025e::t_e4182120ed6cd7 91-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "8639ca23ef7ba8224422f66967fb1b1a4577a8c6",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
