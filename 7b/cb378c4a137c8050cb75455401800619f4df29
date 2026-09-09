@@ -1,0 +1,26 @@
+test/harness/README.md
+  s_5c54fd76d4025e::t_3e33cf63ba286d 47,70-89
+  s_5c54fd76d4025e::t_1393fe1c06a873 90
+test/harness/locations.test.js
+  s_5c54fd76d4025e::t_ca181e5b56148d 1-65,72-98
+  s_5c54fd76d4025e::t_0c22a1d12e6d55 66-71
+docs/migration-plan.md
+  s_5c54fd76d4025e::t_3e33cf63ba286d 900
+  s_5c54fd76d4025e::t_8a5f497b3dadb5 817-842
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "7bcb378c4a137c8050cb75455401800619f4df29",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
