@@ -1,15 +1,47 @@
 {
   "name": "@evil-martians/design-lint",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "description": "Design-token lint rules for Tailwind v4 codebases, for Oxlint and ESLint",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate:colors": "node scripts/generate-color-names.mjs"
   },
   "devDependencies": {
     "oxlint": "^1.82.0",
     "tailwindcss": "^4.3.3",
     "vitest": "^3.2.4"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/evil-martians/design-lint.git"
+  },
+  "keywords": [
+    "oxlint",
+    "oxlint-plugin",
+    "tailwindcss",
+    "design-tokens",
+    "design-system",
+    "lint"
+  ],
+  "exports": {
+    "./preset": "./src/preset/index.js",
+    "./oxlint": "./src/oxlint.js",
+    "./policy": "./src/policy/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "docs/rules",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "peerDependencies": {
+    "oxlint": ">=1.82.0",
+    "tailwindcss": ">=4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -159,8 +159,11 @@ export const sparseTokens = resolveTokenSet({ css: sparseCss });
  * deliberately smaller, differently-named handful, since it exists to be a *probe surface*
  * rather than an application's palette. These names stand in for that rule's `tokenFiles`,
  * which is why they live here rather than in one of the contract's `options=` fixtures: a
- * fixture varies *policy* per case, and the token set is not policy. Supplied as JSON, it
- * wins over the bound token set the way a consumer's own configuration would.
+ * fixture varies *policy* per case, and the token set is not policy.
+ *
+ * Bound as a `Set`, which is what the plugin module binds in production. It was a JSON list
+ * here once, and that difference hid a rule that demanded an array: the corpus was green and
+ * the installed package threw on the first file it linted.
  */
 const TOKEN_CONSTRAINTS_TOKENS = [
   "primary",
@@ -182,7 +185,6 @@ const TOKEN_CONSTRAINTS_TOKENS = [
 
 const OPTIONS = {
   "no-component-color-override": [{ componentSources: ["@/components/ui/*"] }],
-  "token-constraints": [{ tokens: TOKEN_CONSTRAINTS_TOKENS }],
 };
 
 /**
@@ -196,7 +198,7 @@ const RESOLVED = {
   "no-raw-color": { designSystem, tokens },
   "no-spectral-color": { designSystem, tokens },
   "no-undefined-token": { designSystem: sparseDesignSystem, tokens: sparseTokens },
-  "token-constraints": { designSystem, tokens },
+  "token-constraints": { designSystem, tokens: new Set(TOKEN_CONSTRAINTS_TOKENS) },
 };
 
 /** The JSON options a case runs under — what a consumer writes in their config. */

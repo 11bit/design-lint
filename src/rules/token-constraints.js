@@ -292,11 +292,14 @@ function compilePolicy({ allowed = {}, denied = {} }) {
 }
 
 /**
- * The semantic token set — the `--color-*` names the consumer's `tokenFiles` declare, which
- * reach a rule as a list because Oxlint hands a rule its options as JSON.
+ * The semantic token set — the `--color-*` names the consumer's `tokenFiles` declare.
+ *
+ * It arrives as a `Set`, bound by the plugin module, because it is a resolved input rather
+ * than something a consumer types. A list is accepted too: a contract fixture that varies
+ * the token set per case writes JSON, and that is the one shape a consumer could hand it.
  */
 function requiredTokens(tokens) {
-  if (!Array.isArray(tokens)) {
+  if (!(tokens instanceof Set) && !Array.isArray(tokens)) {
     throw new Error(
       "token-constraints: `tokens` is required — the semantic token names the consumer's `tokenFiles` resolve to. Without them the rule recognises no token and would report nothing.",
     );
