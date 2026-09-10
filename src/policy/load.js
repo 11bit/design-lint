@@ -11,7 +11,7 @@
  * imported dynamically so that the module graph a rule sits in does not require it.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -43,9 +43,12 @@ export async function loadDesignSystem(entryCss, { base = process.cwd() } = {}) 
         return { content: readFileSync(local, "utf-8"), base: dirname(local) };
       } catch {}
 
-      const packageDir = dirname(require_.resolve(`${id}/package.json`, { paths: [from, base] }));
-      const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf-8"));
-      const stylesheet = join(packageDir, manifest.style ?? "index.css");
+      const stylesheet = resolvePackageStylesheet(id, [from, base]);
+      if (!stylesheet) {
+        throw new Error(
+          `design-lint: cannot resolve the stylesheet \`@import "${id}"\` from ${from}. If it is a package, check that it is installed; if it is a file, check the path.`,
+        );
+      }
       return { content: readFileSync(stylesheet, "utf-8"), base: dirname(stylesheet) };
     },
 
@@ -81,4 +84,86 @@ export function readTokenFiles(tokenFiles, { base = process.cwd() } = {}) {
   return tokenFiles
     .map((file) => readFileSync(isAbsolute(file) ? file : join(base, file), "utf-8"))
     .join("\n");
+}
+
+/**
+ * Where a package keeps the stylesheet it publishes.
+ *
+ * A CSS package declares it under the **`style` condition** of its export map —
+ * `"exports": { ".": { "style": "./dist/tw-animate.css" } }` — which is the Tailwind v4
+ * convention and what both `tailwindcss` and `tw-animate-css` do.
+ *
+ * The package directory is found by walking `node_modules` rather than by resolving
+ * `<id>/package.json`, which is the obvious trick and the wrong one: a package with an
+ * export map need not export its own manifest, and `tw-animate-css` does not. Asking for it
+ * throws `ERR_PACKAGE_PATH_NOT_EXPORTED` and takes the whole lint run with it — for a
+ * stylesheet that is sitting right there, correctly declared.
+ */
+function resolvePackageStylesheet(id, starts) {
+  const [name, subpath] = splitSpecifier(id);
+  const dir = packageDirectory(name, starts);
+  if (!dir) return null;
+
+  const manifest = readManifest(join(dir, "package.json"));
+  const declared = styleOf(manifest?.exports, subpath ? `./${subpath}` : ".");
+
+  if (declared) return join(dir, declared);
+  // A subpath nobody declared is still an ordinary file inside the package.
+  if (subpath) return join(dir, subpath);
+  return join(dir, manifest?.style ?? "index.css");
+}
+
+/** `@scope/name/sub/path.css` → `["@scope/name", "sub/path.css"]`. */
+function splitSpecifier(id) {
+  const parts = id.split("/");
+  const take = id.startsWith("@") ? 2 : 1;
+  return [parts.slice(0, take).join("/"), parts.slice(take).join("/")];
+}
+
+/**
+ * The first `node_modules/<name>` above any of the starting directories. Plain filesystem
+ * lookup, so an export map cannot hide the package from us, and a symlinked layout — pnpm's
+ * — resolves the same way the package manager laid it out.
+ */
+function packageDirectory(name, starts) {
+  for (const start of starts) {
+    let dir = start;
+    for (;;) {
+      const candidate = join(dir, "node_modules", name);
+      if (existsSync(join(candidate, "package.json"))) return candidate;
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return null;
+}
+
+function readManifest(path) {
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The `style` target for one export key, through however many condition objects it is
+ * nested in. `default` is accepted after it, since a CSS-only package may publish its
+ * stylesheet as the plain default.
+ */
+function styleOf(exports, key) {
+  if (!exports || typeof exports !== "object") return null;
+  const entry = exports[key];
+  return conditionTarget(entry);
+}
+
+function conditionTarget(entry) {
+  if (typeof entry === "string") return entry.endsWith(".css") ? entry : null;
+  if (!entry || typeof entry !== "object") return null;
+  for (const condition of ["style", "default"]) {
+    const target = conditionTarget(entry[condition]);
+    if (target) return target;
+  }
+  return null;
 }
