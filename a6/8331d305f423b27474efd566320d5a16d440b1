@@ -1,0 +1,21 @@
+src/preset/index.js
+  s_5c54fd76d4025e::t_ee92ba01f70d86 41,53-64,74-77,87
+README.md
+  s_5c54fd76d4025e::t_7538a3032711d7 29-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a68331d305f423b27474efd566320d5a16d440b1",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
