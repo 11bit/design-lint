@@ -38,7 +38,7 @@ import { publish } from "./resolved.js";
  */
 export async function designLint({
   tokenFiles,
-  componentSources = [],
+  componentSources,
   preset = "recommended",
   namespace = "design",
   severity = "error",
@@ -47,6 +47,18 @@ export async function designLint({
   if (!Array.isArray(tokenFiles) || tokenFiles.length === 0) {
     throw new Error(
       'design-lint: `tokenFiles` is required — the stylesheets your `--color-*` tokens are defined in, e.g. ["src/styles.css"]. Without them no rule can tell a token from a typo, and a rule that cannot tell reports nothing.',
+    );
+  }
+
+  // `no-component-color-override` watches components by where they were imported from, so
+  // it cannot run without being told where those live. Presence of the key is the decision:
+  // a list turns the rule on, `[]` says this project has no design-system component library
+  // and turns it off, and leaving it out at all is not a decision — it throws rather than
+  // enabling a rule that fails on the first file, or quietly dropping one that was asked for.
+  const wantsComponents = componentSources !== undefined;
+  if (!wantsComponents && preset !== "minimal") {
+    throw new Error(
+      'design-lint: `componentSources` is required — the import globs your design-system components come from, e.g. ["@/components/ui/*"], which is how no-component-color-override knows which elements own their own colour. Pass `[]` if this project has no such library, or `preset: "minimal"` to run only the rules that need no project vocabulary.',
     );
   }
 
@@ -59,7 +71,10 @@ export async function designLint({
 
   publish({ designSystem, tokens });
 
-  const ids = preset === "minimal" ? MINIMAL_RULE_IDS : RULE_IDS;
+  const watching = wantsComponents && componentSources.length > 0;
+  const ids = (preset === "minimal" ? MINIMAL_RULE_IDS : RULE_IDS).filter(
+    (id) => id !== "no-component-color-override" || watching,
+  );
   const on = (id, options) => (ids.includes(id) ? { [`${namespace}/${id}`]: [severity, options] } : {});
 
   return {
@@ -69,7 +84,7 @@ export async function designLint({
       // The options a consumer's own layout decides. Everything else a rule needs is in its
       // `meta.defaultOptions`, which carries the recommended policy — so restating a
       // severity here, which replaces options wholesale, still lands on the right behaviour.
-      ...on("no-component-color-override", { componentSources }),
+      ...on("no-component-color-override", { componentSources: componentSources ?? [] }),
       ...on("no-raw-color", { tokenFiles }),
       ...on("no-dark-variant", { tokenFiles }),
       ...on("no-spectral-color", { tokenFiles }),

@@ -26,7 +26,10 @@ export default defineConfig(
 ```
 
 That is the whole setup. `tokenFiles` are the stylesheets your `--color-*` tokens are
-defined in; they are an **input**, read once, never a linted surface.
+defined in; they are an **input**, read once, never a linted surface. `componentSources` are
+the import globs your design-system components come from — pass `[]` if the project has no
+such library, which turns `no-component-color-override` off, since it watches components by
+where they were imported from and has nothing to watch without them.
 
 ```
 src/App.tsx:5:46: error design(no-spectral-color): bg-red-500 — spectral color class; use bg-danger instead
