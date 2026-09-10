@@ -894,10 +894,26 @@ defines "done" is already written and already failing.
    one filesystem read, resolves the design system and token set, stores them, and returns
    `{ jsPlugins: ["@evil-martians/design-lint/oxlint"], rules: … }`; `/oxlint` reads what the
    factory stored and binds it to the rules. A consumer writes `await designLint({…})`.
+   ✅ **Built and verified from a tarball install.** `npm pack` produces a 44-file package —
+   `src/`, the nine contracts, `README.md`, `CHANGELOG.md`, and nothing else — which
+   installs into a fresh project and lints it with all nine rules, messages naming the
+   consumer's own stylesheet. Both failure modes are loud: a missing `tokenFiles`, and the
+   plugin named in `jsPlugins` by hand without the factory that resolves its inputs.
+
+   **The install found a bug no test could.** `token-constraints` demanded an `Array` of
+   token names while the plugin binds a `Set`, so the corpus was green and the installed
+   package threw on the first file it linted — the harness had handed it a JSON list, which
+   the rule's own JSON-options reasoning made look right. The rule now accepts either, and
+   the harness binds what production binds so the two paths cannot diverge unnoticed again.
+   This is the entire argument for step 7 in one bug.
 7. Adopt it in one real application via `npm install` — not a path reference — and
    confirm green. Installing it the way a consumer would is the only test that the
    packaging works; a `file:` link would hide exactly the resolution problems Phase 0b
    exists to find.
+
+   **Owner's step.** Publishing is deliberately not automated here. The package is prepared
+   and verified from a local tarball; what remains is `npm publish` and pointing one real
+   application at the published version.
 8. Removal of the old system happens in Phase 6, not here — keep `lint-color/` on disk
    until the new rules have run against a real codebase at least once.
 
@@ -905,6 +921,9 @@ No parallel-run period is needed — nothing depends on the old output.
 
 **Exit:** the package is published, installed from the registry by one real application,
 and CI is green there. Contracts and corpus ship inside the package.
+
+Everything up to that exit is done. Nine rules, 2276 assertions, zero pending cases, a
+package that installs and runs. Steps 1–6 are complete; step 7 is the owner's.
 
 ### Phase 6 — Extract and delete
 
