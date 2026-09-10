@@ -39,6 +39,8 @@
  * ask "which utilities accept a colour here?", and the answer is a property of Tailwind
  * rather than of this choice.
  */
+import { colorProperty } from "./properties.js";
+
 const PROBE_TOKEN = "red-500";
 
 /** Tailwind's own namespace for theme colours. A value mentioning one names a colour. */
@@ -176,6 +178,18 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
       // `color-mix(in oklab, var(--color-primary) 50%, transparent)`, and the reference
       // survives every wrapper Tailwind puts around it.
       if (declarations.some((d) => THEME_COLOR_VAR.test(d.value))) return true;
+
+      // The property itself, which is the answer whenever the value does not name the
+      // namespace. Under `@theme inline` — what shadcn/ui generates, and so what a large
+      // share of Tailwind v4 projects run — a theme colour is substituted rather than
+      // referenced: `border-primary-foreground` emits `border-color: var(--primary-foreground)`
+      // with no `--color-` anywhere in it. Reading the value alone answered `false` for every
+      // colour class in such a project, and every rule gated on this one quietly stopped
+      // reporting. The property cannot be spelled away like that.
+      //
+      // Only the colour-only reading counts: a shorthand is how `bg-[image:var(--x)]`, which
+      // lands in `background-image`, would sneak back in.
+      if (declarations.some((d) => colorProperty(d.property) === "color")) return true;
 
       // An arbitrary value names its colour directly and never touches the namespace:
       // `text-[#fff]` generates `color: #fff`. The root gate matters here — it is what

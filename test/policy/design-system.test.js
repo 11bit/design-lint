@@ -162,3 +162,48 @@ describe("colorNames", () => {
     }
   });
 });
+
+/**
+ * `@theme inline`, which is what shadcn/ui generates and therefore what a large share of
+ * Tailwind v4 projects run.
+ *
+ * Inline substitutes a theme variable's value instead of referencing it, so
+ * `border-primary` emits `border-color: var(--primary)` with no `--color-` anywhere in the
+ * declaration. A colour test that read only the value answered `false` for every colour
+ * class in such a project — and every rule gated on it quietly stopped reporting. The
+ * fixture stylesheet uses a plain `@theme`, so nothing in the corpus could see it; this is
+ * the case that could.
+ */
+describe("@theme inline", () => {
+  let inline;
+
+  beforeAll(async () => {
+    inline = designSystemPolicy(
+      await loadDesignSystem(
+        [
+          '@import "tailwindcss";',
+          ":root { --primary: oklch(0.62 0.19 259); --sidebar: oklch(0.98 0 0); }",
+          "@theme inline {",
+          "  --color-primary: var(--primary);",
+          "  --color-sidebar: var(--sidebar);",
+          "}",
+        ].join("\n"),
+        { base: BASE },
+      ),
+    );
+  });
+
+  it("sees a colour whose value never names the namespace", () => {
+    expect(inline.isColorClass("bg-primary")).toBe(true);
+    expect(inline.isColorClass("border-primary")).toBe(true);
+    expect(inline.isColorClass("text-sidebar")).toBe(true);
+  });
+
+  it("still refuses what only looks like one", () => {
+    // The property decides, and only the colour-only reading of it: a width, a size and a
+    // shorthand that lands in `background-image` are all still not colours.
+    expect(inline.isColorClass("border-l")).toBe(false);
+    expect(inline.isColorClass("text-sm")).toBe(false);
+    expect(inline.isColorClass("bg-[image:var(--x)]")).toBe(false);
+  });
+});
