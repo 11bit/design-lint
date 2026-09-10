@@ -62,11 +62,15 @@ export async function designLint({
     );
   }
 
-  const css = tokenFiles
-    .map((file) => readFileSync(isAbsolute(file) ? file : join(base, file), "utf-8"))
-    .join("\n");
+  const paths = tokenFiles.map((file) => (isAbsolute(file) ? file : join(base, file)));
+  const css = paths.map((path) => readFileSync(path, "utf-8")).join("\n");
 
-  const designSystem = designSystemPolicy(await loadDesignSystem(css, { base }));
+  // The design system is built from an entry that imports each token file by absolute
+  // path, not from their text pasted together. Pasted, a token file's own
+  // `@import "./tokens.css"` resolves from the working directory instead of from where the
+  // file sits; imported, the engine resolves it the way the build does.
+  const entry = paths.map((path) => `@import ${JSON.stringify(path)};`).join("\n");
+  const designSystem = designSystemPolicy(await loadDesignSystem(entry, { base }));
   const tokens = resolveTokenSet({ css });
 
   publish({ designSystem, tokens });

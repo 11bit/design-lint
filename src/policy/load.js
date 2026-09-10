@@ -3,74 +3,97 @@
  *
  * It is isolated here for the reason the whole package is shaped the way it is: a rule
  * must never read a file, resolve a path, or derive anything from its own location. The
- * consumer supplies `tokenFiles`; the plugin module loads them **once**, at load, and
- * hands rules the resolved result. That is the one deliberate exception, and this is where
- * it happens.
+ * consumer supplies `tokenFiles`; the factory loads them **once** and hands rules the
+ * resolved result. That is the one deliberate exception, and this is where it happens.
  *
- * `tailwindcss` is a peer of the consumer's project, not a dependency of a rule. It is
- * imported dynamically so that the module graph a rule sits in does not require it.
+ * **The loading itself is Tailwind's.** `@tailwindcss/node` is the integration that
+ * `@tailwindcss/vite`, `@tailwindcss/postcss` and the CLI are built on, and its loader
+ * resolves `@import` and `@plugin` exactly as the build does — through the `style` export
+ * condition, `NODE_PATH`, `jiti` for a TypeScript plugin. This file used to carry its own
+ * resolver, and it was wrong in the way every re-derived resolver is eventually wrong:
+ * `@import "tw-animate-css"` killed the lint run because that package does not export its
+ * own manifest. A linter that resolves stylesheets differently from the build will
+ * disagree with it about what a class means, so this file finds the engine and does
+ * nothing else.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+const ENGINE = "@tailwindcss/node";
+
+/**
+ * Packages that carry the engine as their own dependency. Under a strict pnpm layout the
+ * engine is never hoisted — it sits in `node_modules/.pnpm`, reachable only from the build
+ * tool that depends on it — so a project using `@tailwindcss/vite` has an engine that a
+ * lookup from the project root cannot see. Resolving from the build tool's real directory
+ * finds the copy the build actually runs.
+ */
+const BUILD_TOOLS = ["@tailwindcss/vite", "@tailwindcss/postcss", "@tailwindcss/cli", "@tailwindcss/webpack"];
 
 /**
  * Build a Tailwind design system from a stylesheet.
  *
  * @param {string} entryCss The stylesheet's contents — not its path. A caller that has a
- *   path reads it; a caller that has the text (a test, the corpus) is not forced to invent
- *   a file for it. Phase 2 found this requirement the hard way: a policy that can only be
- *   handed a filename cannot be varied per case, and a corpus that cannot vary it cannot
- *   express the cases that matter.
- * @param {{ base?: string }} [options] Directory `@import` is resolved against.
+ *   path writes an `@import` of it; a caller that has the text (a test, the corpus) is not
+ *   forced to invent a file for it. Phase 2 found this requirement the hard way: a policy
+ *   that can only be handed a filename cannot be varied per case, and a corpus that cannot
+ *   vary it cannot express the cases that matter.
+ * @param {{ base?: string }} [options] Directory the project, and so the engine and every
+ *   bare `@import`, is resolved from.
  * @returns {Promise<object>} The resolved design system.
  */
 export async function loadDesignSystem(entryCss, { base = process.cwd() } = {}) {
-  const { __unstable__loadDesignSystem } = await import("tailwindcss");
-  const require_ = createRequire(join(base, "noop.js"));
+  const engine = resolveTailwindEngine(base);
+  const module = await import(pathToFileURL(engine.entry).href);
+  const load = module.__unstable__loadDesignSystem ?? module.default?.__unstable__loadDesignSystem;
+  if (typeof load !== "function") {
+    throw new Error(
+      `design-lint: ${ENGINE} ${engine.version} at ${engine.entry} does not provide __unstable__loadDesignSystem. It is an unstable API; this package is tested against 4.x.`,
+    );
+  }
+  return load(entryCss, { base });
+}
 
-  return __unstable__loadDesignSystem(entryCss, {
-    base,
+/**
+ * The Tailwind engine the project's own build runs.
+ *
+ * Found from the project, never from this package: a linter running a different Tailwind
+ * from the build is a linter that can disagree with it about which classes exist. Looked up
+ * from `base` first, then through each build tool present; where several copies turn up —
+ * pnpm installs a peer at the root *and* keeps the build tool's own — the one matching the
+ * project's `tailwindcss` wins.
+ *
+ * @param {string} [base]
+ * @returns {{ entry: string, version: string | null, projectVersion: string | null }}
+ */
+export function resolveTailwindEngine(base = process.cwd()) {
+  const projectVersion = versionOf(packageDirectory("tailwindcss", base));
 
-    // `@import "tailwindcss"` is a package specifier, and `@import "./tokens.css"` is a
-    // path. Tailwind hands both to the same hook, so both resolutions live here: relative
-    // first, because a project file named like a package should still be the project file.
-    loadStylesheet: async (id, from) => {
-      try {
-        const local = isAbsolute(id) ? id : join(from, id);
-        return { content: readFileSync(local, "utf-8"), base: dirname(local) };
-      } catch {}
+  const found = [];
+  for (const dir of [base, ...buildToolDirectories(base)]) {
+    const resolved = tryResolve(ENGINE, dir);
+    if (!resolved) continue;
+    const entry = realpathSync(resolved);
+    if (found.some((engine) => engine.entry === entry)) continue;
+    found.push({ entry, version: versionOf(owningPackage(entry)) });
+  }
 
-      const stylesheet = resolvePackageStylesheet(id, [from, base]);
-      if (!stylesheet) {
-        throw new Error(
-          `design-lint: cannot resolve the stylesheet \`@import "${id}"\` from ${from}. If it is a package, check that it is installed; if it is a file, check the path.`,
-        );
-      }
-      return { content: readFileSync(stylesheet, "utf-8"), base: dirname(stylesheet) };
-    },
+  if (found.length === 0) {
+    throw new Error(
+      `design-lint: cannot find ${ENGINE}, the Tailwind engine your build runs, from ${base}. It ships with @tailwindcss/vite and @tailwindcss/postcss; with neither installed, add it: npm install --save-dev ${ENGINE}`,
+    );
+  }
 
-    // `@plugin` and `@config`. A project that has them keeps working; a project whose
-    // plugin fails to load gets a design system missing that plugin's utilities rather
-    // than no design system at all — and any colour prefix lost that way is exactly what
-    // the `colorPrefixes` option exists to put back.
-    loadModule: async (id, from) => {
-      try {
-        let resolved;
-        try {
-          resolved = require_.resolve(id, { paths: [from, base] });
-        } catch {
-          resolved = join(from, id);
-        }
-        const module = await import(pathToFileURL(resolved).href);
-        return { module: module.default ?? module, base: dirname(resolved) };
-      } catch {
-        return { module: {}, base: from };
-      }
-    },
-  });
+  const engine = found.find((candidate) => candidate.version === projectVersion) ?? found[0];
+  if (engine.version && !engine.version.startsWith("4.")) {
+    throw new Error(
+      `design-lint: found ${ENGINE} ${engine.version}, but this package is built against Tailwind 4. The design-system API it uses is unstable across majors.`,
+    );
+  }
+  return { ...engine, projectVersion };
 }
 
 /**
@@ -86,84 +109,46 @@ export function readTokenFiles(tokenFiles, { base = process.cwd() } = {}) {
     .join("\n");
 }
 
-/**
- * Where a package keeps the stylesheet it publishes.
- *
- * A CSS package declares it under the **`style` condition** of its export map —
- * `"exports": { ".": { "style": "./dist/tw-animate.css" } }` — which is the Tailwind v4
- * convention and what both `tailwindcss` and `tw-animate-css` do.
- *
- * The package directory is found by walking `node_modules` rather than by resolving
- * `<id>/package.json`, which is the obvious trick and the wrong one: a package with an
- * export map need not export its own manifest, and `tw-animate-css` does not. Asking for it
- * throws `ERR_PACKAGE_PATH_NOT_EXPORTED` and takes the whole lint run with it — for a
- * stylesheet that is sitting right there, correctly declared.
- */
-function resolvePackageStylesheet(id, starts) {
-  const [name, subpath] = splitSpecifier(id);
-  const dir = packageDirectory(name, starts);
-  if (!dir) return null;
-
-  const manifest = readManifest(join(dir, "package.json"));
-  const declared = styleOf(manifest?.exports, subpath ? `./${subpath}` : ".");
-
-  if (declared) return join(dir, declared);
-  // A subpath nobody declared is still an ordinary file inside the package.
-  if (subpath) return join(dir, subpath);
-  return join(dir, manifest?.style ?? "index.css");
-}
-
-/** `@scope/name/sub/path.css` → `["@scope/name", "sub/path.css"]`. */
-function splitSpecifier(id) {
-  const parts = id.split("/");
-  const take = id.startsWith("@") ? 2 : 1;
-  return [parts.slice(0, take).join("/"), parts.slice(take).join("/")];
-}
-
-/**
- * The first `node_modules/<name>` above any of the starting directories. Plain filesystem
- * lookup, so an export map cannot hide the package from us, and a symlinked layout — pnpm's
- * — resolves the same way the package manager laid it out.
- */
-function packageDirectory(name, starts) {
-  for (const start of starts) {
-    let dir = start;
-    for (;;) {
-      const candidate = join(dir, "node_modules", name);
-      if (existsSync(join(candidate, "package.json"))) return candidate;
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-  return null;
-}
-
-function readManifest(path) {
+function tryResolve(name, dir) {
   try {
-    return JSON.parse(readFileSync(path, "utf-8"));
+    return createRequire(join(dir, "noop.js")).resolve(name);
   } catch {
     return null;
   }
 }
 
-/**
- * The `style` target for one export key, through however many condition objects it is
- * nested in. `default` is accepted after it, since a CSS-only package may publish its
- * stylesheet as the plain default.
- */
-function styleOf(exports, key) {
-  if (!exports || typeof exports !== "object") return null;
-  const entry = exports[key];
-  return conditionTarget(entry);
+function buildToolDirectories(base) {
+  return BUILD_TOOLS.map((tool) => packageDirectory(tool, base))
+    .filter(Boolean)
+    .map((dir) => realpathSync(dir));
 }
 
-function conditionTarget(entry) {
-  if (typeof entry === "string") return entry.endsWith(".css") ? entry : null;
-  if (!entry || typeof entry !== "object") return null;
-  for (const condition of ["style", "default"]) {
-    const target = conditionTarget(entry[condition]);
-    if (target) return target;
+/**
+ * The first `node_modules/<name>` above `start`. A plain filesystem walk rather than
+ * `require.resolve("<name>/package.json")`, because a package with an export map need not
+ * export its manifest — `@tailwindcss/node` itself does not.
+ */
+function packageDirectory(name, start) {
+  for (let dir = start; ; dir = dirname(dir)) {
+    const candidate = join(dir, "node_modules", name);
+    if (existsSync(join(candidate, "package.json"))) return candidate;
+    if (dirname(dir) === dir) return null;
   }
-  return null;
+}
+
+/** The package a resolved file belongs to: the nearest directory above it with a manifest. */
+function owningPackage(file) {
+  for (let dir = dirname(file); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, "package.json"))) return dir;
+    if (dirname(dir) === dir) return null;
+  }
+}
+
+function versionOf(dir) {
+  if (!dir) return null;
+  try {
+    return JSON.parse(readFileSync(join(dir, "package.json"), "utf-8")).version ?? null;
+  } catch {
+    return null;
+  }
 }

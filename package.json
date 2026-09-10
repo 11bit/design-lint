@@ -8,6 +8,7 @@
     "generate:colors": "node scripts/generate-color-names.mjs"
   },
   "devDependencies": {
+    "@tailwindcss/node": "^4.3.3",
     "oxlint": "^1.82.0",
     "tailwindcss": "^4.3.3",
     "vitest": "^3.2.4"
@@ -39,9 +40,14 @@
   ],
   "peerDependencies": {
     "oxlint": ">=1.82.0",
-    "tailwindcss": ">=4.0.0"
+    "@tailwindcss/node": ">=4.1.0"
   },
   "engines": {
     "node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "@tailwindcss/node": {
+      "optional": true
+    }
   }
 }
