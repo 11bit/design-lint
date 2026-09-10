@@ -84,3 +84,52 @@ describe("a hole inside a token", () => {
     expect(render(classTokens(template("dark:", "")))).toEqual(["dark:|"]);
   });
 });
+
+/**
+ * Ranges, which every rule needs and none should recover for itself.
+ *
+ * These fixtures give segments offsets the way `sources.js` does — the text starts one
+ * character past the node, after the quote or the backtick — so the arithmetic is tested
+ * here and the parser's part of it in `test/extract`.
+ */
+describe("range", () => {
+  const at = (start, text, { exact = true, hole = false } = {}) => ({
+    text,
+    followedByExpression: hole,
+    start,
+    exact,
+  });
+  const rangesOf = (segments) => classTokens({ node: {}, segments }).map((t) => t.range);
+
+  it("spans the class, not the string that holds it", () => {
+    // `"bg-red-500 text-sm"` with the quote at offset 10.
+    expect(rangesOf([at(11, "bg-red-500 text-sm")])).toEqual([
+      [11, 21],
+      [22, 29],
+    ]);
+  });
+
+  it("gives a repeated class two distinct spans", () => {
+    // The case a cursor walk over raw text exists to handle, and the case it gets wrong.
+    expect(rangesOf([at(11, "p-2 p-2")])).toEqual([
+      [11, 14],
+      [15, 18],
+    ]);
+  });
+
+  it("spans the hole a dynamic class is written around", () => {
+    // `` `bg-${tone}-500` `` — the class as written is the whole thing, hole included.
+    expect(rangesOf([at(11, "bg-", { hole: true }), at(21, "-500")])).toEqual([[11, 25]]);
+  });
+
+  it("carries no range when an escape moved every offset after it", () => {
+    // The tab is one raw escape and one cooked character, so both classes around it would
+    // be reported a character out. Every token of the segment loses its range, not just the
+    // ones after the escape — the segment is what is untrustworthy.
+    expect(rangesOf([at(11, "a\tbg-red-500", { exact: false })])).toEqual([null, null]);
+  });
+
+  it("carries no range for a segment that never had offsets", () => {
+    expect(classTokens(literal("bg-red-500"))[0].range).toBeNull();
+  });
+});

@@ -125,12 +125,11 @@ export default {
       // accepts by name.
       if (!isClassList(found, resolved, prefixes)) return;
 
-      const locate = locator(context, source.node);
 
       for (const token of found) {
         // Every token advances the cursor, reported or not, so a class written twice in one
         // string is located twice rather than resolving to its first occurrence both times.
-        const range = locate(token.dynamic ? token.head : token.text);
+        const range = token.range;
 
         // A class built around an interpolation is not a class this rule has seen, and it
         // cannot say "generates no CSS" about something it never read. The defect is real
@@ -257,29 +256,6 @@ function editDistance(a, b) {
   }
 
   return previous[b.length];
-}
-
-/**
- * Find each class in the text the author actually wrote.
- *
- * A `ClassToken` carries the string it came from but not where in it the class sits, so a
- * rule that reported the whole literal would point at `"text-secondary bg-danger-muted"`
- * twice with the same span. The text is searched forward from the end of the previous
- * token, and anything that cannot be found — an escape sequence, a template whose cooked
- * text differs from its source — falls back to the node.
- */
-function locator(context, node) {
-  const raw = context.sourceCode.getText(node);
-  const origin = node.range[0];
-  let cursor = 0;
-
-  return (text) => {
-    if (!text) return null;
-    const at = raw.indexOf(text, cursor);
-    if (at === -1) return null;
-    cursor = at + text.length;
-    return [origin + at, origin + at + text.length];
-  };
 }
 
 /** A source range as the report API wants it. */

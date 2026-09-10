@@ -112,28 +112,19 @@ export default {
     };
 
     return sweepVisitors((source) => {
-      const text = context.sourceCode.getText(source.node);
-      const [start] = context.sourceCode.getRange(source.node);
-
-      // Tokens arrive in source order, so one cursor walks the raw text alongside them and
-      // a class that occurs twice in one string still lands on its own occurrence.
-      let cursor = 0;
-
       for (const token of classTokens(source)) {
         // A dynamic token is judged on its static head: the text before the first hole is
         // the only part of it that is a class at all.
         const written = token.dynamic ? token.head : token.text;
-        const at = text.indexOf(written, cursor);
-        if (at !== -1) cursor = at + written.length;
 
         const violation = violationIn(written, token.dynamic);
         if (!violation) continue;
 
         context.report({
           // The class token, not the string that contains it: four offending classes in one
-          // `className` are four separate spans. A raw text search cannot place a class
-          // written with an escape, and the literal is the honest fallback when it fails.
-          node: at === -1 ? source.node : { range: [start + at, start + at + written.length] },
+          // `className` are four separate spans. A token the tokenizer could not place —
+          // one written with an escape — has no range, and the literal is the fallback.
+          node: token.range ? { range: token.range } : source.node,
           messageId: "opacityModifierOnColor",
           data: {
             className: token.dynamic ? `${written}${INTERPOLATION}${token.tail}` : written,

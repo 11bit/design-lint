@@ -227,30 +227,20 @@ function insideInteractiveElement(node, policy) {
  */
 function firstSelfHoverClass(context, opening) {
   for (const source of classSourcesOfElement(opening)) {
-    const [from, to] = source.node.range;
-    // Class tokens arrive in source order, so one cursor walking the node's own source text
-    // finds each one's span — including a class written twice in the same string.
-    let cursor = from;
-
     for (const token of classTokens(source)) {
       // A dynamic token keeps the static text in front of its first hole, and that is where
       // the variants live: `` `hover:bg-${tone}` `` promises the affordance just as plainly
       // as the class it would have resolved to.
       const text = token.dynamic ? token.head : token.text;
       if (!text) continue;
-
-      const found = context.sourceCode.text.indexOf(text, cursor);
-      const at = found === -1 || found + text.length > to ? null : found;
-      if (at !== null) cursor = at + text.length;
-
       if (!selfHoverVariant(text)) continue;
 
       return {
         token: text,
         // Report at the class, not at the string that carries it or the element that holds
-        // it. A token that cannot be located in the source — an escape sequence the cooked
-        // value spells differently — falls back to the node rather than guessing a range.
-        at: at === null ? null : { range: [at, at + text.length] },
+        // it. A token the tokenizer could not place — an escape sequence the cooked value
+        // spells differently — has no range, and falls back to the node.
+        at: token.range ? { range: token.range } : null,
         node: source.node,
       };
     }

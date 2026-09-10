@@ -127,12 +127,11 @@ export default {
     const tokenFile = tokenFiles.join(", ") || "the token files";
 
     return sweepVisitors((source) => {
-      const locate = locator(context, source.node);
 
       for (const token of classTokens(source)) {
         // Every token advances the cursor, reported or not, so a class written twice in one
         // string is located twice rather than reported at its first occurrence both times.
-        const range = locate(token.dynamic ? token.head : token.text);
+        const range = token.range;
         const at = range ? { loc: spanOf(context, range) } : { node: source.node };
 
         if (token.dynamic) {
@@ -346,30 +345,6 @@ function replacementFor(replacement, prefix, family, scale) {
     }
   }
   return null;
-}
-
-/**
- * Find each class in the text the author actually wrote.
- *
- * A `ClassToken` carries the string it came from but not where in it the class sits, so a
- * rule that reported the whole literal would point at `"bg-white text-black"` twice with the
- * same span. The text is searched forward from the end of the previous token, which keeps a
- * class written twice in one string from resolving to its first occurrence both times, and
- * anything that cannot be found — an escape sequence, a template whose cooked text differs
- * from its source — falls back to the node.
- */
-function locator(context, node) {
-  const raw = context.sourceCode.getText(node);
-  const origin = node.range[0];
-  let cursor = 0;
-
-  return (text) => {
-    if (!text) return null;
-    const at = raw.indexOf(text, cursor);
-    if (at === -1) return null;
-    cursor = at + text.length;
-    return [origin + at, origin + at + text.length];
-  };
 }
 
 /** A source range as the report API wants it. */

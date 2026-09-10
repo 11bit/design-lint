@@ -114,22 +114,13 @@ export default {
     if (excluded(context.filename, options.exclude ?? [])) return {};
 
     return sweepVisitors((source) => {
-      const [from, to] = source.node.range;
-      // Class tokens arrive in source order, so one cursor walking the node's own source text
-      // finds each one's span — including the second `text-muted` of a repeated pair.
-      let cursor = from;
-
       for (const token of classTokens(source)) {
         // A hole falls inside this token, so there is no colour part to inspect and this
         // rule's second gate can never be reached. The declared blind spot.
         if (token.dynamic) continue;
 
-        const found = context.sourceCode.text.indexOf(token.text, cursor);
-        const at = found === -1 || found + token.text.length > to ? null : found;
-        if (at !== null) cursor = at + token.text.length;
-
         const violation = judge(token.text, { policy, prefixes, tokens });
-        if (violation) report(context, violation, at, source.node, tokens);
+        if (violation) report(context, violation, token.range, source.node, tokens);
       }
     });
   },
@@ -372,13 +363,14 @@ function globToRegExp(glob) {
  * cannot be located there — an escape sequence the cooked value does not spell the same way —
  * falls back to the node rather than guessing a range.
  */
-function report(context, violation, at, node, tokens) {
+function report(context, violation, range, node, tokens) {
   const { messageId, where } = violation;
+  const at = range ? range[0] : null;
   const suggestions = at === null ? [] : candidates(violation, tokens);
   const patterns = violation.patterns ?? [];
 
   context.report({
-    node: at === null ? node : { range: [at, at + where.className.length] },
+    node: range ? { range } : node,
     messageId,
     data: {
       className: where.className,

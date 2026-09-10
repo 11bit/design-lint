@@ -138,27 +138,15 @@ export default {
     };
 
     return sweepVisitors((source) => {
-      const text = context.sourceCode.getText(source.node);
-      const [start] = context.sourceCode.getRange(source.node);
-
-      // Tokens arrive in source order, so one cursor walks the raw text alongside them and a
-      // class written twice in one string is located twice rather than reported at its first
-      // occurrence both times.
-      let cursor = 0;
-
       for (const token of classTokens(source)) {
         // A dynamic token is judged on its static head: the text before the first hole is
         // the only part of it that was written down.
         const written = token.dynamic ? token.head : token.text;
-        const at = written ? text.indexOf(written, cursor) : -1;
-        if (at !== -1) cursor = at + written.length;
 
         // The class token, not the string that contains it: two offending classes in one
-        // `className` are two separate spans. A raw text search cannot place a class written
-        // with an escape, and a token whose static half is empty has no characters to point
-        // at either — the literal is the honest fallback for both.
-        const node =
-          at === -1 ? source.node : { range: [start + at, start + at + written.length] };
+        // `className` are two separate spans. A token whose offsets cannot be trusted —
+        // written with an escape — carries no range, and the literal is the honest fallback.
+        const node = spanOf(token, source);
 
         const { variants, base } = parseClass(written);
         const utility = token.dynamic ? `${base}${INTERPOLATION}${token.tail}` : base;
@@ -205,4 +193,12 @@ function isDarkVariant(segment) {
   if (segment.startsWith("[")) return false;
   const name = stripGroupName(segment);
   return name === "dark" || name === "not-dark";
+}
+
+/**
+ * Where to report: the class itself when the tokenizer could place it, the string that
+ * holds it when it could not.
+ */
+function spanOf(token, source) {
+  return token.range ? { range: token.range } : source.node;
 }
