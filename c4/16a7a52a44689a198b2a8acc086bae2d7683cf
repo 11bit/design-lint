@@ -1,0 +1,22 @@
+test/policy/design-system.test.js
+  s_5c54fd76d4025e::t_d57a8b4c2fbaf6 165-209
+src/policy/design-system.js
+  s_5c54fd76d4025e::t_3e52271ff1889d 182-193
+  s_5c54fd76d4025e::t_f97b1c0baeac5c 42-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c416a7a52a44689a198b2a8acc086bae2d7683cf",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
