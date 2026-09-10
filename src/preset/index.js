@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
 import { designSystemPolicy } from "../policy/design-system.js";
-import { loadDesignSystem } from "../policy/load.js";
-import { resolveTokenSet } from "../policy/tokens.js";
+import { loadDesignSystem, loadPalette } from "../policy/load.js";
+import { projectTokens } from "../policy/tokens.js";
 import { MINIMAL_RULE_IDS, RULE_IDS, severities } from "../presets/recommended.js";
 import { publish } from "./resolved.js";
 
@@ -63,15 +63,26 @@ export async function designLint({
   }
 
   const paths = tokenFiles.map((file) => (isAbsolute(file) ? file : join(base, file)));
-  const css = paths.map((path) => readFileSync(path, "utf-8")).join("\n");
+  const missing = paths.filter((path) => !existsSync(path));
+  if (missing.length > 0) {
+    throw new Error(
+      `design-lint: \`tokenFiles\` names ${missing.length === 1 ? "a file that does not exist" : "files that do not exist"}: ${missing.join(", ")}. Relative paths are resolved from ${base}.`,
+    );
+  }
 
   // The design system is built from an entry that imports each token file by absolute
   // path, not from their text pasted together. Pasted, a token file's own
   // `@import "./tokens.css"` resolves from the working directory instead of from where the
   // file sits; imported, the engine resolves it the way the build does.
   const entry = paths.map((path) => `@import ${JSON.stringify(path)};`).join("\n");
-  const designSystem = designSystemPolicy(await loadDesignSystem(entry, { base }));
-  const tokens = resolveTokenSet({ css });
+
+  // Yours is your namespace minus Tailwind's stock palette — see `projectTokens`. The two
+  // are built side by side, by the same engine.
+  const [designSystem, palette] = await Promise.all([
+    loadDesignSystem(entry, { base }).then((system) => designSystemPolicy(system)),
+    loadPalette({ base }).then((system) => designSystemPolicy(system)),
+  ]);
+  const tokens = projectTokens(designSystem, palette);
 
   publish({ designSystem, tokens });
 

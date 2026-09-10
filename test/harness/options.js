@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import { bindResolved } from "../../src/plugin.js";
 import { designSystemPolicy } from "../../src/policy/design-system.js";
-import { loadDesignSystem } from "../../src/policy/load.js";
-import { resolveTokenSet } from "../../src/policy/tokens.js";
+import { loadDesignSystem, loadPalette } from "../../src/policy/load.js";
+import { projectTokens } from "../../src/policy/tokens.js";
 import { rules } from "../../src/rules/index.js";
 
 /**
@@ -67,8 +67,15 @@ const css = readFileSync(FIXTURE, "utf-8");
  */
 export const designSystem = designSystemPolicy(await loadDesignSystem(css, { base: BASE }));
 
+/**
+ * Tailwind's own stock palette, subtracted from each fixture's namespace to leave the
+ * fixture's tokens — exactly as the factory does, so the corpus and a real install cannot
+ * disagree about which names are a project's own.
+ */
+const palette = designSystemPolicy(await loadPalette({ base: BASE }));
+
 /** The semantic token names the fixture stylesheet defines. */
-export const tokens = resolveTokenSet({ css });
+export const tokens = projectTokens(designSystem, palette);
 
 /**
  * The semantic palette `no-component-color-override`'s corpus is written against.
@@ -145,7 +152,7 @@ export const sparseDesignSystem = designSystemPolicy(
   await loadDesignSystem(sparseCss, { base: BASE }),
 );
 
-export const sparseTokens = resolveTokenSet({ css: sparseCss });
+export const sparseTokens = projectTokens(sparseDesignSystem, palette);
 
 /**
  * Only options the corpus actually depends on are listed. A contract that needs to vary one

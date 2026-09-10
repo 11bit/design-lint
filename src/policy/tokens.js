@@ -1,52 +1,49 @@
 /**
- * The semantic token set — which `--color-*` names this project defines.
+ * The semantic token set — which colour names are this project's own.
  *
- * Two rules need it for something other than resolution. `no-raw-color` matches a raw
- * value against the tokens that could replace it, and names the token file in its message;
- * `no-undefined-token` builds its typo candidates from it. Both need *names*, which is a
- * different question from "does this class generate CSS" and is why it is not simply read
- * off the design system's resolution path.
+ * Tailwind keeps a project's tokens and its own stock palette in one `--color` namespace,
+ * and to Tailwind `bg-primary` and `bg-red-500` are the same kind of class. Every rule that
+ * asks "is this one of yours?" needs that split drawn somewhere: `no-spectral-color` to find
+ * the palette, `token-constraints` to know which names it polices, `no-undefined-token` for
+ * its typo candidates. It is drawn here.
  *
- * ## Resolved sets, not just paths
+ * ## By subtraction, not by reading files
  *
- * Phase 2 found the interface requirement before any rule existed to need it: a case in
- * the corpus that varies the token set cannot be written if the only way to supply one is
- * a filename. So `resolveTokenSet` accepts either — paths to read, or a set already
- * resolved — and every rule takes the resolved set. A rule that can only be handed a
- * filename is a rule that cannot be tested.
+ * Yours is whatever your namespace holds that a bare `@import "tailwindcss"` does not. The
+ * question is put to Tailwind instead of being answered from which file a name came from,
+ * and that is the whole difference. A scan of the token files' text — the earlier approach,
+ * and the proof of concept's — misses every token defined in a stylesheet those files
+ * import, so `no-spectral-color` reported them as palette and `token-constraints` skipped
+ * them. Following the imports instead needs a line drawn at `node_modules`, because the
+ * palette is itself a stylesheet there, and any such line misfiles a shared token package.
+ * Subtraction needs neither: a token package counts as yours because it is not Tailwind's
+ * palette, and the palette is excluded because it is exactly what is subtracted.
+ *
+ * It decides one case differently from a file scan, on purpose: redefining a palette name
+ * — `--color-red-500: …` — does not make it yours. The name is still stock palette whatever
+ * colour it now holds, and `bg-red-500` is still the class this linter steers people away
+ * from.
  */
 
 /**
- * `--color-<name>:` in a declaration position.
- *
- * Deliberately a scan rather than a parse. The token set is a set of *names*, and the
- * design system is already the authority on whether any of them resolve — a second parser
- * here would be a second thing to be wrong. What it must not do is match a `var(--color-x)`
- * *reference*, which is why the colon is required.
+ * @param {{ colorNames: Set<string> }} designSystem the project's policy view
+ * @param {{ colorNames: Set<string> }} palette the policy view of a bare `@import "tailwindcss"`,
+ *   built by the same engine — see `loadPalette` in `./load.js`
+ * @returns {Set<string>}
  */
-const COLOR_DECLARATION = /--color-([\w-]+)\s*:/g;
-
-/**
- * Extract the `--color-*` names a stylesheet defines.
- *
- * @param {string} css
- * @returns {string[]}
- */
-export function colorTokenNames(css) {
-  return [...css.matchAll(COLOR_DECLARATION)].map((match) => match[1]);
+export function projectTokens(designSystem, palette) {
+  return new Set([...designSystem.colorNames].filter((name) => !palette.colorNames.has(name)));
 }
 
 /**
- * Resolve a token set from whatever the caller has.
+ * An already-resolved set, in whatever iterable shape it arrived: a `Set` the plugin module
+ * bound, or a JSON list a contract fixture wrote to vary the token set per case. Phase 2's
+ * requirement, still standing — a corpus case must be able to hand a token set over
+ * without inventing a stylesheet for it.
  *
- * @param {{ tokens?: Iterable<string>, css?: string }} source
- *   `tokens` is an already-resolved set and wins outright — the corpus supplies one per
- *   case, and the preset may supply one that never had a file. `css` is stylesheet text,
- *   which the plugin module reads from `tokenFiles` once at load.
+ * @param {{ tokens?: Iterable<string> }} source
  * @returns {Set<string>}
  */
-export function resolveTokenSet({ tokens, css } = {}) {
-  if (tokens) return new Set(tokens);
-  if (css) return new Set(colorTokenNames(css));
-  return new Set();
+export function resolveTokenSet({ tokens } = {}) {
+  return new Set(tokens ?? []);
 }

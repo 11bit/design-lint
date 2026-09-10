@@ -1,48 +1,59 @@
-import { describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
 
-import { colorTokenNames, resolveTokenSet } from "../../src/policy/tokens.js";
+import { beforeAll, describe, expect, it } from "vitest";
 
-describe("colorTokenNames", () => {
-  it("reads the names a stylesheet defines", () => {
-    expect(colorTokenNames(`@theme {
-      --color-primary: oklch(0.62 0.19 259);
-      --color-danger-muted: oklch(0.7 0.1 25);
-    }`)).toEqual(["primary", "danger-muted"]);
+import { designSystemPolicy } from "../../src/policy/design-system.js";
+import { loadDesignSystem, loadPalette } from "../../src/policy/load.js";
+import { projectTokens, resolveTokenSet } from "../../src/policy/tokens.js";
+
+const BASE = fileURLToPath(new URL("../..", import.meta.url));
+const policyOf = async (css) => designSystemPolicy(await loadDesignSystem(css, { base: BASE }));
+
+/**
+ * Yours is your namespace minus Tailwind's stock palette. Each case below is one a scan of
+ * the token files' text answered differently, or could not answer at all.
+ */
+describe("projectTokens", () => {
+  let palette;
+  beforeAll(async () => {
+    palette = designSystemPolicy(await loadPalette({ base: BASE }));
   });
 
-  // The distinction the colon exists to draw: a definition names a token, a reference uses
-  // one. A scan that missed this would report every token any rule mentioned as defined.
-  it("does not mistake a reference for a definition", () => {
-    expect(colorTokenNames(`.a { color: var(--color-primary); }`)).toEqual([]);
+  it("is the namespace minus Tailwind's stock palette", async () => {
+    const system = await policyOf(
+      '@import "tailwindcss";\n@theme { --color-primary: oklch(0.62 0.19 259); --color-danger-muted: oklch(0.7 0.1 25); }',
+    );
+    expect(projectTokens(system, palette)).toEqual(new Set(["primary", "danger-muted"]));
   });
 
-  it("ignores custom properties outside the colour namespace", () => {
-    expect(colorTokenNames(`@theme {
-      --text-sm: 0.875rem;
-      --spacing: 0.25rem;
-      --color-card: white;
-    }`)).toEqual(["card"]);
+  it("counts nothing as yours in a project that defines nothing", async () => {
+    expect(projectTokens(await policyOf('@import "tailwindcss";'), palette)).toEqual(new Set());
   });
 
-  it("finds nothing in a stylesheet that defines nothing", () => {
-    expect(colorTokenNames(`@import "tailwindcss";`)).toEqual([]);
+  it("keeps a redefined palette name out — it is still stock palette", async () => {
+    const system = await policyOf(
+      '@import "tailwindcss";\n@theme { --color-red-500: oklch(0.6 0.2 25); --color-brand: oklch(0.6 0.2 25); }',
+    );
+    expect(projectTokens(system, palette)).toEqual(new Set(["brand"]));
+  });
+
+  it("still finds yours when the palette has been cleared", async () => {
+    const system = await policyOf(
+      '@import "tailwindcss";\n@theme { --color-*: initial; --color-brand: oklch(0.6 0.2 25); }',
+    );
+    expect(projectTokens(system, palette)).toEqual(new Set(["brand"]));
   });
 });
 
 describe("resolveTokenSet", () => {
-  it("takes an already-resolved set", () => {
+  // Phase 2's interface requirement: a corpus case that varies the token set must be able to
+  // hand one over without inventing a stylesheet for it.
+  it("takes a list a fixture wrote", () => {
     expect(resolveTokenSet({ tokens: ["primary", "card"] })).toEqual(new Set(["primary", "card"]));
   });
 
-  it("takes stylesheet text", () => {
-    expect(resolveTokenSet({ css: `@theme { --color-primary: red; }` })).toEqual(new Set(["primary"]));
-  });
-
-  // Phase 2's interface requirement, stated as a test: a corpus case that varies the token
-  // set must be able to hand one over without inventing a file for it.
-  it("prefers a resolved set over stylesheet text", () => {
-    const set = resolveTokenSet({ tokens: ["only-this"], css: `@theme { --color-primary: red; }` });
-    expect(set).toEqual(new Set(["only-this"]));
+  it("takes a Set the plugin bound", () => {
+    expect(resolveTokenSet({ tokens: new Set(["primary"]) })).toEqual(new Set(["primary"]));
   });
 
   it("is empty when given nothing", () => {

@@ -44,8 +44,12 @@ prefix left dangling against an interpolation (see
 [Dynamically assembled class names](#dynamically-assembled-class-names)).
 
 Precision is not what keeps this quiet. The gate is a name in the theme's `--color`
-namespace, under a colour-carrying prefix, that the project's own token file did not define
-— and a random string cannot accidentally satisfy all three. Stating it as a *subtraction*
+namespace, under a colour-carrying prefix, that is Tailwind's own stock palette rather than
+the project's — and a random string cannot accidentally satisfy all three. Which names are
+the project's is itself a subtraction: the namespace minus what a bare `@import "tailwindcss"`
+defines. So a token defined in a stylesheet the token file imports is the project's, a shared
+token package is the project's, and redefining `--color-red-500` does **not** make
+`bg-red-500` the project's — the name is still stock palette whatever colour it now holds. Stating it as a *subtraction*
 rather than as a family-plus-scale pattern is what makes the allow list below fall out
 instead of being enumerated: `text-sm` and `border-2` are not colours at all, `transparent`
 and `current` are keywords Tailwind handles rather than theme colours, and `bg-brand` is a
@@ -358,8 +362,8 @@ The files named by the `tokenFiles` option are where the palette is legitimately
 a semantic token has to be defined as *something*. Those files are exempt. Today the
 exemption costs nothing, because those files are `.css` and no `.css` file is linted at all;
 it becomes load-bearing the moment the CSS surface lands. `tokenFiles` itself is unaffected
-by the scope change — the rule reads it to derive the semantic token set, so it is an
-*input*, not a linted surface.
+by the scope change — the design system, and by subtraction the semantic token set, are
+built from it, so it is an *input*, not a linted surface.
 
 ## Declared blind spots
 

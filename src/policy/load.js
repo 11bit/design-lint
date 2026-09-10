@@ -58,6 +58,19 @@ export async function loadDesignSystem(entryCss, { base = process.cwd() } = {}) 
 }
 
 /**
+ * Tailwind's own stock palette, as a design system: what a bare `@import "tailwindcss"`
+ * defines. Subtracted from a project's namespace it leaves the project's own tokens — see
+ * `projectTokens` in `./tokens.js`. Built from `base` by the same engine as the project's,
+ * so the two agree about which names are stock.
+ *
+ * @param {{ base?: string }} [options]
+ * @returns {Promise<object>}
+ */
+export function loadPalette({ base = process.cwd() } = {}) {
+  return loadDesignSystem('@import "tailwindcss";', { base });
+}
+
+/**
  * The Tailwind engine the project's own build runs.
  *
  * Found from the project, never from this package: a linter running a different Tailwind

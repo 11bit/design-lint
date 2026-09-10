@@ -63,5 +63,8 @@ describe("designLint", () => {
 
     await designLint({ tokenFiles: ["src/styles.css"], componentSources: [], base: root });
     expect(consume().designSystem.resolves("bg-brand")).toBe(true);
+    // And it is the project's own: a token defined in a file the token file imports used to
+    // be missed by the text scan, and reported as palette.
+    expect(consume().tokens).toEqual(new Set(["brand"]));
   });
 });

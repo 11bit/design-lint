@@ -21,10 +21,10 @@ export {
   wholeValueColor,
 } from "./color.js";
 export { globToRegExp, ignoredFile } from "./ignore.js";
-export { loadDesignSystem, readTokenFiles } from "./load.js";
+export { loadDesignSystem, loadPalette, readTokenFiles } from "./load.js";
 export { colorProperty, isCustomProperty, normalizeProperty } from "./properties.js";
 export { classTokens, tokensOf } from "./tokenize.js";
-export { colorTokenNames, resolveTokenSet } from "./tokens.js";
+export { projectTokens, resolveTokenSet } from "./tokens.js";
 export {
   familyOfKey,
   inFamily,
