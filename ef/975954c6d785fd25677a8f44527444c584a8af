@@ -1,0 +1,36 @@
+src/policy/index.js
+  s_5c54fd76d4025e::t_5dd2d16d877b35 14
+  s_5c54fd76d4025e::t_3223eb6559943a 1-13,15-36
+src/preset/index.js
+  s_5c54fd76d4025e::t_149f1b64cd999d 1-80
+src/rules/token-constraints.js
+  s_5c54fd76d4025e::t_cda6b3e0c6c5c0 295-299,302
+test/harness/options.js
+  s_5c54fd76d4025e::t_cda6b3e0c6c5c0 162-166,201
+package.json
+  s_5c54fd76d4025e::t_88e0ee89ff3aac 3,7-8,14-45
+src/presets/recommended.js
+  s_5c54fd76d4025e::t_e50a9f460d52e5 1-44
+src/preset/resolved.js
+  s_5c54fd76d4025e::t_149f1b64cd999d 1-35
+src/rules/inputs.js
+  s_5c54fd76d4025e::t_149f1b64cd999d 1-21
+src/oxlint.js
+  s_5c54fd76d4025e::t_149f1b64cd999d 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ef975954c6d785fd25677a8f44527444c584a8af",
+  "prompts": {},
+  "sessions": {
+    "s_5c54fd76d4025e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f7317a6-b45c-4f18-a4af-bda99b3a3c93",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
