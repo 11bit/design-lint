@@ -100,15 +100,23 @@ export default {
   },
 
   create(context) {
-    const options = context.options[0] ?? RECOMMENDED;
+    // Two kinds of thing arrive in `options[0]`: the resolved inputs the plugin module binds
+    // — `designSystem`, `tokens` — and the policy the consumer wrote. The recommended policy
+    // stands in for the second when the consumer wrote none, which is not the same as
+    // `options[0]` being absent: once inputs are bound it never is, and a fallback keyed on
+    // it silently switched the whole policy off. What the consumer wrote still replaces the
+    // recommended policy wholesale rather than merging into it — a per-prefix merge is the
+    // thing Configuration forbids.
+    const { designSystem, tokens: tokenInput, ...written } = context.options[0] ?? {};
+    const options = Object.keys(written).length > 0 ? written : RECOMMENDED;
 
     // The two gates are the two inputs, and neither has a defensible default: they are what
     // the consumer's `tokenFiles` and Tailwind design system resolve to, and a rule never
     // reads a path. Missing either, every gate fails on every class and the rule reports
     // nothing while appearing enabled — the one failure mode this rule cannot afford, since a
     // rule that finds nothing looks exactly like a codebase with nothing to find.
-    const prefixes = requiredPrefixes(options.designSystem);
-    const tokens = requiredTokens(options.tokens);
+    const prefixes = requiredPrefixes(designSystem);
+    const tokens = requiredTokens(tokenInput);
     const policy = compilePolicy(options);
 
     if (excluded(context.filename, options.exclude ?? [])) return {};
