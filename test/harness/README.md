@@ -90,6 +90,14 @@ tests, so neither is a convention anyone has to remember.
 
 ## Where the design system comes from
 
+`theme.css` is a probe surface, not a palette — it exists so prefix derivation can ask
+Tailwind what it generates. A rule whose contract is written in token names it does not
+have resolves **its own** design system in `options.js` rather than widening the shared
+one, because widening moves every other rule's verdicts: `danger-muted` is `no-undefined`'s
+running example of an undefined token and `no-spectral-color`'s example of a defined one.
+Three rules do this today, each documented where it builds one.
+
+
 Five rules need a resolved design system or token set, and no rule may read a file to get
 one. `options.js` resolves both once from `test/fixtures/theme.css` — the most expensive
 thing the suite does — and hands them to rules under `designSystem` and `tokens`, the same

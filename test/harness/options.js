@@ -37,6 +37,23 @@ import { rules } from "../../src/rules/index.js";
  * filesystem.
  */
 
+/**
+ * ## Why there is more than one design system here
+ *
+ * `theme.css` is a **probe surface**, not an application's palette: it exists so prefix
+ * derivation can ask Tailwind what it generates, and it declares four deliberately generic
+ * token names. Three contracts are written in token vocabularies it does not have —
+ * `no-component-color-override` in `destructive` and `success-content`,
+ * `no-undefined-token` in a palette that must *exclude* `danger-muted`, `token-constraints`
+ * in fifteen names its contract lists in prose.
+ *
+ * Each of them resolves its own design system rather than widening the shared one, and that
+ * is the rule to follow when a fourth needs the same thing. Widening `theme.css` moves every
+ * other rule's verdicts as a side effect: adding `danger-muted` would make it defined for
+ * `no-undefined-token`, and removing it would make it spectral for `no-spectral-color`. A
+ * fixture that one rule can change to suit itself is a fixture no rule can rely on.
+ */
+
 const FIXTURE = fileURLToPath(new URL("../fixtures/theme.css", import.meta.url));
 const BASE = fileURLToPath(new URL("../..", import.meta.url));
 
