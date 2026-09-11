@@ -1,0 +1,23 @@
+src/rules/no-raw-color.js
+  s_7854930eea3f9d::t_6c3870c1a6d373 45-50,188-190,192-194,211-219,264-273,276-279,289-300,419-441
+  s_7854930eea3f9d::t_65761a45769015 442-443
+docs/rules/no-raw-color.md
+  s_7854930eea3f9d::t_706579377792a6 105-110,281-286,304-307,330-350,547-549,552,558-560
+  s_7854930eea3f9d::t_9388b668c3553f 111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "176bd0424b513e7d1eb6e20b5f3e3683730e9285",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
