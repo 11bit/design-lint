@@ -278,6 +278,11 @@ function selfHoverVariant(className) {
     const marked = segment.startsWith("!") ? segment.slice(1) : segment;
     const name = stripGroupName(marked);
 
+    // Variants apply left to right, so once one moves the target to other elements —
+    // `*:`, `**:`, `[&_a]:` — a later `hover` is about hovering *them*. `*:hover:bg-muted`
+    // styles each child as the pointer crosses it, and every child is its own target.
+    if (retargets(marked)) return null;
+
     // `not-hover:` is a rule-local addition, outside the shared family predicate and
     // correctly so — requiring a `-hover` *token* for the un-hovered state reads backwards.
     // But that argument is about token naming. Conditioning the element's appearance on the
@@ -304,6 +309,23 @@ function arbitrarySelfHover(segment) {
   const selector = segment.slice(1, -1);
   if (!selector.startsWith("&")) return false;
   return /:hover\b/.test(selector.split(/[\s_>+~]/, 1)[0]);
+}
+
+/**
+ * Does this variant move the styling off the element onto others?
+ *
+ * `*` and `**` select children and descendants. An arbitrary variant does when its selector
+ * continues past `&` through a combinator — `[&_a]`, `[&>li]`, `[&+p]` — rather than
+ * compounding onto `&` itself (`[&:focus]`) or placing it under an ancestor (`[.dark_&]`).
+ * A combinator inside a pseudo-class argument (`[&:nth-child(2n_+_1)]`) also answers yes,
+ * which errs toward silence.
+ */
+function retargets(segment) {
+  if (segment === "*" || segment === "**") return true;
+  if (!segment.startsWith("[") || !segment.endsWith("]")) return false;
+  const selector = segment.slice(1, -1);
+  const self = selector.indexOf("&");
+  return self !== -1 && /[\s_>+~]/.test(selector.slice(self + 1));
 }
 
 /** The tag as it was written: `div`, `Card`, `Dialog.Trigger`, `svg:rect`. */
