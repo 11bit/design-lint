@@ -247,7 +247,8 @@ function appliesColor(className, colorPrefixes, colorNames, owned) {
 
   // An arbitrary value is one opaque blob that may contain `-` and `:` and its own
   // brackets, so it is split off by the bracket rather than by the segment scan below.
-  const bracket = base.indexOf("[");
+  // Tailwind v4's `bg-(--color-primary)` is the same value in its shorthand bracket.
+  const bracket = base.search(/[[(]/);
   if (bracket !== -1) {
     const prefix = base.slice(0, bracket).replace(/-$/, "");
     if (!prefix || !startsWithPrefix(prefix, colorPrefixes)) return false;

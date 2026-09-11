@@ -74,7 +74,12 @@ A value is a color when it is one of:
    `inherit`);
 4. an arbitrary value that is a raw color literal or a color custom property
    (`[#ff0000]`, `[rgb(1_2_3)]`, `[oklch(0.7_0.1_20)]`, `[var(--color-primary)]`,
-   `[--color-primary]`).
+   `[--color-primary]`), in either bracket form — Tailwind v4's `(--color-primary)`
+   shorthand counts the same as `[var(--color-primary)]`.
+
+A named colour inside brackets (`text-[red]`) and a custom property outside the `--color-*`
+namespace (`bg-[var(--brand)]`, `bg-(--brand)`) are not treated as colours here: the first is
+`no-raw-color`'s to report, and the second cannot be told apart from a non-colour variable.
 
 A class with an interpolation in it (`` `bg-${tone}` ``) is not checked — see
 [Classes built by interpolation](#classes-built-by-interpolation).
@@ -194,6 +199,10 @@ report per offending class — so this case reports twice, not once.
 <Button className="bg-[var(--color-primary)]" />
 
 <Button className="bg-[--color-primary]" />
+
+<Button className="bg-(--color-primary)" />
+
+<Button className="text-(color:--color-danger)" />
 
 <Button className="shadow-[0_0_4px_#000]" />
 ```
@@ -427,6 +436,19 @@ owned set through `ownedUtilities` ([Configuration](#configuration)); the defaul
 <Button className="w-[calc(100%-2rem)]" />
 
 <Button className="shadow-[0_0_4px_var(--spacing-1)]" />
+
+<Button className="text-(length:--spacing-4)" />
+```
+
+A named colour in brackets and a variable outside `--color-*` are left alone too — the first
+is `no-raw-color`'s to report, and the second may not be a colour at all.
+
+```tsx allowed
+<Button className="text-[red]" />
+
+<Button className="bg-[var(--brand)]" />
+
+<Button className="bg-(--brand)" />
 ```
 
 ### Color on a non-`className` prop
