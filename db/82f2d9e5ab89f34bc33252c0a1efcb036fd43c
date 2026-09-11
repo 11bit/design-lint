@@ -1,0 +1,20 @@
+src/rules/no-useless-hover.js
+  s_7854930eea3f9d::t_1264c7c3315924 281-285,314-328
+  s_7854930eea3f9d::t_414f71f7052013 329-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "db82f2d9e5ab89f34bc33252c0a1efcb036fd43c",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
