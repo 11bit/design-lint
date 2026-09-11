@@ -10,13 +10,13 @@ assertion is not a promise.
 | --- | --- |
 | [`no-style-color`](./no-style-color.md) | colour applied through the React `style` prop |
 | [`no-raw-color`](./no-raw-color.md) | a colour written as a literal instead of a token |
-| [`no-spectral-color`](./no-spectral-color.md) | a spectral palette class where a semantic one belongs |
-| [`no-undefined-token`](./no-undefined-token.md) | a token-shaped class that resolves to no token |
-| [`token-constraints`](./token-constraints.md) | tokens used outside the roles they were defined for |
+| [`no-spectral-color`](./no-spectral-color.md) | a palette class (`bg-red-500`) where a semantic one belongs |
+| [`no-undefined-token`](./no-undefined-token.md) | a class under a colour prefix that generates no CSS — usually a mistyped token |
+| [`token-constraints`](./token-constraints.md) | a semantic token on a utility or variant its policy forbids |
 | [`no-opacity-modifier`](./no-opacity-modifier.md) | `/50` opacity modifiers on colour classes |
-| [`no-dark-variant`](./no-dark-variant.md) | `dark:` variants, which the token system handles |
-| [`no-useless-hover`](./no-useless-hover.md) | a `hover:` colour that changes nothing |
-| [`no-component-color-override`](./no-component-color-override.md) | colour classes imposed on a design-system component from outside |
+| [`no-dark-variant`](./no-dark-variant.md) | `dark:` variants and `light-dark()`, which the token system handles |
+| [`no-useless-hover`](./no-useless-hover.md) | `hover:` styling on an element the user cannot interact with |
+| [`no-component-color-override`](./no-component-color-override.md) | colour classes passed to a design-system component through `className` |
 
 ## How the surface divides
 
@@ -28,8 +28,8 @@ Three questions, and every rule answers one of them:
   [`src/extract`](../../src/extract/index.js): every string literal and every static
   template segment, wherever it sits — a `cn()` argument, a `cva()` variant map, a `.ts`
   constants file. Breadth is the point.
-- **The class strings that reach *this* element.** The three JSX rules use
-  `classSourcesOfElement`, which resolves one element's `className` and unwraps composition
+- **The class strings that reach *this* element.** The two JSX rules,
+  `no-useless-hover` and `no-component-color-override`, use `classSourcesOfElement`, which resolves one element's `className` and unwraps composition
   helpers to any depth. A class on `<Button>` means something a class on `<div>` does not.
 
 Both extractors refuse to follow identifiers, member expressions, `+` concatenation and
@@ -56,9 +56,10 @@ commit as the code. Its corpus is already red on every promise the rule has yet 
   plugin its options from Rust as JSON, so a method does not survive the trip and a `Set`
   arrives as `{}`. What a consumer writes — a replacement map, a list of prefixes, a
   boolean — is JSON and travels as options. What a consumer cannot write by hand — the
-  resolved design system, the token set — is built once at load from the `tokenFiles` or
-  `entryPoint` they did write, and bound around `create` by `bindResolved` in
-  `src/plugin.js`. A rule reads both from `context.options[0]` and never knows the
+  resolved design system, the token set — is built once by `designLint()` from the
+  `tokenFiles` they passed it, and bound around `create` by `bindResolved` in
+  `src/plugin.js`, per the map in `src/rules/inputs.js`. A rule-level `tokenFiles` or
+  `entryPoint` option only names a file in messages; it builds nothing. A rule reads both from `context.options[0]` and never knows the
   difference; `test/harness/options.js` is the corpus's stand-in for that load step. Bound
   values are defaults, so anything the caller supplied for the same key still wins.
 - **`messageId` plus `data`, never an interpolated string.** The message text is the only
@@ -67,7 +68,11 @@ commit as the code. Its corpus is already red on every promise the rule has yet 
   instead — goes in the message via `data`, and into a suggestion only *in addition*.
 - **`meta.defaultOptions` carries the recommended policy**, so a consumer who wipes the
   preset's options by writing `"design/<rule>": "error"` lands on the right behaviour rather
-  than on nothing. Options replace, they do not merge.
+  than on nothing. The consumer's options replace the preset's; Oxlint then deep-merges
+  `defaultOptions` under them, objects key by key and arrays replaced whole. Where a
+  per-key merge would break the policy, apply the default in `create` instead:
+  `token-constraints` uses its recommended `allowed`/`denied` only when neither key is
+  written, because an allow list is only readable if it is complete in one place.
 - **Report at the smallest node that identifies the violation** — the property, the class
   token, the attribute — not the element or the file. Locations are asserted in
   [`test/harness/locations.test.js`](../../test/harness/locations.test.js), and a rule
