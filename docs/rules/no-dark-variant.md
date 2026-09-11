@@ -437,10 +437,27 @@ text:      "{{className}} — dark: variant not allowed; theming is resolved by 
             --color-* tokens in {{tokenFile}}, so use a semantic token for {{utility}}"
 ```
 
-A second id for `light-dark()`, because the fix is different: there is no paired class to
-collapse, only a call to delete once the token carries both values. Today it fires on the
-arbitrary-value class form only — `source` is the class — and it is the message the deferred
-CSS-declaration case will reuse unchanged.
+When the utility is not a colour — `dark:hidden`, `dark:block` — a token is no answer, so
+the message says what is:
+
+```
+messageId: darkVariantNonColor
+data:      { className, utility, tokenFile }
+text:      "{{className}} — dark: variant not allowed; theming is resolved by the
+            --color-* tokens in {{tokenFile}}, and {{utility}} is not a colour, so no token
+            replaces it — drop the theme branch, or for a light/dark asset pair use one
+            component that picks the file"
+```
+
+A class under a colour prefix that generates nothing, such as a misspelled token, still gets
+the first message: it wants a token, just a real one.
+
+A separate message for `light-dark()`, because the fix is different: there is no paired
+class to collapse, only a call to delete once the token carries both values. `source` is the
+class when the call sits inside one — `bg-[light-dark(var(--a),var(--b))]` — and the whole
+call otherwise, so `"light-dark(#000, #fff)"` in a `style` value is quoted in full rather
+than cut at its first space. It is the message the deferred CSS-declaration case will reuse
+unchanged.
 
 ```
 messageId: lightDarkFunction

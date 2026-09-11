@@ -54,6 +54,10 @@ export default {
     messages: {
       darkVariant:
         "{{className}} — dark: variant not allowed; theming is resolved by the --color-* tokens in {{tokenFile}}, so use a semantic token for {{utility}}",
+      // A token is no answer for a utility that is not a colour: `dark:hidden` is a theme
+      // branch with nothing for a token to resolve, so the advice has to be different.
+      darkVariantNonColor:
+        "{{className}} — dark: variant not allowed; theming is resolved by the --color-* tokens in {{tokenFile}}, and {{utility}} is not a colour, so no token replaces it — drop the theme branch, or for a light/dark asset pair use one component that picks the file",
       lightDarkFunction:
         "{{source}} — light-dark() is a second theming mechanism; a --color-* token already resolves per theme, so give the property both values in {{tokenFile}} and reference the token here",
     },
@@ -136,7 +140,21 @@ export default {
       return designSystem.isColorClass(base);
     };
 
+    /**
+     * Is this a utility that generates CSS and sets no colour?
+     *
+     * Only then is the token advice wrong. A class that generates nothing — `dark:text-muted`
+     * where `muted` was never defined — is still under a colour prefix and still wants a
+     * token, so it keeps the colour message. Without a bound design system the question has
+     * no answer, and the colour message is the one this rule always gave.
+     */
+    const nonColorUtility = (base) =>
+      Boolean(designSystem?.resolves && designSystem.resolves(base) && !designSystem.isColorClass(base));
+
+    let calls;
+
     return sweepVisitors((source) => {
+      calls = lightDarkCalls(source);
       for (const token of classTokens(source)) {
         // A class with an interpolation in it is never judged, by this rule or any other:
         // what it becomes is unknowable, and guessing from half a class is where rules
@@ -154,7 +172,7 @@ export default {
         if (variants.some(isDarkVariant) && reportable(base)) {
           context.report({
             node,
-            messageId: "darkVariant",
+            messageId: nonColorUtility(base) ? "darkVariantNonColor" : "darkVariant",
             data: { className, utility: base, tokenFile },
           });
         }
@@ -163,7 +181,7 @@ export default {
           context.report({
             node,
             messageId: "lightDarkFunction",
-            data: { source: className, tokenFile },
+            data: { source: calls.sourceOf(className), tokenFile },
           });
         }
       }
@@ -174,6 +192,48 @@ export default {
 
 /** The call, matched with its open paren so the bare word `light-dark` is not a match. */
 const LIGHT_DARK = "light-dark(";
+
+/**
+ * The `light-dark()` calls written in one class source, handed out in order.
+ *
+ * A class token stops at whitespace, and a call in a `style` value or a CSS string does not:
+ * `"light-dark(#000, #fff)"` is the tokens `light-dark(#000,` and `#fff)`, so quoting the
+ * token would print half a call. `sourceOf` answers with the class itself when the call
+ * closes inside it — `bg-[light-dark(var(--a),var(--b))]` is the thing to edit — and
+ * otherwise with the whole call, recovered from the text around it. Calls are consumed in
+ * the order tokens meet them, so two different calls in one string are each quoted as
+ * written. A call never spans a hole: the static text on each side of one is scanned alone.
+ */
+function lightDarkCalls(source) {
+  const found = [];
+  for (const { text } of source.segments) {
+    let at = text.indexOf(LIGHT_DARK);
+    while (at !== -1) {
+      found.push(balancedCall(text, at).text);
+      at = text.indexOf(LIGHT_DARK, at + LIGHT_DARK.length);
+    }
+  }
+
+  let next = 0;
+  return {
+    sourceOf(className) {
+      const first = found[next] ?? null;
+      next += className.split(LIGHT_DARK).length - 1;
+      const { closed } = balancedCall(className, className.indexOf(LIGHT_DARK));
+      return closed || first === null ? className : first;
+    },
+  };
+}
+
+/** The call starting at `at`, through its matching paren — or to the end if it never closes. */
+function balancedCall(text, at) {
+  let depth = 0;
+  for (let i = at + LIGHT_DARK.length - 1; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    else if (text[i] === ")" && --depth === 0) return { text: text.slice(at, i + 1), closed: true };
+  }
+  return { text: text.slice(at).trim(), closed: false };
+}
 
 /**
  * Does this variant segment branch on the theme?

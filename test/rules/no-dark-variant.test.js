@@ -35,3 +35,54 @@ describe("refusing to run", () => {
     expect(() => create({ flagNonColorUtilities: false, designSystem })).not.toThrow();
   });
 });
+
+/**
+ * What the messages quote and advise. The corpus asserts counts, not text, so the two ways a
+ * message could mislead are asserted here.
+ */
+describe("messages", () => {
+  const run = (code) => {
+    const reports = [];
+    const visitors = rule.create({
+      options: [{ designSystem }],
+      filename: "a.tsx",
+      report: (descriptor) => reports.push(descriptor),
+    });
+    return { reports, visitors };
+  };
+
+  const literal = (value) => ({
+    type: "Literal",
+    value,
+    raw: JSON.stringify(value),
+    range: [0, value.length + 2],
+    parent: { type: "ExpressionStatement" },
+  });
+
+  const reportsFor = (value) => {
+    const { reports, visitors } = run();
+    visitors.Literal?.(literal(value));
+    return reports;
+  };
+
+  it("quotes a whole light-dark() call, not the half before its first space", () => {
+    const [report] = reportsFor("light-dark(#000, #fff)");
+    expect(report.messageId).toBe("lightDarkFunction");
+    expect(report.data.source).toBe("light-dark(#000, #fff)");
+  });
+
+  it("quotes the class when the call closes inside it", () => {
+    const [report] = reportsFor("bg-[light-dark(var(--a),var(--b))]");
+    expect(report.data.source).toBe("bg-[light-dark(var(--a),var(--b))]");
+  });
+
+  it("does not advise a token for a utility that is not a colour", () => {
+    const [report] = reportsFor("dark:hidden");
+    expect(report.messageId).toBe("darkVariantNonColor");
+  });
+
+  it("keeps the token advice for a colour utility", () => {
+    const [report] = reportsFor("dark:bg-card");
+    expect(report.messageId).toBe("darkVariant");
+  });
+});
