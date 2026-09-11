@@ -1,0 +1,110 @@
+test/rules/no-raw-color.test.js
+  s_7854930eea3f9d::t_8ddfe509300012 11-15
+src/preset/index.js
+  s_7854930eea3f9d::t_b3b9bbc3fe36c4 99-102
+docs/rules/no-undefined-token.md
+  s_7854930eea3f9d::t_001b5e90e14e08 538-543
+  s_7854930eea3f9d::t_81e20aaf8ae99a 333-336
+  s_7854930eea3f9d::t_23c4c10c436fe6 450-452
+  s_7854930eea3f9d::t_0025510fe3928c 347,349-356
+  s_7854930eea3f9d::t_f91d6fa3f1d3ad 44-46
+  s_7854930eea3f9d::t_fcec945edd87fb 340
+  s_7854930eea3f9d::t_afb59b65c11949 483
+  s_7854930eea3f9d::t_724222f3c798c2 493-503
+  s_7854930eea3f9d::t_e7d8d4d756a7c1 386-388
+  s_7854930eea3f9d::t_7bfc71478d880b 341
+  s_7854930eea3f9d::t_e28fe389eec495 530
+  s_7854930eea3f9d::t_d4a6b5b87e2a5d 342-344
+docs/rules/no-spectral-color.md
+  s_7854930eea3f9d::t_b945e55dd9af0c 432-434
+  s_7854930eea3f9d::t_0c974cdcbfb8e3 530-540
+  s_7854930eea3f9d::t_7b688b4360e2f6 361-367
+  s_7854930eea3f9d::t_be1d6a591a6f3a 520
+docs/rules/no-raw-color.md
+  s_7854930eea3f9d::t_2c0ea7b0a172bc 755-760,762-763,766-769
+  s_7854930eea3f9d::t_eee9f66d4fccca 802-804
+  s_7854930eea3f9d::t_dd9ef048728958 749
+  s_7854930eea3f9d::t_a16b6234c41c87 59-64
+  s_7854930eea3f9d::t_339e07cc930659 805-814
+  s_7854930eea3f9d::t_f39ba9e20f5d72 714-719
+  s_7854930eea3f9d::t_3e620d2d8add10 764
+src/rules/no-undefined-token.js
+  s_7854930eea3f9d::t_67e136f2ea0bf2 206
+  s_7854930eea3f9d::t_a9054bd7c6632c 195-197
+  s_7854930eea3f9d::t_90b48804bae9e1 47-49
+  s_7854930eea3f9d::t_132a23d7941ab4 69-72
+  s_7854930eea3f9d::t_d63a72fcefe939 113
+src/rules/no-spectral-color.js
+  s_7854930eea3f9d::t_d96c5941b7a5fe 194
+  s_7854930eea3f9d::t_84fe5b65e9f5a7 55-59
+src/rules/no-component-color-override.js
+  s_7854930eea3f9d::t_b9f7f7261f6a50 57-58
+  s_7854930eea3f9d::t_3974477e2d7e92 123
+  s_7854930eea3f9d::t_f0c4749e69b6fe 218
+  s_7854930eea3f9d::t_810de2c1ff8605 116-118
+test/rules/no-undefined-token.test.js
+  s_7854930eea3f9d::t_821726446982ea 25-28
+src/presets/recommended.js
+  s_7854930eea3f9d::t_903ba036fcef46 5-8
+test/harness/options.js
+  s_7854930eea3f9d::t_5e6145dbf31c4b 94-96
+src/rules/token-constraints.js
+  s_7854930eea3f9d::t_b2c45e246007cd 269-270
+docs/rules/no-opacity-modifier.md
+  s_7854930eea3f9d::t_61dabc9bc6c1eb 320-327
+  s_7854930eea3f9d::t_e15fa8ca0b3213 458-466
+docs/rules/no-dark-variant.md
+  s_7854930eea3f9d::t_ef6d9044d3f151 262-263,268-270
+  s_7854930eea3f9d::t_0096efd88c1c3a 260-261
+  s_7854930eea3f9d::t_58d043977191f7 265-267
+  s_7854930eea3f9d::t_8a7e46f00e63e2 459
+  s_7854930eea3f9d::t_c64df7311bd02c 472-483
+  s_7854930eea3f9d::t_92a3f2b458a7f8 18-19
+docs/rules/no-useless-hover.md
+  s_7854930eea3f9d::t_c98c3441a583c2 679-682
+  s_7854930eea3f9d::t_f338b92f8d3da2 673,683
+  s_7854930eea3f9d::t_ba10bad187a4e5 671
+src/rules/no-dark-variant.js
+  s_7854930eea3f9d::t_95d6d817588718 118-121
+  s_7854930eea3f9d::t_6d77b9646bdb0e 111
+  s_7854930eea3f9d::t_65c352968417b6 69-71
+src/rules/no-raw-color.js
+  s_7854930eea3f9d::t_6fbeeff3eb5831 297
+  s_7854930eea3f9d::t_39e641a0b3476f 66-70
+  s_7854930eea3f9d::t_4d62c5ad6e344d 119-122
+  s_7854930eea3f9d::t_78a9c49bbcf4a3 153-156,159
+docs/rules/no-component-color-override.md
+  s_7854930eea3f9d::t_85e5edc36ccb4e 729
+  s_7854930eea3f9d::t_448fa3535fd5ff 56-61
+  s_7854930eea3f9d::t_3e9a1b53590c5a 735-738,740-746
+  s_7854930eea3f9d::t_855a46a4399da0 666-670
+src/rules/no-opacity-modifier.js
+  s_7854930eea3f9d::t_7976779412ff19 75
+  s_7854930eea3f9d::t_e2c4614b13c404 51-52
+docs/rules/token-constraints.md
+  s_7854930eea3f9d::t_ba1816a8764446 209-210
+  s_7854930eea3f9d::t_35dc356fb3e00b 176-179
+  s_7854930eea3f9d::t_d5f7f4e8837e70 191-201
+  s_7854930eea3f9d::t_82ceca56dda128 230,236-248
+  s_7854930eea3f9d::t_de102ff6f6b57c 257-261
+  s_7854930eea3f9d::t_ae199c24bfbb50 183-184
+  s_7854930eea3f9d::t_6b06893f1fc561 403-405
+  s_7854930eea3f9d::t_930749d246229e 224-228
+  s_7854930eea3f9d::t_b5b8c54123e396 173-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b6b960d88899aa2b8b03e6661111d324f318317a",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
