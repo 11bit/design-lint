@@ -1,0 +1,24 @@
+src/rules/no-dark-variant.js
+  s_7854930eea3f9d::t_9dae15ed8071d5 57-60,143-155,157,175,184,196-236
+  s_7854930eea3f9d::t_819dc3a43dc987 237
+docs/rules/no-dark-variant.md
+  s_7854930eea3f9d::t_dfaf6899639153 440-460
+test/rules/no-dark-variant.test.js
+  s_7854930eea3f9d::t_7dde3ca89a4475 38-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "54c1edf8d9753ae6392494b91fa47a4716e5179a",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
