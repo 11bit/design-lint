@@ -133,7 +133,11 @@ export default {
         if (!found) continue;
 
         const { prefix, color, family, scale } = found;
-        const replacementToken = replacementFor(replacement, prefix, family, scale);
+        // A replacement is named only when the project defines it. The default map assumes a
+        // success/info/warning/danger vocabulary, and a suggestion to write `bg-danger` in a
+        // project without that token hands the author a class `no-undefined-token` reports.
+        const mapped = replacementFor(replacement, prefix, family, scale);
+        const replacementToken = mapped && semantic.has(mapped) ? mapped : null;
         const data = { className: token.text, prefix, family, scale: scale ?? "" };
 
         if (!replacementToken) {

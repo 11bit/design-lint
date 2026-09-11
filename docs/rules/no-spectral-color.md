@@ -21,6 +21,8 @@ spectral class is a private fork of the palette embedded in a component.
 The replacement is always a semantic token. Where the mapping is known, the rule's
 `replacement` option records it — the rule ships a default map, and your project can supply
 its own — and the diagnostic must name the token rather than leave the developer to guess.
+A token is only named if your token stylesheets define it; a mapped token your project
+doesn't have is never suggested, since writing it would produce a class that does nothing.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
@@ -443,7 +445,8 @@ surface, your token stylesheets are exempt wholesale.
 ## Message
 
 Two messages for the static case, because the replacement map covers only part of the
-palette. The second names the file set by `tokenFiles` rather than a fixed path — your
+palette, and a mapped token is named only when your token stylesheets define it — otherwise
+the class reports under the second message. The second names the file set by `tokenFiles` rather than a fixed path — your
 project decides where its tokens live.
 
 ```
@@ -475,7 +478,7 @@ policy your own config can override rather than a fact the rule depends on.
 | Option | Default | Overriding it |
 | --- | --- | --- |
 | `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
-| `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
+| `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry, or an entry naming a token your stylesheets don't define, still reports, under `spectralColor`. The default map assumes a `success` / `info` / `warning` / `danger` vocabulary with `-weak` and `-content` variants; a project that names its tokens differently supplies its own map. |
 | `tokenFiles` | `["src/styles.css"]` | Decides which file the `spectralColor` message points you to; it doesn't change what the rule checks. The recommended setup fills it in with your token stylesheets. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 

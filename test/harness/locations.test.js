@@ -92,6 +92,14 @@ export const FIXTURES = {
   "no-spectral-color": [
     {
       name: "each class where it was written, not the string that carries it",
+      // A replacement is only named when the stylesheet defines it, and the fixture's
+      // defines `danger-muted` rather than the default map's `danger`.
+      options: [
+        {
+          ...optionsFor("no-spectral-color")[0],
+          replacement: { bg: [{ "red-400...600": "danger-muted" }] },
+        },
+      ],
       code: [
         'const tone = "p-2";',
         "const badge = {",
@@ -117,7 +125,7 @@ export const FIXTURES = {
               output: [
                 'const tone = "p-2";',
                 "const badge = {",
-                '  danger: "bg-danger text-white",',
+                '  danger: "bg-danger-muted text-white",',
                 '  info: "hover:border-x-slate-200",',
                 "};",
                 "<div className={`text-${kind}`} />;",
