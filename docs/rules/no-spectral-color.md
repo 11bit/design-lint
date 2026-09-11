@@ -517,7 +517,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
 | `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
 | `tokenFiles` | `["src/styles.css"]` | The files the semantic token set and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale from this rule, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
-| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 
 The `replacement` map is a plain rule option, read from `options` at load like every other
 value in the table. There is no generated config and no build step: the rule is ours, so the

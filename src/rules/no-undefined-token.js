@@ -1,6 +1,6 @@
 import { sweepVisitors } from "../extract/index.js";
 import { colorPrefixOf, isClassList } from "../policy/class-list.js";
-import { ignoredFile } from "../policy/ignore.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass } from "../policy/variants.js";
 
@@ -75,7 +75,7 @@ export default {
         properties: {
           entryPoint: { type: "string" },
           colorPrefixes: { type: "array", items: { type: "string" } },
-          ignoreGlobs: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
@@ -87,7 +87,7 @@ export default {
     defaultOptions: [
       {
         entryPoint: "src/styles.css",
-        ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
+        ignoreGlobs: [...STORY_GLOBS],
       },
     ],
   },
@@ -98,7 +98,7 @@ export default {
       tokens,
       entryPoint = "src/styles.css",
       colorPrefixes = [],
-      ignoreGlobs = ["**/*.stories.@(ts|tsx)"],
+      ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
     const resolved = requiredDesignSystem(designSystem);

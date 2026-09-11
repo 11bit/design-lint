@@ -484,7 +484,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `entryPoint` | `"src/styles.css"` | The Tailwind entry point the design system is built from — an **input**, read at load, never a linted file. **Required**, and unaffected by the linter's file set narrowing to JS/TS. An absent or unloadable entry point is a thrown error, never a silent no-op — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
 | `colorPrefixes` | derived from the design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid. |
-| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
 
 Note what is *not* configurable: whether an undefined token is a violation. Every other rule
 in this family bans something a project might legitimately want; this one reports styling

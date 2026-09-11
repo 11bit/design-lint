@@ -1,4 +1,5 @@
 import { classSourcesOfElement } from "../extract/index.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { splitVariants, stripGroupName } from "../policy/variants.js";
 
@@ -60,22 +61,32 @@ export default {
         properties: {
           interactiveElements: { type: "array", items: { type: "string" } },
           nonInteractiveComponents: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
     ],
 
-    // Both options are lists, which Oxlint's deep `defaultOptions` merge replaces whole
+    // Every option is a list, which Oxlint's deep `defaultOptions` merge replaces whole
     // rather than unioning — so the recommended policy is safe to carry here, and a consumer
     // who wipes the preset's options by writing `"design/no-useless-hover": "error"` lands
     // on it rather than on nothing. The same values are the destructuring defaults in
     // `create`, because `RuleTester` does not apply `defaultOptions`.
-    defaultOptions: [{ interactiveElements: ["tr", "td", "th"], nonInteractiveComponents: [] }],
+    defaultOptions: [
+      {
+        interactiveElements: ["tr", "td", "th"],
+        nonInteractiveComponents: [],
+        ignoreGlobs: [...STORY_GLOBS],
+      },
+    ],
   },
 
   create(context) {
-    const { interactiveElements = ["tr", "td", "th"], nonInteractiveComponents = [] } =
-      context.options[0] ?? {};
+    const {
+      interactiveElements = ["tr", "td", "th"],
+      nonInteractiveComponents = [],
+      ignoreGlobs = STORY_GLOBS,
+    } = context.options[0] ?? {};
 
     // No option is required — the closed tag list is mechanism and ships with the rule — so
     // there is no configuration under which this rule silently reports nothing. What it
@@ -86,6 +97,8 @@ export default {
       // under `bias: false-negatives`.
       nonInteractiveComponents: requiredList(nonInteractiveComponents, "nonInteractiveComponents"),
     };
+
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     return {
       JSXElement(node) {

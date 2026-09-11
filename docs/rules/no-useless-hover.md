@@ -653,13 +653,13 @@ and for the false positives that follow when one of those components later gains
 
 ### Storybook and other excluded files
 
-Story files are where non-interactive demo markup is most common and least harmful. They
-are excluded by **a glob in the preset, not a path check inside the rule** — nothing in this
-rule inspects a filename, and nothing derives a path from its own location. The
-`recommended` preset emits an `overrides` entry disabling this rule for
-`["**/*.stories.tsx"]`; a consumer passes a different glob to the factory, or an empty one
-to lint stories like anything else. The exclusion is therefore visible in config rather
-than compiled into a rule, which is the whole reason it stopped being an open question.
+Story files are where non-interactive demo markup is most common and least harmful. The
+rule skips any file matching `ignoreGlobs`, which defaults to
+`["**/*.stories.@(js|jsx|ts|tsx)"]` — the same option, with the same default, as every other
+rule in the package. The glob is matched against the path Oxlint reports, so nothing derives
+a path from the rule's own location. A consumer lints stories like anything else by setting
+it to `[]`. The default is carried in the rule's `defaultOptions`, so a severity-only
+override does not bring stories back.
 
 ### File scope
 
@@ -757,7 +757,7 @@ attribute regexes.
 | `<div className="hover:bg-a hover:text-b" />` | 1 report | 1 report |
 | `<div className={cn("hover:bg-primary")} />` | caught | caught |
 | `<div className="md:hover:bg-primary" />` | caught | caught |
-| `*.stories.tsx` | skipped by a hard-coded `isStorybookFile` check | skipped by a preset `overrides` glob |
+| `*.stories.tsx` | skipped by a hard-coded `isStorybookFile` check | skipped by default, via the `ignoreGlobs` option |
 
 The `TableRow` and `Comp` special cases and the `.Trigger` / `.Close` suffix heuristic all
 disappear, subsumed by the decision not to report on capitalized tags by default. The

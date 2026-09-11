@@ -455,7 +455,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | `flagNonColorUtilities` | `true` | `false` limits reporting to `dark:` on a class that sets a colour, which buys back the asset-swap idiom at the price of a per-utility boundary. The default is the widest reading, deliberately. |
 | `flagLightDark` | `true` | `false` allows `light-dark()` in an arbitrary value. A project that has genuinely chosen `light-dark()` *as* its theming mechanism sets this and stops using `--color-*` variants — the two are alternatives, not a spectrum. The same switch will govern the deferred CSS-declaration case. |
 | `tokenFiles` | `["src/styles.css"]` | The files the semantic token set and the design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which is where `light-dark()` and `.dark &` are legitimate; that exemption costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
-| `ignoreGlobs` | `["**/*.stories.@(ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because a story demonstrating both themes is the one place a theme fork is the subject; a project that disagrees sets this to `[]`. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because a story demonstrating both themes is the one place a theme fork is the subject; a project that disagrees sets this to `[]`. |
 
 Whether `dark:` is banned at all is itself policy — a project using Tailwind's `dark:` as
 its theming mechanism turns this rule off entirely rather than configuring it. The rule

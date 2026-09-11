@@ -659,12 +659,13 @@ overrides.
 | --- | --- | --- | --- |
 | `componentSources` | `string[]` (glob patterns) | **none — required** | Which import sources make a component watched, spelled as the imports are written |
 | `ownedUtilities` | `string[]` (utility prefixes) | `[]` | Adds non-colour prefixes the design system also claims |
+| `ignoreGlobs` | `string[]` (globs) | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips — see [below](#storybook-and-other-excluded-files) |
 
-Two further inputs arrive through `settings`, not options, because they are shared with
-every other rule in the package: `settings.tailwindcss.entryPoint` (from which `/policy`
-derives the colour-prefix set and the semantic token names) and the excluded-files glob
-below. **The rule reads no filesystem and derives no path from its own location** — every
-external fact reaches it as configured input.
+One further input arrives through `settings`, not options, because it is shared with every
+other rule in the package: `settings.tailwindcss.entryPoint`, from which `/policy` derives
+the colour-prefix set and the semantic token names. **The rule reads no filesystem and
+derives no path from its own location** — every external fact reaches it as configured
+input.
 
 ### `componentSources`
 
@@ -707,14 +708,13 @@ option is for; the rule stops requiring a colour value for prefixes named here.
 ### Storybook and other excluded files
 
 Stories are where `<Badge className="bg-red-500">` is most likely to be a deliberate
-illustration of something the design system does *not* offer. They are excluded by **a glob
-in the preset, not a path check inside the rule**. The `recommended` preset emits an
-`overrides` entry disabling this rule for `["**/*.stories.tsx"]`; a consumer passes a
-different glob to the factory, or an empty one to lint stories like anything else. The
-exclusion is visible in config rather than compiled into a rule, which is the whole reason
-it stopped being an open question.
+illustration of something the design system does *not* offer. The rule skips any file
+matching `ignoreGlobs`, which defaults to `["**/*.stories.@(js|jsx|ts|tsx)"]` — the same
+option, with the same default, as every other rule in the package. A consumer lints stories
+like anything else by setting it to `[]`. The default is carried in the rule's
+`defaultOptions`, so a severity-only override does not bring stories back.
 
-Note that no such override exists for the component library. That is deliberate — see
+Note that no such exclusion exists for the component library. That is deliberate — see
 [Inside the component library itself](#inside-the-component-library-itself).
 
 ### File scope
@@ -839,7 +839,7 @@ reports raw color strings found in `style=` on the same elements.
 | `<Button style={{ color: "#f00" }} />` | caught here **and** by `no-style-color` | not caught here; `no-style-color` owns it |
 | `cva()` variant map naming `bg-danger` | allowed | allowed |
 | `const cls = "bg-primary"; <Button className={cls} />` | missed | blind spot |
-| `*.stories.tsx` | skipped by a hard-coded `isStorybookFile` check | skipped by a preset `overrides` glob |
+| `*.stories.tsx` | skipped by a hard-coded `isStorybookFile` check | skipped by default, via the `ignoreGlobs` option |
 | rule enabled with no options | silently watches nothing | **throws**, naming `componentSources` |
 
 Three behavioural removals are worth calling out because they are not oversights:

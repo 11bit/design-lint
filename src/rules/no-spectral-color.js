@@ -1,5 +1,5 @@
 import { sweepVisitors } from "../extract/index.js";
-import { ignoredFile } from "../policy/ignore.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass, splitVariants, stripImportant } from "../policy/variants.js";
 
@@ -83,7 +83,7 @@ export default {
           flagFixedColors: { type: "boolean" },
           replacement: { type: "object" },
           tokenFiles: { type: "array", items: { type: "string" } },
-          ignoreGlobs: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
@@ -98,7 +98,7 @@ export default {
       {
         flagFixedColors: true,
         tokenFiles: ["src/styles.css"],
-        ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
+        ignoreGlobs: [...STORY_GLOBS],
       },
     ],
   },
@@ -110,7 +110,7 @@ export default {
       flagFixedColors = true,
       replacement = recommendedReplacement(),
       tokenFiles = ["src/styles.css"],
-      ignoreGlobs = ["**/*.stories.@(ts|tsx)"],
+      ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
     // Silence is indistinguishable from a clean codebase, so a rule that cannot do its job

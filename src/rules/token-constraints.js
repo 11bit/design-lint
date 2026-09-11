@@ -1,4 +1,5 @@
 import { sweepVisitors } from "../extract/index.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { resolveTokenSet } from "../policy/tokens.js";
 import { familyOfKey, inFamily, parseClass } from "../policy/variants.js";
@@ -54,7 +55,6 @@ const RECOMMENDED = {
     "hover:": ["*-hover"],
   },
   denied: { "*": ["*-foreground", "*-content"] },
-  exclude: ["**/*.stories.tsx", "**/*.stories.ts"],
 };
 
 const STRING_LIST = { type: "array", items: { type: "string" } };
@@ -92,7 +92,7 @@ export default {
           tokens: STRING_LIST,
           allowed: POLICY_MAP,
           denied: POLICY_MAP,
-          exclude: STRING_LIST,
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
@@ -107,7 +107,17 @@ export default {
     // it silently switched the whole policy off. What the consumer wrote still replaces the
     // recommended policy wholesale rather than merging into it — a per-prefix merge is the
     // thing Configuration forbids.
-    const { designSystem, tokens: tokenInput, ...written } = context.options[0] ?? {};
+    //
+    // `ignoreGlobs` is taken out before that test, because it is not policy: it says which
+    // files to read, the same option with the same default as every other rule. Left in, a
+    // consumer who wrote only `ignoreGlobs: []` to lint their stories would have switched the
+    // recommended policy off with it.
+    const {
+      designSystem,
+      tokens: tokenInput,
+      ignoreGlobs = STORY_GLOBS,
+      ...written
+    } = context.options[0] ?? {};
     const options = Object.keys(written).length > 0 ? written : RECOMMENDED;
 
     // The two gates are the two inputs, and neither has a defensible default: they are what
@@ -119,7 +129,7 @@ export default {
     const tokens = requiredTokens(tokenInput);
     const policy = compilePolicy(options);
 
-    if (excluded(context.filename, options.exclude ?? [])) return {};
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     return sweepVisitors((source) => {
       for (const token of classTokens(source)) {
@@ -331,40 +341,6 @@ function requiredPrefixes(designSystem) {
     );
   }
   return list;
-}
-
-/**
- * `exclude` is a glob list rather than a hardcoded `isStorybookFile` check because this rule
- * has the weakest case of the nine for skipping stories: a story demonstrates a component to
- * a designer, so a story using the wrong token teaches the wrong token. A project that wants
- * its stories linted empties the list.
- *
- * The syntax understood is the subset the option is written in — `*`, `**` and `?` — matched
- * against the absolute path of the file being linted.
- */
-function excluded(filename, globs) {
-  return globs.some((glob) => globToRegExp(glob).test(filename));
-}
-
-function globToRegExp(glob) {
-  let source = "";
-
-  for (let i = 0; i < glob.length; i++) {
-    const char = glob[i];
-    if (char === "*" && glob[i + 1] === "*") {
-      i++;
-      // `**/` matches any number of directories including none, so `**/*.stories.tsx`
-      // matches a story at the root as well as one nested ten deep.
-      if (glob[i + 1] === "/") {
-        i++;
-        source += "(?:.*/)?";
-      } else source += ".*";
-    } else if (char === "*") source += "[^/]*";
-    else if (char === "?") source += "[^/]";
-    else source += char.replace(/[.*+?^${}()|[\]\\]/, "\\$&");
-  }
-
-  return new RegExp(`^${source}$`);
 }
 
 /**

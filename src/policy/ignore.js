@@ -1,9 +1,11 @@
 /**
  * `ignoreGlobs` — the files a rule declines to look at.
  *
- * Four contracts carry this option with the same default, `**\/*.stories.@(ts|tsx)`, and the
+ * Every rule carries this option, under this one name, with the one default below and the
  * same reasoning: a Storybook story demonstrates colour rather than shipping it. It is one
- * question asked four times, so it is answered once here.
+ * question asked nine times, so it is answered once here. The contracts once spelled it
+ * three ways — `ignoreGlobs`, `exclude`, and a preset `overrides` glob nothing emitted — and
+ * a story file was skipped by five rules and reported by four.
  *
  * A glob is matched against the path the linter reports — whatever Oxlint puts in
  * `context.filename`, which is normally absolute. That is why `**\/` has to mean "any number
@@ -16,6 +18,16 @@
  * nothing: a pattern that silently fails to ignore a file is the least visible way a
  * configuration can be wrong.
  */
+
+/**
+ * Every rule's default `ignoreGlobs`: Storybook stories, in each of the four languages the
+ * rules lint. Frozen because it is shared — a rule's destructuring default is this very
+ * array, and no rule may be able to change another's.
+ */
+export const STORY_GLOBS = Object.freeze(["**/*.stories.@(js|jsx|ts|tsx)"]);
+
+/** The option's schema, which is the same wherever it appears. */
+export const IGNORE_GLOBS_SCHEMA = { type: "array", items: { type: "string" } };
 
 /** Regex metacharacters that are ordinary text inside a glob. */
 const ESCAPED = new Set([".", "+", "^", "$", "\\", "(", ")", "[", "]", "{", "}", "|"]);

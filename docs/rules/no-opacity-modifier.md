@@ -449,12 +449,12 @@ consuming project overrides in its own config — none is a fact baked into the 
 | `allowFullOpacity` | `false` | `true` stops reporting a full-opacity modifier however it is spelled — `/100`, `/[100%]`, `/[1]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
 | `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
 | `tokenFiles` | `["src/styles.css"]` | The files the colour test and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
-| `ignoreGlobs` | `[]` — **not implemented** | The rule accepts the key and throws on a non-empty value. See below. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips, matched against the path Oxlint reports. Storybook is excluded by default, as it is by every rule; a project that treats stories as production code sets this to `[]`. |
 
 ### Distribution
 
 - **The rule reads no files and derives no path from its own location.** `tokenFiles`,
-  `colorPrefixes` and `allowFullOpacity` arrive through `options`; the design system is built
+  `colorPrefixes`, `allowFullOpacity` and `ignoreGlobs` arrive through `options`; the design system is built
   once at plugin-module load from a path the consumer supplied, never inside `create()`.
 - **The design system itself cannot arrive through `options`.** Oxlint sends rule options to
   a JS plugin as a JSON string, so a `Set` arrives as `{}` and a method arrives not at all —
@@ -469,13 +469,6 @@ consuming project overrides in its own config — none is a fact baked into the 
   be indistinguishable from a clean codebase. The path arrives through `options`, not through
   `settings`, which is why nothing here depends on `settings` being inherited through
   `extends`.
-- **File exclusion has no mechanism yet.** `ignoreGlobs` is one of three spellings of one
-  policy across the nine contracts, and `docs/evasion-matrix.md` recommends replacing all
-  three with a preset-level `overrides` glob — pending a spike that has not happened. Matching
-  `**/*.stories.@(ts|tsx)` would also need a glob matcher this package does not depend on. So
-  the rule accepts the key and throws on a non-empty value rather than accepting a
-  configuration it would silently ignore. Exclude stories with `overrides` until that decision
-  lands.
 - **Rule options replace, they do not merge.** A consumer writing
   `"…/no-opacity-modifier": "error"` to bump a severity wipes the preset's options,
   including `tokenFiles` — so the rule throws rather than falling quiet. To change severity

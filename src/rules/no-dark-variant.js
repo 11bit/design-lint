@@ -1,5 +1,5 @@
 import { sweepVisitors } from "../extract/index.js";
-import { ignoredFile } from "../policy/ignore.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass, stripGroupName } from "../policy/variants.js";
 
@@ -70,7 +70,7 @@ export default {
           // rule reads it only to name it in a message: where the tokens live is the
           // consuming project's decision, never a string baked in here.
           tokenFiles: { type: "array", items: { type: "string" } },
-          ignoreGlobs: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
@@ -87,7 +87,7 @@ export default {
         flagNonColorUtilities: true,
         flagLightDark: true,
         tokenFiles: ["src/styles.css"],
-        ignoreGlobs: ["**/*.stories.@(ts|tsx)"],
+        ignoreGlobs: [...STORY_GLOBS],
       },
     ],
   },
@@ -98,7 +98,7 @@ export default {
       flagNonColorUtilities = true,
       flagLightDark = true,
       tokenFiles = ["src/styles.css"],
-      ignoreGlobs = ["**/*.stories.@(ts|tsx)"],
+      ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
     // The default reading needs no design system: `dark:` is a theme fork whatever it

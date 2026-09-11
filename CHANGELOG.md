@@ -9,6 +9,8 @@ as its test suite.
   `no-style-color`, `no-opacity-modifier`, `no-dark-variant`, `no-useless-hover`,
   `no-component-color-override`.
 - `designLint()` factory for `oxlint.config.ts`; `recommended` and `minimal` presets.
+- Every rule skips Storybook files through one option, `ignoreGlobs`, defaulting to
+  `["**/*.stories.@(js|jsx|ts|tsx)"]`. Set it to `[]` to lint stories.
 - JavaScript and TypeScript only. The CSS surface is deferred, with contracts written.
 
 ### Versioning policy

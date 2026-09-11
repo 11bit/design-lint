@@ -1,5 +1,5 @@
 import { classSourcesOfElement } from "../extract/index.js";
-import { globToRegExp } from "../policy/ignore.js";
+import { globToRegExp, IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass, splitVariants, stripImportant } from "../policy/variants.js";
 
@@ -53,8 +53,9 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  *
  * ## Where its inputs come from
  *
- * `componentSources` and `ownedUtilities` are JSON a consumer writes. `designSystem` is
- * not — it crosses a JSON boundary as a husk with every method gone — so the plugin module
+ * `componentSources`, `ownedUtilities` and `ignoreGlobs` are JSON a consumer writes.
+ * `designSystem` is not — it crosses a JSON boundary as a husk with every method gone — so the
+ * plugin module
  * builds it once at load from `settings.tailwindcss.entryPoint` and binds it around
  * `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
  * `context.options[0]` and the rule cannot tell the difference.
@@ -81,12 +82,13 @@ export default {
         properties: {
           componentSources: { type: "array", items: { type: "string" } },
           ownedUtilities: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
     ],
 
-    // The recommended policy. `ownedUtilities` is an array, which Oxlint replaces whole
+    // The recommended policy. Both options here are arrays, which Oxlint replaces whole
     // rather than merging into — the deep merge that forces `no-spectral-color` to apply its
     // map inside `create` does not bite here.
     //
@@ -95,11 +97,16 @@ export default {
     // the same `./src/*`. A consumer who wiped the preset's options by restating a severity
     // would land on the guess, and in a project importing through the other alias the rule
     // would watch nothing and report nothing — the silence the throw below exists to prevent.
-    defaultOptions: [{ ownedUtilities: [] }],
+    defaultOptions: [{ ownedUtilities: [], ignoreGlobs: [...STORY_GLOBS] }],
   },
 
   create(context) {
-    const { designSystem, componentSources, ownedUtilities = [] } = context.options[0] ?? {};
+    const {
+      designSystem,
+      componentSources,
+      ownedUtilities = [],
+      ignoreGlobs = STORY_GLOBS,
+    } = context.options[0] ?? {};
 
     // Silence is indistinguishable from a clean codebase. These two are the load step's
     // output, not a consumer's typing: their absence means the plugin bound nothing, and an
@@ -117,6 +124,8 @@ export default {
         'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. Oxlint replaces rule options rather than merging them, so a severity bump written on its own wipes the preset\'s; re-pass the options alongside it.',
       );
     }
+
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     const sourcePatterns = componentSources.map((pattern) => globToRegExp(pattern));
     const owned = new Set(ownedUtilities);

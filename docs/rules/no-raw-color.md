@@ -747,7 +747,7 @@ forks a rule.
 | `namedColors` | both surfaces | `true`, from the generated 148-name CSS set | `false` lets `fill="red"` and `text-[red]` through — the cheapest bypass of the token system |
 | `valueScopedBackstop` | string constants | `true` (both enforcement models run) | `false` leaves only the context-scoped model, so `const SERIES = ["#ff0000"]` — a literal with no attribute and no utility prefix — goes unseen |
 | `ignoreValues` | both surfaces | `["transparent", "currentColor", "inherit", "initial", "unset", "revert", "revert-layer"]` | Removing an entry flags values that are references or cascade operations, which trains developers to suppress the rule |
-| `exclude` | both surfaces | `["**/*.stories.*"]` | Set it to `[]` to lint stories; add globs to exempt more |
+| `ignoreGlobs` | both surfaces | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Set it to `[]` to lint stories; add globs to exempt more |
 
 **`tokenFiles` is an input, and the scope change does not touch it.** It is read to derive
 the semantic token set — which token names exist, and what value each resolves to — which is
@@ -768,7 +768,7 @@ early and reporting nothing.
 **Storybook.** The current runner skips stories wholesale via `isStorybookFile`, and nobody
 remembers whether that was intent or convenience. As a configurable glob the question stops
 needing an answer: stories are excluded by default because ad-hoc color is most tempting
-and least harmful there, and a project that disagrees writes `exclude: []`.
+and least harmful there, and a project that disagrees writes `ignoreGlobs: []`.
 
 **Named colors are generated, not hand-typed.** The list is needed explicitly for `text-[red]`
 and `fill="red"`. A hand-typed subset is the same class of silent hole as a stale property
@@ -797,7 +797,7 @@ over.
   or version ranges, and every diagnostic carries our rule id. The earlier peer-dependency
   caveat is withdrawn along with the dependencies.
 - **No filesystem reads for discovery, and no path derived from the package's own location.**
-  Every path arrives as input: `tokenFiles` and `exclude` come from the consumer's config,
+  Every path arrives as input: `tokenFiles` and `ignoreGlobs` come from the consumer's config,
   never from a convention about where the plugin is installed. The 148-name color set and the
   color-property list are static data compiled into the package, not files read at runtime.
   Reading the consumer's `tokenFiles` is the one deliberate exception, and it happens once —
@@ -806,7 +806,7 @@ over.
   stays usable and a 200-file run pays no per-file cost.
 - **Rule options replace, they do not merge — and failure is silent.** A consumer writing
   `"design/no-raw-color": "error"` to bump a severity **wipes the preset's options**.
-  Every configured value goes at once: `tokenFiles`, `exclude`, the enforcement-model
+  Every configured value goes at once: `tokenFiles`, `ignoreGlobs`, the enforcement-model
   switches. Both failure modes are bad and neither announces itself — a rule that returns
   early on missing required options is enabled and catches nothing, exit 0; a rule that
   carries on has no token set to match suggestions against and no file to name in its
@@ -863,7 +863,7 @@ The questions this section used to carry are settled and now live as prose:
 | Does this rule apply to `.ts`? | Yes — `.js` `.ts` `.jsx` `.tsx` (B1, as narrowed by the CSS deferral) |
 | Is the full named-color set enforced? | Yes, generated — [Configuration](#configuration) |
 | Is the value-scoped backstop worth its noise? | Yes, both models — [Configuration](#configuration) |
-| Are Storybook files excluded? | Yes, via the `exclude` glob — [Configuration](#configuration) |
+| Are Storybook files excluded? | Yes, via the `ignoreGlobs` option — [Configuration](#configuration) |
 
 ## Deltas from the current implementation
 
@@ -901,7 +901,7 @@ see [Deferred: CSS surface](#deferred-css-surface).
 | `bg-[url('/img.png')]` | allowed | allowed |
 | `fill="url(#gradient)"` in TSX | **caught (false positive)** | allowed |
 | `currentColor` / `transparent` / `inherit` | allowed | allowed |
-| Storybook `.tsx` | skipped | skipped by default, via the configurable `exclude` glob |
+| Storybook `.tsx` | skipped | skipped by default, via the configurable `ignoreGlobs` option |
 | `.jsx` / `.js` files | not scanned | scanned — same rule, same surfaces |
 | `color: #ff0000` in `.css` | caught | **deferred** — `.css` not linted |
 | `color: red` in `.css` | missed | **deferred** — `.css` not linted |

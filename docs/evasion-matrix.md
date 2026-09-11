@@ -149,6 +149,15 @@ along with every other option, and stories start reporting.
 Against it: `overrides` support for JS-plugin rules is **not** among the eight capabilities
 Phase 0 verified. It needs an hour of spike before nine contracts are rewritten around it.
 
+**Resolved — one mechanism, but the rule option rather than `overrides`.** Every rule now
+takes `ignoreGlobs`, matched by `src/policy/ignore.js`, defaulting to
+`["**/*.stories.@(js|jsx|ts|tsx)"]`. The footgun argument above does not hold for it: the
+default lives in each rule's own `defaultOptions` and destructuring defaults, so a
+severity-only override lands back on it instead of on nothing. The `overrides` spike never
+happened, and the factory never emitted an `overrides` block, so the three contracts that
+relied on one described an exclusion that did not exist. The original recommendation is
+kept below for the record.
+
 Recommendation: **one mechanism, the preset `overrides` glob, verified first.** Rule options
 then carry no glob lists at all, with one exception that is not file policy —
 `no-raw-color`'s `tokenFiles`, which is an input the rule needs for other reasons and whose

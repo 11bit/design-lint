@@ -218,7 +218,7 @@ enabled.
 | `tokenFiles` | `string[]` | required; supplied by the consumer through the preset factory, no built-in default. An input the rule reads, not a surface it lints |
 | `allowed` | `{ [prefix or variant]: string[] }` | below |
 | `denied` | `{ [prefix or variant]: string[] }` | below |
-| `exclude` | `string[]` of globs | `["**/*.stories.tsx", "**/*.stories.ts"]` |
+| `ignoreGlobs` | `string[]` of globs | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` |
 
 The `recommended` preset ships this policy — a project shaped like the one this linter grew
 in gets value on install:
@@ -252,8 +252,10 @@ enabled. This rule is the most option-dependent of the nine and therefore the mo
 Two mitigations belong to the rule itself:
 
 - **A default configuration carries the `recommended` policy**, so a severity-only override
-  degrades to that policy rather than to nothing. This covers `allowed`, `denied` and
-  `exclude`, which all have defensible defaults.
+  degrades to that policy rather than to nothing. This covers `allowed` and `denied`, which
+  both have defensible defaults. `ignoreGlobs` is not part of it: it says which files to
+  read rather than what to allow in them, so it defaults on its own, and writing only
+  `ignoreGlobs: []` leaves the recommended policy in force.
 
   It is applied when the whole options object is absent, and **not** through
   `meta.defaultOptions`, which is the obvious mechanism and the wrong one: Oxlint merges
@@ -272,11 +274,12 @@ Two mitigations belong to the rule itself:
   this rule cannot afford, since a rule that finds no violations looks identical to a codebase
   with none.
 
-**Storybook and other excluded files.** `exclude` is a glob list, and the preset excludes
-stories by default. This rule has the weakest case of the nine for that default — a story
-demonstrates a component to a designer, so a story using the wrong semantic token teaches the
-wrong token — which is exactly why it is a configurable glob rather than a hardcoded
-`isStorybookFile` check. A project that wants its stories linted empties the list.
+**Storybook and other excluded files.** `ignoreGlobs` is a glob list, and like every rule in
+the package this one skips stories by default. This rule has the weakest case of the nine for
+that default — a story demonstrates a component to a designer, so a story using the wrong
+semantic token teaches the wrong token — which is exactly why it is a configurable glob
+rather than a hardcoded `isStorybookFile` check. A project that wants its stories linted
+empties the list.
 
 **The colour-prefix set is derived, not configurable.** It comes from the resolved Tailwind
 design system, so every utility family that takes a colour is covered as the design system

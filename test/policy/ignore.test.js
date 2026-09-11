@@ -1,28 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { globToRegExp, ignoredFile } from "../../src/policy/ignore.js";
+import { globToRegExp, ignoredFile, STORY_GLOBS } from "../../src/policy/ignore.js";
 
 /**
  * `ignoreGlobs`, away from any rule.
  *
- * Four contracts carry the option and every one of them defaults to the same pattern, so
- * what matters is that the pattern means what the contracts say it means — including on the
+ * Every rule carries the option and every one of them defaults to the same pattern, so what
+ * matters is that the pattern means what the contracts say it means — including on the
  * absolute paths Oxlint actually reports, which is the case a naive `**` gets wrong.
  */
 
-const STORIES = "**/*.stories.@(ts|tsx)";
-
 describe("the default story pattern", () => {
-  it("matches a story wherever it sits", () => {
-    expect(ignoredFile("/repo/src/ui/Button.stories.tsx", [STORIES])).toBe(true);
-    expect(ignoredFile("/repo/src/ui/Button.stories.ts", [STORIES])).toBe(true);
-    expect(ignoredFile("Button.stories.tsx", [STORIES])).toBe(true);
+  it("matches a story wherever it sits, in every language the rules lint", () => {
+    expect(ignoredFile("/repo/src/ui/Button.stories.tsx", STORY_GLOBS)).toBe(true);
+    expect(ignoredFile("/repo/src/ui/Button.stories.ts", STORY_GLOBS)).toBe(true);
+    expect(ignoredFile("/repo/src/ui/Button.stories.jsx", STORY_GLOBS)).toBe(true);
+    expect(ignoredFile("/repo/src/ui/Button.stories.js", STORY_GLOBS)).toBe(true);
+    expect(ignoredFile("Button.stories.tsx", STORY_GLOBS)).toBe(true);
+    expect(ignoredFile("C:\\repo\\src\\Button.stories.tsx", STORY_GLOBS)).toBe(true);
   });
 
   it("leaves the component alone", () => {
-    expect(ignoredFile("/repo/src/ui/Button.tsx", [STORIES])).toBe(false);
-    expect(ignoredFile("/repo/src/ui/Button.stories.css", [STORIES])).toBe(false);
-    expect(ignoredFile("/repo/src/stories/Button.tsx", [STORIES])).toBe(false);
+    expect(ignoredFile("/repo/src/ui/Button.tsx", STORY_GLOBS)).toBe(false);
+    expect(ignoredFile("/repo/src/ui/Button.stories.css", STORY_GLOBS)).toBe(false);
+    expect(ignoredFile("/repo/src/ui/Button.stories.mdx", STORY_GLOBS)).toBe(false);
+    expect(ignoredFile("/repo/src/stories/Button.tsx", STORY_GLOBS)).toBe(false);
+  });
+
+  it("cannot be changed by the rule that borrowed it", () => {
+    expect(Object.isFrozen(STORY_GLOBS)).toBe(true);
   });
 });
 
@@ -52,7 +58,7 @@ describe("the syntax the contracts use", () => {
 describe("nothing to match", () => {
   it("ignores no file when the list is empty or the name is unknown", () => {
     expect(ignoredFile("/repo/a.stories.tsx", [])).toBe(false);
-    expect(ignoredFile(undefined, [STORIES])).toBe(false);
+    expect(ignoredFile(undefined, STORY_GLOBS)).toBe(false);
   });
 });
 

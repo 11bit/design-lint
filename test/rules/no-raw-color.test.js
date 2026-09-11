@@ -54,7 +54,7 @@ describe("refusing to run", () => {
         namedColors: false,
         valueScopedBackstop: false,
         ignoreValues: ["transparent"],
-        exclude: [],
+        ignoreGlobs: [],
       }),
     ).not.toThrow();
   });

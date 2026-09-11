@@ -1,4 +1,5 @@
 import { sweepVisitors } from "../extract/index.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass } from "../policy/variants.js";
 
@@ -50,17 +51,21 @@ export default {
           // An input consumed at plugin-module load, where the design system is built.
           // Accepted here so the preset can carry it, never read by the rule.
           tokenFiles: { type: "array", items: { type: "string" } },
-          ignoreGlobs: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
     ],
-    defaultOptions: [{ allowFullOpacity: false }],
+    defaultOptions: [{ allowFullOpacity: false, ignoreGlobs: [...STORY_GLOBS] }],
   },
 
   create(context) {
-    const { designSystem, allowFullOpacity = false, colorPrefixes = [], ignoreGlobs = [] } =
-      context.options[0] ?? {};
+    const {
+      designSystem,
+      allowFullOpacity = false,
+      colorPrefixes = [],
+      ignoreGlobs = STORY_GLOBS,
+    } = context.options[0] ?? {};
 
     // Without the design system there is no colour test, and without a colour test this
     // rule is either `text-sm/6` reported or nothing reported. A quiet degraded mode would
@@ -71,15 +76,7 @@ export default {
       );
     }
 
-    // File exclusion has no mechanism yet: matching `**/*.stories.@(ts|tsx)` needs a glob
-    // matcher this package does not depend on, and which of the three spellings in the nine
-    // contracts survives is an open decision (`docs/evasion-matrix.md`). Until it lands,
-    // exclusion is a preset-level `overrides` glob and this option is inert — loudly.
-    if (ignoreGlobs.length > 0) {
-      throw new Error(
-        "no-opacity-modifier: ignoreGlobs is not implemented — exclude files with a preset-level `overrides` glob until the one mechanism is chosen (see docs/evasion-matrix.md).",
-      );
-    }
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     // A Tailwind plugin can introduce a colour utility that `getClassList()` never
     // enumerates, so the option *adds* to the derived set. It never replaces it:

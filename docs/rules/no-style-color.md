@@ -339,7 +339,7 @@ generated property name would be a guess.
 | --- | --- | --- |
 | `allowTokenValues` | `false` | `true` permits `style={{ color: "var(--color-primary)" }}`. See below — the default is deliberate. |
 | `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its value can be seen to carry a colour, by the same matcher `no-raw-color` uses. Quieter, and misses `boxShadow: shadowVar` — a value this rule cannot read is not a colour under this mode. Asserted in [Narrowing shorthands to value inspection](#narrowing-shorthands-to-value-inspection). |
-| `exclude` | `["**/*.stories.tsx"]` | A preset-level `overrides` glob, not rule logic — no rule derives a path from its own location. Stories are where ad-hoc inline colour is most tempting and least harmful. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips, matched against the path Oxlint reports. Stories are where ad-hoc inline colour is most tempting and least harmful; a project that treats stories as production code sets this to `[]`. |
 
 **`var()` values are a violation by default.** `style={{ color: "var(--color-primary)" }}`
 does use a token, so the headline rationale does not apply to it. It is still flagged: it

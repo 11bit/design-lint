@@ -1,4 +1,5 @@
 import { firstRawColor } from "../policy/color.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { colorProperty } from "../policy/properties.js";
 
 /**
@@ -34,15 +35,24 @@ export default {
         properties: {
           allowTokenValues: { type: "boolean" },
           shorthandProperties: { enum: ["key", "value"] },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
     ],
-    defaultOptions: [{ allowTokenValues: false, shorthandProperties: "key" }],
+    defaultOptions: [
+      { allowTokenValues: false, shorthandProperties: "key", ignoreGlobs: [...STORY_GLOBS] },
+    ],
   },
 
   create(context) {
-    const { allowTokenValues = false, shorthandProperties = "key" } = context.options[0] ?? {};
+    const {
+      allowTokenValues = false,
+      shorthandProperties = "key",
+      ignoreGlobs = STORY_GLOBS,
+    } = context.options[0] ?? {};
+
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     return {
       JSXAttribute(node) {

@@ -1,6 +1,6 @@
 import { sweepVisitors } from "../extract/index.js";
 import { DEFAULT_IGNORED_VALUES, firstRawColor, wholeValueColor } from "../policy/color.js";
-import { ignoredFile } from "../policy/ignore.js";
+import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { colorProperty } from "../policy/properties.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass } from "../policy/variants.js";
@@ -62,7 +62,7 @@ import { parseClass } from "../policy/variants.js";
  *
  * ## Where its inputs come from
  *
- * `tokenFiles`, `namedColors`, `valueScopedBackstop`, `ignoreValues` and `exclude` are JSON
+ * `tokenFiles`, `namedColors`, `valueScopedBackstop`, `ignoreValues` and `ignoreGlobs` are JSON
  * a consumer writes. `designSystem` and `tokens` are not — they cross a JSON boundary as
  * husks with every method gone — so the plugin module builds them once at load and binds
  * them around `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read
@@ -104,7 +104,7 @@ export default {
           namedColors: { type: "boolean" },
           valueScopedBackstop: { type: "boolean" },
           ignoreValues: { type: "array", items: { type: "string" } },
-          exclude: { type: "array", items: { type: "string" } },
+          ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
@@ -125,7 +125,7 @@ export default {
         namedColors: true,
         valueScopedBackstop: true,
         ignoreValues: [...DEFAULT_IGNORED_VALUES],
-        exclude: ["**/*.stories.*"],
+        ignoreGlobs: [...STORY_GLOBS],
       },
     ],
   },
@@ -138,7 +138,7 @@ export default {
       namedColors = true,
       valueScopedBackstop = true,
       ignoreValues = DEFAULT_IGNORED_VALUES,
-      exclude = ["**/*.stories.*"],
+      ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
     // Silence is indistinguishable from a clean codebase, so a rule that cannot do its job
@@ -159,7 +159,7 @@ export default {
       );
     }
 
-    if (ignoredFile(context.filename, exclude)) return {};
+    if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     // An empty list is a consumer who has tokens but no file to name — the message degrades
     // rather than pointing at a path this package invented.
