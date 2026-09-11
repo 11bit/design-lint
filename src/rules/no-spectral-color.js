@@ -62,7 +62,7 @@ export default {
       spectralColorWithReplacement:
         "{{className}} — spectral color class; use {{prefix}}-{{replacement}} instead",
       spectralColor:
-        "{{className}} — spectral color class; use a semantic token from {{tokenFile}} instead of the {{family}} palette",
+        "{{className}} — spectral color class; use a semantic token from {{tokenFile}} instead of {{palette}}",
       useReplacement: "Replace {{className}} with {{prefix}}-{{replacement}}",
     },
     // The JSON half only. `designSystem` and `tokens` are bound around `create` rather than
@@ -73,7 +73,15 @@ export default {
         type: "object",
         properties: {
           flagFixedColors: { type: "boolean" },
-          replacement: { type: "object" },
+          // `{ bg: [{ "red-400...600": "danger" }, …], text: [...] }`. A map of the wrong shape
+          // would otherwise validate and quietly name no token at all.
+          replacement: {
+            type: "object",
+            additionalProperties: {
+              type: "array",
+              items: { type: "object", additionalProperties: { type: "string" } },
+            },
+          },
           tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
@@ -138,7 +146,10 @@ export default {
         // project without that token hands the author a class `no-undefined-token` reports.
         const mapped = replacementFor(replacement, prefix, family, scale);
         const replacementToken = mapped && semantic.has(mapped) ? mapped : null;
-        const data = { className: token.text, prefix, family, scale: scale ?? "" };
+        // `white` and `black` have no scale, so "the white palette" would name something that
+        // does not exist; they are the stock colour itself.
+        const palette = scale ? `the ${family} palette` : `the stock ${family}`;
+        const data = { className: token.text, prefix, family, scale: scale ?? "", palette };
 
         if (!replacementToken) {
           context.report({ ...at, messageId: "spectralColor", data: { ...data, tokenFile } });
