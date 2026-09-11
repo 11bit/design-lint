@@ -76,3 +76,35 @@ new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "
     ],
   },
 );
+
+/**
+ * A colour utility the derivation missed, added back through `colorPrefixes`.
+ *
+ * A Tailwind plugin can register a colour utility that `getClassList()` never enumerates, and
+ * that is what the option is for. Nothing in the fixture stylesheet is shaped like that, so
+ * the missed utility is simulated: `ring` is taken out of the derived set and out of the
+ * design system's own colour test, exactly as a plugin utility would be absent from both.
+ */
+const withoutRing = {
+  ...designSystem,
+  colorPrefixes: new Set([...designSystem.colorPrefixes].filter((p) => p !== "ring")),
+  isColorClass: (className) =>
+    designSystem.parseRoot(className) === "ring" ? false : designSystem.isColorClass(className),
+};
+
+new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "tsx" } } }).run(
+  "a colour utility added through colorPrefixes",
+  bindResolved(rule, { designSystem: withoutRing }),
+  {
+    valid: [
+      // Without the option the missed utility is invisible, as it would be in a real project.
+      { code: '<div className="ring-primary/50" />' },
+      // With it, a value that names no colour is still not a colour.
+      { code: '<div className="ring-2/50" />', options: [{ colorPrefixes: ["ring"] }] },
+    ],
+    invalid: [
+      { code: '<div className="ring-primary/50" />', options: [{ colorPrefixes: ["ring"] }], errors: 1 },
+      { code: '<div className="ring-transparent/50" />', options: [{ colorPrefixes: ["ring"] }], errors: 1 },
+    ],
+  },
+);

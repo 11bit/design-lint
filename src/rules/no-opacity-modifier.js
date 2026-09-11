@@ -86,6 +86,17 @@ export default {
         ? designSystem.colorPrefixes
         : new Set([...designSystem.colorPrefixes, ...colorPrefixes]);
 
+    // The design system's own colour test knows only the derived set, so a plugin utility
+    // the option adds — `glow-primary/50` — would pass it and go unreported, which is the
+    // one case the option exists for. For those roots the question is asked the way the
+    // design system asks it of a named value: is the name a colour in the theme?
+    const added = new Set(colorPrefixes.filter((p) => !designSystem.colorPrefixes.has(p)));
+    const namesAColor = (base, root) => {
+      if (!added.has(root)) return false;
+      const name = base.slice(root.length + 1);
+      return designSystem.colorNames.has(name) || COLOR_KEYWORDS.has(name);
+    };
+
     /** The class carries an opacity modifier on a colour, or it does not. */
     const violationIn = (written) => {
       const { base, opacity } = parseClass(written);
@@ -95,7 +106,7 @@ export default {
 
       const root = designSystem.parseRoot(base);
       if (!root || !prefixes.has(root)) return null;
-      if (!isColorBody(designSystem, base)) return null;
+      if (!isColorBody(designSystem, base) && !namesAColor(base, root)) return null;
 
       return { base, modifier: opacity };
     };
@@ -136,6 +147,12 @@ export default {
  * class that resolves to nothing.
  */
 const OPACITY_MODIFIER = /^(?:\d+(?:\.\d+)?|\[[^\]]*\])$/;
+
+/**
+ * The colour keywords Tailwind handles itself rather than through the theme — the same three
+ * the design system's colour test accepts for a named value.
+ */
+const COLOR_KEYWORDS = new Set(["transparent", "current", "inherit"]);
 
 /**
  * Is `/100` — or `/[100%]`, or `/[1]` — the same no-op alpha under a different spelling?
