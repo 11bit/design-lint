@@ -178,20 +178,38 @@ function judge(className, { policy, prefixes, tokens }) {
  */
 function prefixVerdict(policy, where) {
   const { allowed, denied } = policy;
-  const { prefix, colorPart } = where;
+  const { colorPart } = where;
+  const key = policyKey(where.prefix, allowed, denied);
 
-  if (Object.hasOwn(allowed, prefix)) {
-    const patterns = allowed[prefix];
+  if (Object.hasOwn(allowed, key)) {
+    const patterns = allowed[key];
     if (patterns.some((pattern) => matches(pattern, colorPart))) return null;
     return { messageId: "prefixNotAllowed", patterns, where };
   }
 
-  const list = Object.hasOwn(denied, prefix) ? denied[prefix] : denied["*"];
+  const list = Object.hasOwn(denied, key) ? denied[key] : denied["*"];
   if (!list) return null;
 
   const pattern = list.find((p) => matches(p, colorPart));
   return pattern === undefined ? null : { messageId: "prefixDenied", pattern, where };
 }
+
+/**
+ * The key whose lists govern a root: the root's own, or `border` for one side of a border.
+ *
+ * `border-t-primary` is the same decision as `border-primary` made for one edge, so a policy
+ * that constrains `border` constrains every side — otherwise the recommended policy bans
+ * `border-primary` and waves `border-t-primary` through. A key written for the side itself,
+ * in either list, still wins, which is how one edge gets a list of its own. The sides are
+ * named rather than derived: "a longer root inherits a shorter one" would put `ring-offset`
+ * under `ring`, which is a different colour on a different box.
+ */
+function policyKey(root, allowed, denied) {
+  if (Object.hasOwn(allowed, root) || Object.hasOwn(denied, root)) return root;
+  return BORDER_SIDE.test(root) ? "border" : root;
+}
+
+const BORDER_SIDE = /^border-(?:[trblxyse]|bs|be)$/;
 
 /**
  * Then, independently of the prefix, every variant policy whose family the class joins.

@@ -72,7 +72,9 @@ The parts of this rule that are *not* policy, and that no configuration changes.
 `allowed` and `denied` are objects keyed by:
 
 - a **colour prefix** — `text`, `bg`, `border`, `ring-offset`, … — written without a trailing
-  hyphen, naming the Tailwind utility family the policy governs;
+  hyphen, naming the Tailwind utility family the policy governs. `border` also governs every
+  side of a border — `border-t`, `border-x`, `border-s`, and the rest — unless that side has
+  a key of its own (see [Resolution](#resolution));
 - a **variant family**, written *with* a trailing colon — `hover:`, `focus:` — naming a
   family of Tailwind variant segments the class must carry for the policy to apply;
 - `"*"`, valid in `denied` only, the fallback for any prefix with no policy of its own.
@@ -158,6 +160,14 @@ presence — not by content — in this order:
 
 The chain stops at the first key that is present. Nothing further down is consulted, and no
 step is skipped for being empty.
+
+**One side of a border is the `border` decision made for one edge.** For `border-t`,
+`border-r`, `border-b`, `border-l`, `border-x`, `border-y`, `border-s`, `border-e`,
+`border-bs` and `border-be`, "prefix" in the chain means the side's own key if either list has
+one, and `border` otherwise. So a policy that allows `border-` only `border*` tokens allows the
+same on every side, and a key written for one side gives that edge a list of its own. No other
+prefix borrows a key this way: `ring-offset` is a different colour from `ring`, not one edge
+of it.
 
 **Presence, not non-emptiness.** `allowed: { text: [] }` is a total ban on semantic `text-`
 colours; `denied: { bg: [] }` exempts `bg-` from the `"*"` fallback entirely. Both are
@@ -293,6 +303,18 @@ The prefix has an allow list and the colour part matches no pattern in it.
 <div className="border-primary" />
 
 <div className="border-muted-foreground" />
+```
+
+Every side of a border is held to the `border` list.
+
+```tsx caught
+<div className="border-t-primary" />
+
+<div className="border-x-primary" />
+
+<div className="border-s-primary" />
+
+<div className="border-be-muted" />
 ```
 
 ### Prefix deny-list matches
@@ -612,6 +634,22 @@ An empty deny list opts a prefix out of the fallback.
 
 ```tsx allowed options=bg-opt-out
 <div className="bg-muted-foreground" />
+```
+
+A key written for one side of a border replaces the `border` list for that side only.
+
+```json options=border-top-own-list
+{ "allowed": { "border": ["border*"], "border-t": ["primary"] } }
+```
+
+```tsx allowed options=border-top-own-list
+<div className="border-t-primary" />
+```
+
+```tsx caught options=border-top-own-list
+<div className="border-b-primary" />
+
+<div className="border-primary" />
 ```
 
 ### The allow-list shield
@@ -1027,6 +1065,7 @@ For migration reference. The current rule is `checkToken` in
 | `` className={`text-muted`} `` (template literal) | missed | caught |
 | `` className={`text-muted ${x}`} `` | missed | caught |
 | `border-t-muted-foreground` (per-side border) | missed | caught |
+| `border-t-primary` under a `border` allow list | missed | caught — a side is held to the `border` list |
 | `border-x-`, `border-s-` (logical side) | missed | caught |
 | `` className={`text-${tone}`} `` | missed | missed — no rule checks a class with an interpolation in it |
 | `` className={"text-" + tone} `` | missed | declared blind spot |
