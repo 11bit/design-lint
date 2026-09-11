@@ -1,0 +1,24 @@
+src/rules/no-style-color.js
+  s_7854930eea3f9d::t_ca86ca31c4719e 62-63,67-69
+  s_7854930eea3f9d::t_44b3b8134ccdaf 88,92-117
+  s_7854930eea3f9d::t_2c0780bf15f623 70-87
+  s_7854930eea3f9d::t_7d37e62d66d07e 118
+docs/rules/no-style-color.md
+  s_7854930eea3f9d::t_48924451fa8b20 182-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "aa770fc837b0bc31e821c98557539d7e2b1d3bab",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
