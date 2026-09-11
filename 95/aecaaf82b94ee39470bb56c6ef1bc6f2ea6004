@@ -1,0 +1,21 @@
+docs/rules/no-undefined-token.md
+  s_7854930eea3f9d::t_fe83792a2724a7 254,256-260,262-263,265,267,270-271
+src/rules/no-undefined-token.js
+  s_7854930eea3f9d::t_cbed743c5a3b37 2,38-42,123-127,133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "95aecaaf82b94ee39470bb56c6ef1bc6f2ea6004",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
