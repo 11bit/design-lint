@@ -1,0 +1,21 @@
+src/rules/no-spectral-color.js
+  s_7854930eea3f9d::t_110f2341eb1a23 65,76-84,149-152
+test/rules/no-spectral-color.test.js
+  s_7854930eea3f9d::t_110f2341eb1a23 2,46-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0009177668c80e718b2a247240a0559ab1131618",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
