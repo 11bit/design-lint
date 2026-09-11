@@ -1,0 +1,23 @@
+src/rules/no-component-color-override.js
+  s_7854930eea3f9d::t_6ce68676533cb3 250-251
+docs/rules/no-component-color-override.md
+  s_7854930eea3f9d::t_ebc2e34ae81540 439-451
+  s_7854930eea3f9d::t_2eded19b488d94 77-82,203-205
+  s_7854930eea3f9d::t_3868d0bdd97a0a 206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "cdfe37fe80ef9a45fadd2ed58bb752a1ab03d50c",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
