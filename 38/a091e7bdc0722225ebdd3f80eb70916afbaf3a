@@ -1,0 +1,81 @@
+docs/rules/no-opacity-modifier.md
+  s_244fd86ca60078::t_f5b7d1d32efc04 452,457
+docs/rules/no-dark-variant.md
+  s_244fd86ca60078::t_8fae383bcf2701 458
+src/rules/token-constraints.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,95,110-120,132
+test/rules/no-raw-color.test.js
+  s_244fd86ca60078::t_edbac87fad26bc 57
+docs/rules/no-style-color.md
+  s_244fd86ca60078::t_13750f258e7b14 342
+src/rules/no-component-color-override.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,56-58,85,91,100,104-109,128
+  s_244fd86ca60078::t_cd9071323e8566 129
+docs/rules/no-useless-hover.md
+  s_244fd86ca60078::t_230b40793a1a24 760
+  s_244fd86ca60078::t_94c729657925a3 656-662
+docs/rules/no-raw-color.md
+  s_244fd86ca60078::t_80e926834f4aac 866
+  s_244fd86ca60078::t_9d17c88e482f25 750
+  s_244fd86ca60078::t_966351e3ff3767 800
+  s_244fd86ca60078::t_6d121320eda3dc 771
+  s_244fd86ca60078::t_4d8fc515745a1e 809
+  s_244fd86ca60078::t_c1d309b14e79c5 904
+test/policy/ignore.test.js
+  s_244fd86ca60078::t_cd743e50e9ec95 3,8-9,14-20,24-31
+  s_244fd86ca60078::t_b7fca127c32a81 61
+docs/evasion-matrix.md
+  s_244fd86ca60078::t_7add99c6a7384f 152-160
+src/rules/no-opacity-modifier.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,54,59,63-68,79
+src/rules/no-undefined-token.js
+  s_244fd86ca60078::t_5421a6db7c60a4 3,78,90,101
+src/rules/no-style-color.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,38,43-45,49-55
+test/rules/no-opacity-modifier.test.js
+  s_244fd86ca60078::t_c8fbcba607fa8f 13,15,17-18,28-29
+src/rules/no-dark-variant.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,73,90,101
+src/policy/ignore.js
+  s_244fd86ca60078::t_5421a6db7c60a4 4,6-8,22-30
+  s_244fd86ca60078::t_3cf5f19d775379 31
+CHANGELOG.md
+  s_244fd86ca60078::t_be71c70dea5a42 12-13
+docs/rules/no-component-color-override.md
+  s_244fd86ca60078::t_9b9215b9e48fad 711-717
+  s_244fd86ca60078::t_7d962df9cdb706 842
+  s_244fd86ca60078::t_baf72cf5649457 662,664-668
+src/rules/no-raw-color.js
+  s_244fd86ca60078::t_5421a6db7c60a4 3,65,107,128,141,162
+src/rules/no-spectral-color.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,86,101,113
+src/rules/no-useless-hover.js
+  s_244fd86ca60078::t_5421a6db7c60a4 2,64,70,75-81,85-89,101
+  s_244fd86ca60078::t_e492d3c9fceafe 102
+docs/rules/no-spectral-color.md
+  s_244fd86ca60078::t_3177e919968c78 520
+test/rules/ignore-globs.test.js
+  s_244fd86ca60078::t_7fdba3fff23da5 1-68
+docs/rules/token-constraints.md
+  s_244fd86ca60078::t_83a80b826323a1 277-282
+  s_244fd86ca60078::t_b73044335290a0 255-258
+  s_244fd86ca60078::t_e7e9357e8f59f6 221
+docs/rules/no-undefined-token.md
+  s_244fd86ca60078::t_efca747622daa0 487
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "38a091e7bdc0722225ebdd3f80eb70916afbaf3a",
+  "prompts": {},
+  "sessions": {
+    "s_244fd86ca60078": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "52001c61-bf60-41e5-a5d9-0fc0e5224c24",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
