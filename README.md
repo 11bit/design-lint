@@ -20,7 +20,7 @@ import { designLint } from "@evil-martians/design-lint/preset";
 export default defineConfig(
   await designLint({
     tokenFiles: ["src/styles.css"],
-    componentSources: ["@/components/ui/*"],
+    componentSources: ["@/components/ui/*"], // as your imports spell it
   }),
 );
 ```
@@ -30,6 +30,16 @@ defined in; they are an **input**, read once, never a linted surface. `component
 the import globs your design-system components come from — pass `[]` if the project has no
 such library, which turns `no-component-color-override` off, since it watches components by
 where they were imported from and has nothing to watch without them.
+
+**Spell `componentSources` the way your imports are written.** The patterns are matched
+against each import exactly as it appears in the file, not against the folder it resolves
+to. If your code imports `#/components/ui/button`, write `#/components/ui/*` — even if `@/*`
+points at the same folder. A shadcn project records this as `aliases.ui` in
+`components.json`. A pattern that matches none of your imports makes the rule watch
+nothing, and it cannot tell you: it reports nothing, which looks exactly like a clean
+codebase. Relative imports into the folder (`../components/ui/sonner`) are not matched
+either — see the rule's
+[declared blind spots](./docs/rules/no-component-color-override.md#imports-spelled-differently-from-the-pattern).
 
 ```
 src/App.tsx:5:46: error design(no-spectral-color): bg-red-500 — spectral color class; use bg-danger instead
@@ -67,7 +77,6 @@ default, so a project that disagrees configures a rule rather than forking one.
 ```ts
 await designLint({
   tokenFiles: ["src/styles.css"],
-  componentSources: ["@/components/ui/*"],
   preset: "minimal",   // the five rules that need no settled token vocabulary
 });
 ```

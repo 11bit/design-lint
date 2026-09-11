@@ -86,15 +86,16 @@ export default {
       },
     ],
 
-    // The recommended policy. Both options are arrays, which Oxlint replaces whole rather
-    // than merging into — the deep merge that forces `no-spectral-color` to apply its map
-    // inside `create` does not bite here.
+    // The recommended policy. `ownedUtilities` is an array, which Oxlint replaces whole
+    // rather than merging into — the deep merge that forces `no-spectral-color` to apply its
+    // map inside `create` does not bite here.
     //
-    // `componentSources` appears despite being a required option, and the two are not in
-    // tension: this is the shadcn-shaped default a consumer who wipes the preset's options
-    // by writing `"design/no-component-color-override": "error"` lands on, and the throw
-    // below is what happens when even that is gone.
-    defaultOptions: [{ componentSources: ["@/components/ui/*"], ownedUtilities: [] }],
+    // `componentSources` has no default, deliberately. Any default is a guess at an alias,
+    // and one folder can be reached through several: a tsconfig may map `@/*` and `#/*` to
+    // the same `./src/*`. A consumer who wiped the preset's options by restating a severity
+    // would land on the guess, and in a project importing through the other alias the rule
+    // would watch nothing and report nothing — the silence the throw below exists to prevent.
+    defaultOptions: [{ ownedUtilities: [] }],
   },
 
   create(context) {
@@ -113,7 +114,7 @@ export default {
     // exactly like success. Failing loudly is the whole mitigation available here.
     if (!Array.isArray(componentSources) || componentSources.length === 0) {
       throw new Error(
-        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against import sources — e.g. ["@/components/ui/*"]. Oxlint replaces rule options rather than merging them, so a severity bump written on its own wipes the preset\'s; re-pass the options alongside it.',
+        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. Oxlint replaces rule options rather than merging them, so a severity bump written on its own wipes the preset\'s; re-pass the options alongside it.',
       );
     }
 

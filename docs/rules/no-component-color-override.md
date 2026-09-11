@@ -595,11 +595,58 @@ import cardStyles from "./card.module.css";
 <Card className={cardStyles.tinted} />;
 ```
 
+### Imports spelled differently from the pattern
+
+The pattern is matched against the specifier as written, so an import that reaches the
+component library by another route is not watched: a second alias for the same folder, or a
+relative path from outside the library. This is accepted for now rather than intended — it
+is what spelling-based matching cannot see. The fix is planned under
+[Planned: matching where an import points](#planned-matching-where-an-import-points), and
+these cases fail the day it lands.
+
+```tsx blindspot
+import { Sheet } from "#/components/ui/sheet";
+<Sheet className="bg-primary" />;
+
+import { Toaster } from "../components/ui/sonner";
+<Toaster className="bg-primary" />;
+```
+
 ### `.ts` files
 
 This rule keys on JSX opening elements, which `.ts` cannot contain. Class maps living in
 `.ts` constants files are therefore invisible to it by construction, and are covered — as
 classes, not as channel violations — by the token rules' broad sweep.
+
+## Planned: matching where an import points
+
+Not implemented. Recorded here because it closes the blind spot above, and because it
+changes this contract rather than extending it.
+
+**Configure a folder, not a spelling.** `componentSources` would name the directory the
+components live in — `src/components/ui` — and the rule would resolve each import to a file
+before asking whether it lies inside that directory. `#/components/ui/button`,
+`@/components/ui/button` and `../components/ui/sonner` would then be the same component,
+because they are the same file.
+
+- **Resolution happens at load, not in the rule.** The factory reads the project's alias
+  maps once — `compilerOptions.paths` in tsconfig and `imports` in package.json — and binds
+  them to the rule the way it binds the design system. The rule still reads no file.
+- **The default comes from the project.** A shadcn project declares its component alias as
+  `aliases.ui` in `components.json`; resolved through the alias maps, that is a folder, and
+  no consumer has to spell anything.
+- **A wrong setting becomes detectable.** A folder either exists or it does not, so the
+  factory can throw on one that does not. A glob can only ever match nothing, silently.
+- **A library exemption becomes expressible by location**, should one be wanted: a file
+  inside the component folder styling its own components. Today's relative-import escape
+  valve exempts by spelling, so it exempts nothing in a library that imports its siblings
+  through an alias. Whether to exempt the library at all is still the question under
+  [Inside the component library itself](#inside-the-component-library-itself); this makes
+  either answer implementable.
+
+What it costs: alias resolution (wildcard `paths`, `baseUrl`, `extends` chains, and
+`imports` conditions), a resolved alias map in the harness alongside the design system, and
+rewriting the cases in this contract that rely on the relative-import escape valve.
 
 ## Configuration
 
@@ -610,7 +657,7 @@ overrides.
 
 | Option | Type | `recommended` default | Overriding it |
 | --- | --- | --- | --- |
-| `componentSources` | `string[]` (glob patterns) | `["@/components/ui/*"]` | **Required.** Redefines which import paths make a component watched |
+| `componentSources` | `string[]` (glob patterns) | **none — required** | Which import sources make a component watched, spelled as the imports are written |
 | `ownedUtilities` | `string[]` (utility prefixes) | `[]` | Adds non-colour prefixes the design system also claims |
 
 Two further inputs arrive through `settings`, not options, because they are shared with
@@ -621,16 +668,26 @@ external fact reaches it as configured input.
 
 ### `componentSources`
 
-Glob patterns matched against the *import source string*, exactly as written in the file.
-`["@/components/ui/*"]` is the shadcn-shaped default; a project using a workspace package
-writes `["@acme/ui", "@acme/ui/*"]`, and a project with a different alias writes that
-alias. Patterns are matched literally against the specifier, so `@/components/ui/*` matches
-`@/components/ui/card` and not `./card` — which is the mechanism behind the relative-import
-escape valve described under
+Glob patterns matched against the *import source string*, exactly as written in the file —
+not against the folder it resolves to. A project whose code imports
+`#/components/ui/button` writes `["#/components/ui/*"]`; a project using a workspace package
+writes `["@acme/ui", "@acme/ui/*"]`. A shadcn project records its alias as `aliases.ui` in
+`components.json`. Patterns are matched literally against the specifier, so
+`@/components/ui/*` matches `@/components/ui/card` and not `./card` — which is the mechanism
+behind the relative-import escape valve described under
 [Inside the component library itself](#inside-the-component-library-itself).
 
-There is no universally correct default, which is why this option is **required**: see
-[the footgun](#the-options-replace-footgun) below for what the rule does when it is absent.
+**There is no default, and there cannot be one.** One folder can be reached through several
+aliases — a tsconfig may map `@/*` and `#/*` to the same `./src/*` — and only the consumer
+knows which spelling their code uses. A default of `@/components/ui/*` would be a guess, and
+in a project importing through `#/` it would watch nothing and report nothing: the failure
+this configuration exists to make loud. See [the footgun](#the-options-replace-footgun) below
+for what the rule does when the option is absent.
+
+A pattern that is valid but matches none of the project's imports is still silent, and so is
+an import that reaches the library by another spelling — see
+[Imports spelled differently from the pattern](#imports-spelled-differently-from-the-pattern)
+and [Planned: matching where an import points](#planned-matching-where-an-import-points).
 
 ### `ownedUtilities`
 
@@ -679,9 +736,10 @@ reports nothing, and exits 0 — a silent, total loss of coverage that looks lik
 
 **This rule therefore throws on an absent or empty `componentSources`**, naming the option
 and the factory in the error, rather than returning early. Failing loudly is the entire
-mitigation available at the rule level; the other two live in the preset's
-`defaultOptions` and in the README. The correct form of a severity bump is to re-pass the
-options alongside it.
+mitigation available at the rule level, and it is why the rule carries no default to fall
+back on: a guessed alias would turn this throw back into silence. The factory requires the
+option as well, and the README says how to spell it. The correct form of a severity bump is
+to re-pass the options alongside it.
 
 ## Relationship to other rules
 

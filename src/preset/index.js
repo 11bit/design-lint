@@ -18,7 +18,7 @@ import { publish } from "./resolved.js";
  * export default defineConfig(
  *   await designLint({
  *     tokenFiles: ["src/styles.css"],
- *     componentSources: ["@/components/ui/*"],
+ *     componentSources: ["@/components/ui/*"], // as your imports spell it
  *   }),
  * );
  * ```
@@ -58,7 +58,7 @@ export async function designLint({
   const wantsComponents = componentSources !== undefined;
   if (!wantsComponents && preset !== "minimal") {
     throw new Error(
-      'design-lint: `componentSources` is required — the import globs your design-system components come from, e.g. ["@/components/ui/*"], which is how no-component-color-override knows which elements own their own colour. Pass `[]` if this project has no such library, or `preset: "minimal"` to run only the rules that need no project vocabulary.',
+      'design-lint: `componentSources` is required — the import globs your design-system components come from, matched against each import exactly as written — if your code imports "#/components/ui/button", pass ["#/components/ui/*"], even when another alias points at the same folder (a shadcn project records it as `aliases.ui` in components.json). It is how no-component-color-override knows which elements own their own colour. Pass `[]` if this project has no such library, or `preset: "minimal"` to run only the rules that need no project vocabulary.',
     );
   }
 
