@@ -218,15 +218,15 @@ const spreadProps = { className: "bg-primary/50" };
 />
 ```
 
-### The modifier interpolated
+### A complete class next to an interpolation
 
-The `/` is statically present and it sits on a class the rule has already established is a
-colour, so the defect is visible even though the alpha is not. Whatever the interpolation
-resolves to, a call site is choosing an opacity the design system has never seen — which is
-the entire thing this rule exists to stop.
+A template literal's static text is checked like any string, so a complete class in it
+reports even when the template also interpolates something else. See
+[Classes built by interpolation](#classes-built-by-interpolation) for the class that is
+itself interpolated.
 
 ```tsx caught
-<div className={`bg-primary/${alpha}`} />
+<div className={`bg-primary/50 ${extra}`} />
 ```
 
 ### Every offending class reports separately
@@ -334,14 +334,17 @@ expressions rather than one string with a hole in it.
 <div className={"bg-primary/" + alpha} />
 ```
 
-### A colour prefix interpolated before the modifier is reached
+### Classes built by interpolation
 
-`` `bg-${tone}/50` `` is a dynamically assembled class name, which reports once from
-`no-spectral-color` under `dynamicColorClass`. This rule stays silent rather than adding a
-second report of the same unknowable string — its own subject, the modifier, is only half
-the defect there.
+A class with an interpolation in it — `` `bg-primary/${alpha}` ``, `` `bg-${tone}/50` `` — is
+not checked, because the rule can't know what it becomes. Complete classes in the same
+template are: `` `bg-primary/50 ${extra}` `` is still caught. Every rule in this package
+draws the line in the same place. To have a dynamic choice checked, choose between complete
+class names.
 
 ```tsx blindspot
+<div className={`bg-primary/${alpha}`} />
+
 <div className={`bg-${tone}/50`} />
 ```
 
@@ -477,7 +480,7 @@ last `/` to be all digits, and requires the part before the `/` to start with on
 | `bg-primary/auto` | allowed | allowed |
 | `bg-primary/100` | caught | caught, under `allowFullOpacity: false` |
 | `[@media(hover:hover)]:bg-primary/50` | caught by accident — variants are not segmented | caught by construction |
-| `` className={`bg-primary/${a}`} `` | missed — template literals are never extracted | caught |
+| `` className={`bg-primary/${a}`} `` | missed — template literals are never extracted | blind spot — a class with an interpolation in it is not checked |
 | `const scrim = "bg-black/50"` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | `bg-red-500/50` | 2 reports (this rule + `no-spectral-color`) | 2 reports |
 | `@apply bg-primary/50` in a `.css` file | caught — `linter.js` reads `.css` and extracts `@apply` lists | **deferred** — `.css` is not a linted surface for now; the promise is recorded, not the coverage |

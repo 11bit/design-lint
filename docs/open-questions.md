@@ -192,6 +192,19 @@ every static guarantee the token system offers, so this is the one hole it canno
 The message must name that escape hatch — a lookup of complete class names, or a
 `--color-*` custom property — rather than only reporting the violation.
 
+**Reversed 2026-09-11 — no rule checks an interpolated class.** Flagging the prefix could
+not be done well. `text-`, `border-`, `shadow-`, `ring-` and `outline-` take sizes as well
+as colours, so `` `text-${size}` `` reported as a computed colour; `no-spectral-color` and
+`no-component-color-override` both reported the same hole on a component; and five rules
+judged a partial class by its static head while three skipped it. The rule is now one line
+for every rule: a class token that contains an interpolation is never judged, and complete
+classes in the same template still are (`` `bg-red-500 ${extra}` `` is caught). This gives
+up `` `dark:${utility}` `` and `` `bg-primary/${alpha}` ``, where the offending part is
+visible, in exchange for one rule every contract states the same way. The sanctioned
+pattern above — a lookup of complete class names — is what gets checked. The reason is
+usability: a linter whose reports are sometimes wrong, and inconsistent between rules, is
+one people turn off.
+
 ### A8. Should one level of variable indirection be resolved?
 
 *Contract: `no-style-color` 3 — `const s = {color:"red"}; <div style={s} />`.*

@@ -87,34 +87,27 @@ export default {
         : new Set([...designSystem.colorPrefixes, ...colorPrefixes]);
 
     /** The class carries an opacity modifier on a colour, or it does not. */
-    const violationIn = (written, dynamic) => {
+    const violationIn = (written) => {
       const { base, opacity } = parseClass(written);
       if (opacity === null || base === "") return null;
-
-      // A modifier interrupted by an interpolation is unknowable, and the contract says so:
-      // whatever `` `bg-primary/${alpha}` `` resolves to, a call site is choosing an opacity
-      // nobody designed. The syntax gate can only be applied to a modifier we can read.
-      if (!dynamic) {
-        if (!OPACITY_MODIFIER.test(opacity)) return null;
-        if (allowFullOpacity && isFullOpacity(opacity)) return null;
-      }
+      if (!OPACITY_MODIFIER.test(opacity)) return null;
+      if (allowFullOpacity && isFullOpacity(opacity)) return null;
 
       const root = designSystem.parseRoot(base);
       if (!root || !prefixes.has(root)) return null;
       if (!isColorBody(designSystem, base)) return null;
 
-      // The hole falls after whatever the head spelled out, so `` `bg-primary/5${x}` ``
-      // reads back as `5${…}` rather than the other way round.
-      return { base, modifier: dynamic ? `${opacity}${INTERPOLATION}` : opacity };
+      return { base, modifier: opacity };
     };
 
     return sweepVisitors((source) => {
       for (const token of classTokens(source)) {
-        // A dynamic token is judged on its static head: the text before the first hole is
-        // the only part of it that is a class at all.
-        const written = token.dynamic ? token.head : token.text;
+        // A class with an interpolation in it is not judged: what it becomes is unknowable,
+        // and every rule in the package draws that line in the same place.
+        if (token.dynamic) continue;
 
-        const violation = violationIn(written, token.dynamic);
+        const written = token.text;
+        const violation = violationIn(written);
         if (!violation) continue;
 
         context.report({
@@ -124,7 +117,7 @@ export default {
           node: token.range ? { range: token.range } : source.node,
           messageId: "opacityModifierOnColor",
           data: {
-            className: token.dynamic ? `${written}${INTERPOLATION}${token.tail}` : written,
+            className: written,
             base: violation.base,
             modifier: violation.modifier,
           },
@@ -143,9 +136,6 @@ export default {
  * class that resolves to nothing.
  */
 const OPACITY_MODIFIER = /^(?:\d+(?:\.\d+)?|\[[^\]]*\])$/;
-
-/** How an interpolation is written back into the message, since its value is unknowable. */
-const INTERPOLATION = "${…}";
 
 /**
  * Is `/100` — or `/[100%]`, or `/[1]` — the same no-op alpha under a different spelling?

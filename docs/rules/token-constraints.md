@@ -710,17 +710,12 @@ Out of scope by construction. These belong to other rules.
 
 ### Dynamically interpolated class names
 
-A colour prefix immediately followed by an interpolation is a violation — a class name
-assembled at runtime defeats every static guarantee the token system offers — but it is **not
-this rule's violation**. There is no colour part to inspect, so this rule's second gate ("is
-the colour part a declared semantic token?") can never be reached, and a rule that only speaks
-about declared tokens has nothing to say. The dynamic-prefix diagnostic is owned by
-[`no-spectral-color`](#relationship-to-other-rules), which reports every case below.
+A class with an interpolation in it — `` `text-${tone}` ``, `` `hover:bg-${tone}` `` — is
+not checked, because the rule can't know what it becomes. Complete classes in the same
+template are: `` `bg-muted-foreground ${extra}` `` is still caught. Every rule in this package
+draws the line in the same place, so none of the cases below is reported by any rule.
 
-The cases stay here so the coverage is visible from this contract: each one is caught by the
-plugin, and silence from *this* rule is the correct behaviour rather than a hole.
-
-```tsx allowed
+```tsx blindspot
 <div className={`text-${tone}`} />
 
 <div className={`bg-${tone}-500`} />
@@ -732,13 +727,16 @@ plugin, and silence from *this* rule is the correct behaviour rather than a hole
 <div className={`text-${"mu"}${"ted"}`} />
 ```
 
-The last case matters for the same reason it always did: no rule attempts to reassemble an
-interpolation whose parts happen to be static. `no-spectral-color` reports the prefix and
-stops, and this rule never sees a token.
+The last case holds even though its parts happen to be static: no rule reassembles an
+interpolation.
 
-The escape hatch is a lookup of **complete** class names, statically visible to the linter —
-which this rule then reads like any other string, so the token choice is still
-constrained — or a `--color-*` custom property.
+```tsx caught
+<div className={`bg-muted-foreground ${extra}`} />
+```
+
+To have a dynamic choice checked, choose between complete class names:
+`{ danger: "text-danger", ok: "text-success" }[tone]`. Complete names are statically visible,
+so this rule reads them like any other string and the token choice is still constrained.
 
 ```tsx allowed
 const TONE_CLASSES = { danger: "bg-danger", ok: "bg-primary" };
@@ -792,12 +790,11 @@ assertion and force this document to be updated.
 
 ### Composed class names with no visible prefix
 
-The class does not exist as a literal anywhere, so this rule has no colour part to test. No
-colour prefix sits immediately before the interpolation either, so `no-spectral-color`'s
-dynamic-prefix check — see
-[Dynamically interpolated class names](#dynamically-interpolated-class-names) — has nothing to
-fire on, and the case is missed by the plugin as a whole. Static segments of a template
-literal are checked; a segment interrupted by an interpolation is never reassembled.
+The class does not exist as a literal anywhere, so this rule has no colour part to test, and
+no other rule reports it either — see
+[Dynamically interpolated class names](#dynamically-interpolated-class-names). Complete
+classes in a template literal are checked; a class interrupted by an interpolation is never
+reassembled.
 
 ```tsx blindspot
 <div className={`${prefix}-muted-foreground`} />
@@ -805,11 +802,8 @@ literal are checked; a segment interrupted by an interpolation is never reassemb
 <div className={`${tone}:bg-primary-hover`} />
 ```
 
-String concatenation is a blind spot even in the prefix-adjacent form. The dynamic-prefix
-check looks at the interpolations in a template literal; a `+` concatenation is not read as a
-class string at all. That is where the line is drawn today, not a claim that the two cases
-differ in kind, and extending the check to `+` later would be compatible. It is
-`no-spectral-color`'s boundary to move, not this rule's.
+String concatenation is a blind spot for the same reason: a `+` concatenation is not read as
+a class string at all, just as a class with an interpolation in it is not checked.
 
 ```tsx blindspot
 <div className={"text-" + tone} />
@@ -928,12 +922,9 @@ part this rule cannot resolve to a declared token is not this rule's business.
   (`text-mutd`). This rule is silent on them, so a typo produces one report, not two.
 - **`no-spectral-color`** owns palette classes (`bg-red-500`). Their colour part is not a
   semantic token, so this rule never sees them — including under a `hover:` variant, where
-  `hover:bg-red-500` is reported by that rule alone. It **also owns the dynamic-prefix
-  diagnostic**: a colour prefix standing immediately against an interpolation, `` `text-${tone}` ``,
-  is reported by that rule and not by this one. The coverage is unchanged — see
-  [Dynamically interpolated class names](#dynamically-interpolated-class-names) for the cases
-  and why the ownership sits there: there is no colour part, so this rule's second gate can
-  never be reached.
+  `hover:bg-red-500` is reported by that rule alone. A class with an interpolation in it,
+  `` `text-${tone}` ``, is reported by neither — see
+  [Dynamically interpolated class names](#dynamically-interpolated-class-names).
 - **`no-raw-color`** owns arbitrary values (`bg-[#ff0000]`, `text-[color:var(--x)]`).
   Same boundary, same reason.
 - **`no-opacity-modifier`** owns the `/50` suffix. This rule strips it before matching, so
@@ -948,11 +939,9 @@ part this rule cannot resolve to a declared token is not this rule's business.
   `group-hover:` means one thing across the plugin — but they draw opposite conclusions from
   it, and correctly: this rule constrains a group-triggered colour, while that rule treats the
   hovered *ancestor* as the thing that must be interactive.
-- **The dynamic-prefix check is one definition for every rule**, even though
-  `no-spectral-color` is the one that reports it. What counts as "a colour prefix immediately
-  before an interpolation" therefore cannot differ between rules, and this rule's "a segment
-  interrupted by an interpolation is never reassembled" boundary sits in exactly the same
-  place.
+- **Every rule skips a class with an interpolation in it**, so where the line falls cannot
+  differ between rules: complete classes in a template are checked, and a class interrupted
+  by an interpolation never is.
 - **`no-component-color-override`** governs whether a colour class may be passed to a design
   system component at all. This rule governs which token that class may name. A
   `<Button className="text-muted">` can violate both.
@@ -1010,8 +999,7 @@ and is told a "hover colour" is constrained needs to see why the two connect; na
 of them makes the diagnostic look like a bug.
 
 Every diagnostic this rule emits has a correct token to point at, because the second gate
-guarantees one exists. The one case that does not — a prefix against an interpolation — is
-`no-spectral-color`'s, and its message is what must name the escape hatch.
+guarantees one exists.
 
 **Suggestions.** For each `*-suffix` pattern in the failing list, `prefix-colorPart-suffix`
 is a candidate token. A candidate is offered **only if it is in the semantic token set** —
@@ -1040,7 +1028,7 @@ For migration reference. The current rule is `checkToken` in
 | `` className={`text-muted ${x}`} `` | missed | caught |
 | `border-t-muted-foreground` (per-side border) | missed | caught |
 | `border-x-`, `border-s-` (logical side) | missed | caught |
-| `` className={`text-${tone}`} `` | missed | caught, by `no-spectral-color` — not by this rule |
+| `` className={`text-${tone}`} `` | missed | missed — no rule checks a class with an interpolation in it |
 | `` className={"text-" + tone} `` | missed | declared blind spot |
 | `group-hover:bg-primary` | caught, by substring accident | caught, by family membership |
 | `peer-hover:bg-primary` | caught, by substring accident | caught, by family membership |

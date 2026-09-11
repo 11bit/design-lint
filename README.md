@@ -112,6 +112,10 @@ Stated plainly, because a linter's gaps matter more than its catches:
 - **Nothing is type-aware, and nothing follows a value across statements.** A class string
   is caught where it is written. `const s = { color: "red" }; <div style={s} />` is not
   caught, and the contracts declare it.
+- **A class built by interpolation is not checked.** `` `bg-${tone}` `` could become
+  anything, so no rule guesses. Complete classes in the same template still are —
+  `` `bg-red-500 ${extra}` `` is caught. To have a dynamic choice checked, choose between
+  complete class names: `{ danger: "bg-danger", ok: "bg-success" }[tone]`.
 - **Suggestions do not appear in CLI output**, and Oxlint does not surface `meta.docs.url`.
   So every rule puts what you need — the offending class, the token to use instead — in the
   message text itself. The editor quick-fix is an addition to that, never a substitute.

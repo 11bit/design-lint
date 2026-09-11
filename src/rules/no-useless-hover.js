@@ -241,11 +241,10 @@ function insideInteractiveElement(node, policy) {
 function firstSelfHoverClass(context, opening) {
   for (const source of classSourcesOfElement(opening)) {
     for (const token of classTokens(source)) {
-      // A dynamic token keeps the static text in front of its first hole, and that is where
-      // the variants live: `` `hover:bg-${tone}` `` promises the affordance just as plainly
-      // as the class it would have resolved to.
-      const text = token.dynamic ? token.head : token.text;
-      if (!text) continue;
+      // A class with an interpolation in it is never judged, by this rule or any other: what
+      // it becomes is unknowable, and every rule draws that line in the same place.
+      if (token.dynamic) continue;
+      const text = token.text;
       if (!selfHoverVariant(text)) continue;
 
       return {

@@ -74,9 +74,10 @@ A value is a color when it is one of:
    `inherit`);
 4. an arbitrary value that is a raw color literal or a color custom property
    (`[#ff0000]`, `[rgb(1_2_3)]`, `[oklch(0.7_0.1_20)]`, `[var(--color-primary)]`,
-   `[--color-primary]`);
-5. an interpolation, where the static text preserves the prefix but the value is computed
-   (`` `bg-${tone}` ``) — see [Interpolated colors](#interpolated-colors).
+   `[--color-primary]`).
+
+A class with an interpolation in it (`` `bg-${tone}` ``) is not checked — see
+[Classes built by interpolation](#classes-built-by-interpolation).
 
 A prefix without a color value — `text-sm`, `border-2`, `shadow-md`, `divide-y`,
 `from-0%`, `text-[14px]` — is not a color class.
@@ -286,7 +287,8 @@ on the line.
 ### Template literals
 
 Static template literals are treated exactly like string literals. In a template with
-expressions, every static quasi is scanned.
+interpolations, the complete classes in its static text are checked; a class with an
+interpolation in it is [not](#classes-built-by-interpolation).
 
 ```tsx caught
 <Button className={`bg-primary`} />
@@ -296,36 +298,6 @@ expressions, every static quasi is scanned.
 <Button className={`rounded-md bg-primary ${extra}`} />
 
 <Button className={`${base} text-destructive`} />
-```
-
-### Interpolated colors
-
-A color prefix immediately followed by an interpolation is a color being applied to the
-component — the value is unknowable, but the channel is not, and that is what this rule
-polices. Dynamically assembled class names defeat every static guarantee the token system
-offers, so this is the one hole it cannot tolerate. It reports under a distinct `messageId`
-that names the escape hatch ([Message](#message)).
-
-```tsx caught
-<Button className={`bg-${tone}`} />
-
-<Button className={`text-${tone}`} />
-
-<Button className={`bg-red-${shade}`} />
-
-<Button className={`border-t-${tone}`} />
-
-<Button className={cn(`bg-${tone}`, "p-2")} />
-```
-
-The sanctioned repair — named in the message text — is a lookup of **complete** class
-names, or a `--color-*` custom property. Complete names stay statically visible, so the
-token rules still see them even where this rule's channel check cannot follow the lookup
-(that step is the [object-map blind spot](#variable-and-object-map-indirection)):
-
-```tsx
-const TONES = { danger: "text-danger", ok: "text-success" };
-<Button className={TONES[tone]} />;
 ```
 
 ### Aliased imports
@@ -375,7 +347,7 @@ bites on alias and package-name imports within the library.
 ```
 
 ```tsx caught count=2
-<Button className={cn("bg-primary", `text-${tone}`)} />
+<Button className={cn("bg-primary", isError && "text-destructive")} />
 ```
 
 ```tsx caught count=2
@@ -558,11 +530,30 @@ decision made by *its* caller. Reporting at the forwarding site would blame the 
 file; reporting at the original caller requires knowing that the prop reaches a watched
 component, which is cross-module analysis.
 
+### Classes built by interpolation
+
+A class with an interpolation in it — `` `bg-${tone}` ``, `` `rounded-${r}` `` — is not
+checked, because the rule can't know what it becomes. Complete classes in the same template
+are: `` `bg-primary ${extra}` `` on a watched component is still caught. Every rule in this
+package draws the line in the same place. To have a dynamic choice checked, choose between
+complete class names: `{ danger: "bg-danger", ok: "bg-success" }[tone]`.
+
+```tsx blindspot
+<Button className={`bg-${tone}`} />
+
+<Button className={`text-${tone}`} />
+
+<Button className={`bg-red-${shade}`} />
+
+<Button className={`border-t-${tone}`} />
+
+<Button className={cn(`bg-${tone}`, "p-2")} />
+```
+
 ### Fully dynamic class construction
 
-Where no static text survives to identify a color prefix, there is nothing to match. This
-is the boundary of [Interpolated colors](#interpolated-colors): the rule flags a *prefix*
-that survives interpolation, and cannot flag one that does not.
+A class assembled from pieces some other way — with `+`, with `join`, or with its prefix
+interpolated — is not checked either.
 
 ```tsx blindspot
 <Button className={`${prefix}-primary`} />;
@@ -765,8 +756,6 @@ linter is different: it turns this rule off. To change only the severity, re-pas
 
 ## Message
 
-Two message ids, because the dynamic case cannot name a class that exists.
-
 ```
 messageId: colorOnComponent
 data:      { token, component }
@@ -774,21 +763,9 @@ text:      "{{token}} overrides color on <{{component}}> — design-system compo
             their color; use an existing variant, or add one"
 ```
 
-```
-messageId: dynamicColorOnComponent
-data:      { prefix, component }
-text:      "{{prefix}}-* is interpolated into className on <{{component}}> — a computed
-            color class cannot be checked or found later; move the choice into a variant,
-            or select between complete class names ({ danger: \"text-danger\" }) or
-            --color-* custom properties"
-```
-
-`prefix` is the static text preceding the interpolation, with its trailing `-` removed:
-`` `bg-${tone}` `` → `bg`, `` `bg-red-${shade}` `` → `bg-red`.
-
-The second message names the escape hatch in its text rather than only reporting the
-violation, and it has to: suggestions do not appear in any CLI output format, and Oxlint
-shows no link to this page, so the message is this rule's only channel to the developer.
+The message names the repair in its text rather than only reporting the violation, and it
+has to: suggestions do not appear in any CLI output format, and Oxlint shows no link to
+this page, so the message is this rule's only channel to the developer.
 
 No autofix. The replacement is a variant name, which requires reading the component's
 variant map and deciding which appearance was actually intended.
@@ -815,7 +792,7 @@ reports raw color strings found in `style=` on the same elements.
 | --- | --- | --- |
 | `<Button className="bg-primary" />` | caught | caught |
 | `<Button className={cn("bg-primary", extra)} />` | caught | caught |
-| ``<Button className={`bg-${tone}`} />`` | caught (reported as the class `bg-`) | caught, under `dynamicColorOnComponent` |
+| ``<Button className={`bg-${tone}`} />`` | caught (reported as the class `bg-`) | blind spot — not checked by any rule |
 | `<Button className="bg-primary text-destructive" />` | 2 reports | 2 reports |
 | `<CardHeader className="bg-primary" />` | missed (only `Card` is discovered) | caught (a named import) |
 | `<Card.Header className="bg-primary" />` | missed (tag name is `Card.Header`) | caught (root object is watched) |
@@ -823,7 +800,7 @@ reports raw color strings found in `style=` on the same elements.
 | `<Button className="bg-[var(--color-primary)]" />` | missed | caught |
 | `<Button className="bg-white" />` | missed unless `--color-white` is literally in `styles.css` | caught |
 | `<Button className="border-t-primary" />` | missed (`t-primary` is not a token) | caught |
-| ``<Button className={cn("p-2", `bg-${tone}`)} />`` | missed (a backtick argument is only scanned when it is the *first* thing in the expression) | caught |
+| ``<Button className={cn("p-2", `bg-${tone}`)} />`` | missed (a backtick argument is only scanned when it is the *first* thing in the expression) | blind spot — not checked by any rule |
 | `<Button className={cn({ "bg-primary": on })} />` | caught (any quoted string in the expression) | caught |
 | `import { Button as Btn }; <Btn className="bg-primary" />` | missed (name no longer matches a filename) | **caught** (binding, not spelling) |
 | `const Button = styled.div; <Button className="bg-primary" />` | caught (name matches a filename) | **allowed** (never imported from a source) |
@@ -849,6 +826,7 @@ Three behavioural removals are worth calling out because they are not oversights
   and a published package may neither read the filesystem nor assume a consumer's directory
   layout. `componentSources` replaces it with information already present in the linted
   file.
-- **`isColorToken`'s empty-`colorPart` shortcut becomes an explicit message.** Today
-  `` `bg-${tone}` `` reports the class as the literal string `bg-`, which reads as a typo.
-  Under this contract it reports under `dynamicColorOnComponent` with `prefix: "bg"`.
+- **`isColorToken`'s empty-`colorPart` shortcut is dropped.** Today `` `bg-${tone}` ``
+  reports the class as the literal string `bg-`, which reads as a typo, and
+  `` `text-${size}` `` reports the same way. Under this contract a class with an
+  interpolation in it is not checked by any rule.

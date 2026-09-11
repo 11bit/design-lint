@@ -170,14 +170,13 @@ const spreadProps = { className: "dark:bg-card" };
 />
 ```
 
-### The variant interpolated
+### A complete class beside an interpolation
 
-`dark:` is statically present. Nothing about the interpolation makes the theme fork less
-real, and unlike an interpolated colour the rule's entire subject is visible in the source.
+A template literal's complete classes are checked like any other string's. Only the class an
+interpolation runs into is left alone — see
+[Classes built by interpolation](#classes-built-by-interpolation).
 
 ```tsx caught
-<div className={`dark:${utility}`} />
-
 <div className={`dark:bg-card ${extra}`} />
 ```
 
@@ -275,16 +274,25 @@ surface.
 
 Not caught, by decision.
 
-### The variant itself interpolated, or concatenated
+### Classes built by interpolation
 
-`dark:` is only caught when `dark` is statically a variant segment. An interpolated *variant*
-is not one, and `+` is not a template literal — the bare `"dark:"` string the rule sees is a
-prefix with no class attached, and treating it as a violation would report a fragment rather
-than a defect.
+A class with an interpolation in it — `` `dark:${utility}` ``, `` `${v}:bg-card` `` — is not
+checked, because the rule can't know what it becomes. Complete classes in the same template
+are: `` `dark:bg-card ${extra}` `` is still caught. Every rule in this package draws the line
+in the same place. To have a dynamic choice checked, choose between complete class names.
 
 ```tsx blindspot
-<div className={`${theme}:bg-card`} />
+<div className={`dark:${utility}`} />
 
+<div className={`${theme}:bg-card`} />
+```
+
+### Concatenated classes
+
+`+` is not a template literal. The bare `"dark:"` string the rule sees is a prefix with no
+class attached, and treating it as a violation would report a fragment rather than a defect.
+
+```tsx blindspot
 <div className={"dark:" + utility} />
 ```
 
@@ -414,9 +422,8 @@ The exemption above applies to `light-dark()` too: your token stylesheets are wh
   mechanism is unsanctioned and the values are raw. The all-tokens form reports only here.
   The division of labour is unchanged for the deferred CSS-declaration form; only the surface
   it applies on is.
-- **Dynamically assembled class names belong to `no-spectral-color`.** `` `dark:${u}` ``
-  reports here because `dark:` is statically present; `` `${theme}:bg-card` `` reports from
-  neither, because nothing forbidden is visible in it.
+- **No rule checks a class built by interpolation.** `` `dark:${u}` `` reports from none
+  of them, here included — see [Classes built by interpolation](#classes-built-by-interpolation).
 
 ## Message
 
@@ -501,7 +508,7 @@ variants and `!` are still attached. It is the closest of the four to its contra
 | `@apply dark:bg-card` | caught | **deferred** — `.css` is not a linted surface for now |
 | `bg-[light-dark(var(--a),var(--b))]` (class string) | not examined | caught |
 | `color: light-dark(#000, #fff)` (CSS declaration) | not examined | **deferred** — same defect, unlinted surface |
-| `` className={`dark:${u}`} `` | missed — template literals are never extracted | caught |
+| `` className={`dark:${u}`} `` | missed — template literals are never extracted | not checked — a class built by interpolation |
 | `const themeClass = { night: "dark:bg-black" }` | caught at the literal | caught at the literal; the *use site* is the blind spot |
 | `.dark &` in a component stylesheet | not examined | **deferred** — promised for the CSS surface, unenforced today |
 | `dark:bg-slate-800` | 2 reports (this rule + `no-spectral-color`) | 2 reports |

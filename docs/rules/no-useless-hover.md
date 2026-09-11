@@ -550,6 +550,21 @@ unattributed — what is lost is the question *this* rule asks, whether the elem
 interactive. The concatenation is invisible to both halves, and is the token family's
 declared string-concatenation blind spot rather than a second hole here.
 
+### Classes built by interpolation
+
+A class with an interpolation in it — `` `hover:${utility}` `` — is not checked, because the
+rule can't know what it becomes. Complete classes in the same template are:
+`` `hover:bg-muted ${extra}` `` is still caught. Every rule in this package draws the line in
+the same place. To have a dynamic choice checked, choose between complete class names.
+
+```tsx blindspot
+<div className={`hover:${utility}`} />;
+
+<div className={`hover:bg-${tone}`} />;
+
+<div className={`md:hover:${utility}`} />;
+```
+
 ### `group` / `peer` markers on a non-interactive ancestor
 
 `group-hover:` is allowed unconditionally. Verifying that the ancestor carrying `group` is

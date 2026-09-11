@@ -293,16 +293,22 @@ Not caught, by decision.
 
 ### Dynamic composition
 
-The class does not exist in the source, so there is nothing to resolve — this rule cannot
-say "generates no CSS" about a class it has not seen. The defect is real and it is reported:
-`` `text-${tone}` `` has a colour prefix against an interpolation, so `no-spectral-color`
-reports it once under `dynamicColorClass`, which that rule owns. Adding a second report here
-would name the same character span twice with the same fix.
+A class with an interpolation in it — `` `text-${tone}` ``, `` `bg-${tone}-muted` `` — is
+not checked, because the rule can't know what it becomes. Complete classes in the same
+template are: `` `text-primry ${extra}` `` is still caught. Every rule in this package draws
+the line in the same place. To have a dynamic choice checked, choose between complete class
+names.
 
 ```tsx blindspot
 <div className={`text-${tone}`} />
 
+<div className={`bg-${tone}-muted`} />
+
 <div className={"bg-" + tone + "-muted"} />
+```
+
+```tsx caught
+<div className={`text-primry ${extra}`} />
 ```
 
 ### Use sites with no literal of their own
@@ -504,7 +510,7 @@ script locates relative to its own directory.
 | `rounded-warning` (no colour prefix) | allowed | allowed |
 | `bg-[#ff0000]`, `bg-[--color-brand]` | allowed | allowed |
 | `inset-ring-nonesuch` | missed — prefix absent from `TAILWIND_COLOR_PREFIXES` | caught — the prefix set is derived |
-| `` className={`text-${tone}`} `` | missed — template literals are never extracted | blind spot here; reported once by `no-spectral-color` |
+| `` className={`text-${tone}`} `` | missed — template literals are never extracted | blind spot, in every rule |
 | `` className={`text-secondary ${x}`} `` | missed — same reason | caught |
 | `bg-[image:var(--x)]` | resolved as `var(--x)]` — `normalizeTwToken` splits on the last `:` | allowed, explicitly; segmentation is bracket-depth aware |
 | `const tone = "text-secondary"` | caught at the literal | caught at the literal; the *use site* is the blind spot |

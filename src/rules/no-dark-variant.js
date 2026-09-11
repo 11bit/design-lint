@@ -124,45 +124,41 @@ export default {
     /**
      * Is there a defect here to point at?
      *
-     * Two gates, and they fail in opposite directions on purpose. A static token with no
-     * utility is the bare `"dark:"` a `+` concatenation leaves behind — a fragment, and the
+     * Two gates, and they fail in opposite directions on purpose. A token with no utility
+     * is the bare `"dark:"` a `+` concatenation leaves behind — a fragment, and the
      * contract's blind spot. `flagNonColorUtilities: false` is the opposite: a project that
      * has weighed the asset-swap idiom and wants the narrower boundary, where `dark:hidden`
      * is out and `dark:bg-card` stays in.
      */
-    const reportable = (token, base) => {
-      if (!token.dynamic && base === "") return false;
+    const reportable = (base) => {
+      if (base === "") return false;
       if (flagNonColorUtilities) return true;
-      // An interpolated utility cannot be asked whether it carries a colour, and the
-      // narrowed mode is a false-negative trade by construction — so it stays silent.
-      return !token.dynamic && designSystem.isColorClass(base);
+      return designSystem.isColorClass(base);
     };
 
     return sweepVisitors((source) => {
       for (const token of classTokens(source)) {
-        // A dynamic token is judged on its static head: the text before the first hole is
-        // the only part of it that was written down.
-        const written = token.dynamic ? token.head : token.text;
+        // A class with an interpolation in it is never judged, by this rule or any other:
+        // what it becomes is unknowable, and guessing from half a class is where rules
+        // start to disagree. Complete classes around it in the same template still are.
+        if (token.dynamic) continue;
+        const className = token.text;
 
         // The class token, not the string that contains it: two offending classes in one
         // `className` are two separate spans. A token whose offsets cannot be trusted —
         // written with an escape — carries no range, and the literal is the honest fallback.
         const node = spanOf(token, source);
 
-        const { variants, base } = parseClass(written);
-        const utility = token.dynamic ? `${base}${INTERPOLATION}${token.tail}` : base;
-        const className = token.dynamic ? `${written}${INTERPOLATION}${token.tail}` : written;
+        const { variants, base } = parseClass(className);
 
-        if (variants.some(isDarkVariant) && reportable(token, base)) {
+        if (variants.some(isDarkVariant) && reportable(base)) {
           context.report({
             node,
             messageId: "darkVariant",
-            data: { className, utility, tokenFile },
+            data: { className, utility: base, tokenFile },
           });
         }
 
-        // The interpolation marker cannot manufacture the call, so testing the class as it
-        // reads back also covers `` `bg-[light-dark(${a},#fff)]` ``.
         if (flagLightDark && className.includes(LIGHT_DARK)) {
           context.report({
             node,
@@ -175,8 +171,6 @@ export default {
   },
 };
 
-/** How an interpolation is written back into a message, since its value is unknowable. */
-const INTERPOLATION = "${…}";
 
 /** The call, matched with its open paren so the bare word `light-dark` is not a match. */
 const LIGHT_DARK = "light-dark(";

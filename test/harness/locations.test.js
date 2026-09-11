@@ -128,9 +128,7 @@ export const FIXTURES = {
         { messageId: "spectralColor", line: 3, column: 23, endLine: 3, endColumn: 33 },
         // The variant is part of the class the author has to edit, so it is part of the span.
         { messageId: "spectralColor", line: 4, column: 10, endLine: 4, endColumn: 34 },
-        // The dynamic case points at the prefix standing against the hole — the half of the
-        // class that is actually there.
-        { messageId: "dynamicColorClass", line: 6, column: 18, endLine: 6, endColumn: 23 },
+        // Line 6 is a class built by interpolation, which no rule checks.
       ],
     },
   ],
@@ -170,7 +168,7 @@ export const FIXTURES = {
         'import { Card, CardHeader } from "@/components/ui/card";',
         "",
         '<Card className="rounded-lg border-primary bg-transparent">',
-        "  <CardHeader className={cn(\"p-4\", `text-${tone}`)} />",
+        "  <CardHeader className={cn(\"p-4\", `text-destructive ${extra}`)} />",
         '  <Button className="hover:bg-red-500/80" />',
         '  <div className="bg-primary" />',
         "</Card>;",
@@ -180,10 +178,9 @@ export const FIXTURES = {
         // are available and the rule has to pick the right two.
         { messageId: "colorOnComponent", line: 4, column: 29, endLine: 4, endColumn: 43 },
         { messageId: "colorOnComponent", line: 4, column: 44, endLine: 4, endColumn: 58 },
-        // The interpolated case points at the prefix standing against the hole — the half
-        // of the class that is actually there — inside the template, not at the `cn()` call
-        // or the attribute wrapping it.
-        { messageId: "dynamicColorOnComponent", line: 5, column: 37, endLine: 5, endColumn: 42 },
+        // A complete class inside a template with an interpolation, located inside the
+        // template — not at the `cn()` call or the attribute wrapping it.
+        { messageId: "colorOnComponent", line: 5, column: 37, endLine: 5, endColumn: 53 },
         // The variant and the opacity modifier are part of the class the author has to
         // edit, so they are part of the span.
         { messageId: "colorOnComponent", line: 6, column: 22, endLine: 6, endColumn: 41 },
@@ -313,7 +310,7 @@ export const FIXTURES = {
         '<div className={cn("p-2", "not-dark:border-border")} />;',
         '<div className="bg-[light-dark(#000,#fff)]" />;',
         "<div",
-        "  className={`md:dark:${utility}`}",
+        "  className={`md:dark:bg-card ${extra}`}",
         "/>;",
       ].join("\n"),
       errors: [
@@ -327,9 +324,9 @@ export const FIXTURES = {
         // `light-dark()` is a different message with a different fix, located at the class
         // rather than at the call inside it — the call is not what gets deleted alone.
         { messageId: "lightDarkFunction", line: 6, column: 17, endLine: 6, endColumn: 43 },
-        // The interpolated case points at the half of the class that was written down —
-        // inside the template, not at the attribute or the element spanning lines 7-9.
-        { messageId: "darkVariant", line: 8, column: 15, endLine: 8, endColumn: 23 },
+        // A complete class inside a template with an interpolation, located inside the
+        // template — not at the attribute or the element spanning lines 7-9.
+        { messageId: "darkVariant", line: 8, column: 15, endLine: 8, endColumn: 30 },
       ],
     },
   ],

@@ -453,6 +453,10 @@ The literal is not present as a literal.
 const hue = 0;
 <div className={`bg-[hsl(${hue},100%,50%)]`} />;
 
+<div className={`bg-[${hex}]`} />;
+
+<div className={`bg-${tone}`} />;
+
 <div className={"bg-[#" + hexFromProps + "]"} />;
 
 <div style={{ color: computeColor(theme) }} />;
@@ -460,13 +464,17 @@ const hue = 0;
 <circle fill={props.seriesColor} />;
 ```
 
-The line is *literal present or not*, and it is the same line every rule in this repo draws:
-this rule reports raw colors, and in none of the cases above is one written down.
+The line is *literal present or not*: this rule reports raw colors, and in none of the cases
+above is one written down.
 
-This is not a claim that interpolation is harmless. ``className={`bg-${tone}`}`` — a color
-prefix immediately before an interpolation — is reported by the token rules, whose message
-names the fix (a lookup of complete class names, or a `--color-*` custom property). This
-rule stays quiet only because the literal genuinely is not there to report.
+A class with an interpolation in it — `` `bg-[${hex}]` ``, `` `bg-${tone}` `` — is not
+checked, because the rule can't know what it becomes. Complete classes in the same template
+are: `` `bg-[#f00] ${extra}` `` is still caught. Every rule in this package draws the line in
+the same place. To have a dynamic choice checked, choose between complete class names.
+
+```tsx caught
+<div className={`bg-[#f00] ${extra}`} />
+```
 
 ### Color literals embedded in longer strings
 
@@ -659,10 +667,6 @@ definitions themselves live in the token files, which were exempt anyway.
   `bg-[light-dark(#000,#fff)]` reports under both rules and
   `bg-[light-dark(var(--a),var(--b))]` reports only under `no-dark-variant`. That is the same
   property-versus-value division of labour this rule already has with `no-style-color`.
-- **The token rules** (`no-spectral-color`, `no-undefined-token`, `token-constraints`, …)
-  own dynamically assembled *class names*. ``className={`bg-${tone}`}`` is a violation
-  there, because a color prefix before an interpolation defeats every static
-  guarantee. This rule stays quiet on it: no literal color is written down.
 - **`token-constraints`** operates on token names within a prefix. Arbitrary values have no
   token name, so the two never see the same class.
 

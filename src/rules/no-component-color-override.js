@@ -1,7 +1,7 @@
 import { classSourcesOfElement } from "../extract/index.js";
 import { globToRegExp, IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
-import { parseClass, splitVariants, stripImportant } from "../policy/variants.js";
+import { parseClass } from "../policy/variants.js";
 
 /**
  * no-component-color-override — design-system components own their colour.
@@ -42,14 +42,12 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  * `no-useless-hover`, this rule never asks *which* variant: a colour reaching a watched
  * component's `className` is the defect regardless of the condition attached to it.
  *
- * ## The interpolated case, which is the reason for the second message
+ * ## Interpolated classes are not judged
  *
- * `` `bg-${tone}` `` names no class this rule could quote back, but the channel is plain:
- * a colour is being applied to a component that owns its colour, and the value is
- * unknowable to every static check downstream. It reports under `dynamicColorOnComponent`,
- * whose text names the sanctioned repair — a lookup of complete class names, or a
- * `--color-*` custom property — because a message is the only channel this rule has:
- * suggestions do not render in CLI output and `meta.docs.url` is dead under Oxlint.
+ * A class with an interpolation in it — `` `bg-${tone}` ``, `` `rounded-${r}` `` — is
+ * skipped, as it is by every rule in the package: what it becomes is unknowable, and a guess
+ * from the prefix reports sizes as colours. Complete classes in the same template are still
+ * judged.
  *
  * ## Where its inputs come from
  *
@@ -68,8 +66,6 @@ export default {
     messages: {
       colorOnComponent:
         "{{token}} overrides color on <{{component}}> — design-system components own their color; use an existing variant, or add one",
-      dynamicColorOnComponent:
-        '{{prefix}}-* is interpolated into className on <{{component}}> — a computed color class cannot be checked or found later; move the choice into a variant, or select between complete class names ({ danger: "text-danger" }) or --color-* custom properties',
     },
 
     // The JSON half only. `designSystem` is bound around `create` rather than written in a
@@ -158,17 +154,7 @@ export default {
             const range = token.range;
             const at = range ? { loc: spanOf(context, range) } : { node: source.node };
 
-            if (token.dynamic) {
-              const prefix = danglingColorPrefix(token.head, colorPrefixes, owned);
-              if (prefix) {
-                context.report({
-                  ...at,
-                  messageId: "dynamicColorOnComponent",
-                  data: { prefix, component },
-                });
-              }
-              continue;
-            }
+            if (token.dynamic) continue;
 
             if (!appliesColor(token.text, colorPrefixes, colorNames, owned)) continue;
             context.report({
@@ -280,30 +266,6 @@ function appliesColor(className, colorPrefixes, colorNames, owned) {
   }
 
   return false;
-}
-
-/**
- * The colour prefix standing immediately against an interpolation, or `null`.
- *
- * The gate is the prefix, not the backtick: `` `p-${size}` `` is ordinary code and
- * `` `bg-${tone}` `` is a colour being applied through a channel the component owns.
- * "Immediately" is meant literally — the static text has to end at the `-` that would have
- * joined the value on, which is what leaves `` `${prefix}-primary` `` a blind spot: no
- * prefix survives there to identify a channel.
- *
- * The returned prefix is the static text as written, minus that trailing `-`, so
- * `` `bg-red-${shade}` `` is answered with `bg-red` — the text the author has to edit,
- * rather than the utility root underneath it.
- */
-function danglingColorPrefix(head, colorPrefixes, owned) {
-  const { base: decorated } = splitVariants(head);
-  const { base } = stripImportant(decorated);
-  if (!base.endsWith("-")) return null;
-
-  const prefix = base.slice(0, -1);
-  if (!prefix) return null;
-  if (startsWithPrefix(prefix, owned)) return prefix;
-  return startsWithPrefix(prefix, colorPrefixes) ? prefix : null;
 }
 
 /**

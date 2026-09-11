@@ -37,10 +37,9 @@ know which element the string reaches. It therefore checks every string literal 
 static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless of the position
 it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant
 maps and `.ts` object-literal constants are all covered, because the rule does not care what
-surrounds a string. Interpolated
-template literals are scanned for complete classes in their static text, and for a colour
-prefix left dangling against an interpolation (see
-[Dynamically assembled class names](#dynamically-assembled-class-names)).
+surrounds a string. In a template literal, the complete classes in its static text are
+checked; a class with an interpolation in it is not (see
+[Classes built by interpolation](#classes-built-by-interpolation)).
 
 Precision is not what keeps this quiet. The gate is a name in the theme's `--color`
 namespace, under a colour-carrying prefix, that is Tailwind's own stock palette rather than
@@ -254,25 +253,6 @@ const spreadProps = { className: "bg-red-500" };
 />
 ```
 
-### Dynamically assembled class names
-
-A colour-carrying prefix immediately preceding an interpolation is a violation even though
-the interpolated value is unknowable. The value could be `red-500` or it could be `primary`,
-and nothing static can tell — which is the point: a class assembled at the call site defeats
-every guarantee the token system offers, and this is the one hole the system cannot tolerate.
-
-This rule owns the diagnostic for the whole token family. The prefix is what makes it
-checkable, and the fix is the same one this rule recommends everywhere else: a lookup of
-complete class names, or a `--color-*` custom property.
-
-```tsx caught
-<div className={`bg-${tone}-500`} />
-
-<div className={`text-${x}`} />
-
-<div className={`border-t-${side}`} />
-```
-
 ## Deliberately allows
 
 ### Semantic tokens
@@ -332,17 +312,6 @@ span from two rules with two different fixes.
 <div className="text-[--color-brand]" />
 ```
 
-### Interpolation under a prefix that carries no colour
-
-What triggers the report is the colour prefix, not the backtick. A template literal whose
-interpolation sits under a non-colour utility is ordinary code.
-
-```tsx allowed
-<div className={`p-${size}`} />
-
-<div className={`grid-cols-${n} gap-2`} />
-```
-
 ### Strings that are not classes
 
 The rule looks at every string in the file, and reports only the ones that can be a palette
@@ -368,6 +337,24 @@ tokens you define, and which utilities take a colour.
 ## Declared blind spots
 
 Not caught, by decision.
+
+### Classes built by interpolation
+
+A class with an interpolation in it — `` `bg-${tone}` `` — is not checked, because the rule
+can't know what it becomes. Complete classes in the same template are: `` `bg-red-500 ${extra}` ``
+is still caught. Every rule in this package draws the line in the same place. To have a
+dynamic choice checked, choose between complete class names:
+`{ danger: "bg-danger", ok: "bg-success" }[tone]`.
+
+```tsx blindspot
+<div className={`bg-${tone}-500`} />
+
+<div className={`text-${x}`} />
+
+<div className={`border-t-${side}`} />
+
+<div className={`bg-red-${step}`} />
+```
 
 ### String concatenation
 
@@ -449,13 +436,9 @@ surface, your token stylesheets are exempt wholesale.
 - **`token-constraints`** governs which *semantic* token may be used with which prefix. It
   never fires on a spectral class, because a spectral class has no semantic token to
   constrain.
-- **Dynamically assembled class names report here and only here.** `` `bg-${tone}` `` is
-  unknowable, so every rule in the family has an equal claim on it and none can resolve it.
-  Giving all four the diagnostic would produce four reports of one defect with one fix, so
-  this rule owns it: the colour prefix is the visible half, and the escape hatch the message
-  names is this rule's standing recommendation. `no-undefined-token`, `no-opacity-modifier`
-  and `no-dark-variant` stay silent unless their *own* subject — an undefined token, a `/`
-  modifier, a `dark:` segment — is statically present in the string.
+- **No rule checks a class built by interpolation.** `` `bg-${tone}` `` is silent here and
+  in every other rule, so the line sits in the same place across the package: complete
+  classes are checked, a class with a hole in it is not.
 
 ## Message
 
@@ -475,26 +458,6 @@ data:      { className, family, scale, tokenFile }
 text:      "{{className}} — spectral color class; use a semantic token from {{tokenFile}}
             instead of the {{family}} palette"
 ```
-
-A third message for the dynamic case, which this rule owns.
-
-```
-messageId: dynamicColorClass
-data:      { prefix }
-text:      "{{prefix}}- is built from an interpolated value, so no rule can check which
-            token it names. Map to complete class names instead — e.g.
-            const CLASSES = { danger: \"bg-danger\" } — or use a --color-* custom property."
-```
-
-**`dynamicColorClass` must name the escape hatch**, not merely report the violation. It is
-the one diagnostic here with no correct token to suggest, so without the alternative in the
-text it reads as "you may not do this" with no way forward.
-
-Ownership sits here because the colour prefix is the visible half of the defect and the
-escape hatch the message names is this rule's standing recommendation everywhere else.
-`no-undefined-token`, `no-opacity-modifier` and
-`no-dark-variant` stay silent on `` `bg-${tone}-500` `` so that one unknowable string yields
-one report.
 
 The replacement token must appear in the message text, not only in a suggestion:
 suggestions do not render in any CLI output format, and naming the token is the whole value
@@ -552,7 +515,7 @@ line by line.
 | `bg-red-500/50` | caught (also by `no-opacity-modifier`) | caught, twice |
 | `bg-white`, `text-black` | allowed | caught, under `flagFixedColors` |
 | `` className={`bg-red-500 ${x}`} `` | missed — `extractStringLiterals` matches `"` and `'` only, never a backtick | caught — the broad sweep reads template literals |
-| `` className={`bg-${tone}-500`} `` | missed | caught — here, under `dynamicColorClass` |
+| `` className={`bg-${tone}-500`} `` | missed | missed — a class built by interpolation is not checked |
 | `bg-[image:var(--x)]` | mangled — `normalizeTwToken` splits on the **last** `:`, yielding `var(--x)]` | allowed, explicitly; segmentation is bracket-depth aware |
 | `"text-blue-500"` in a non-class array | caught | caught — the broad sweep is context-free by design |
 | `const tone = "bg-red-500"` | caught at the literal | caught at the literal; the *use site* is the blind spot |

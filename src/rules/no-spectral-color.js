@@ -1,7 +1,7 @@
 import { sweepVisitors } from "../extract/index.js";
 import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
-import { parseClass, splitVariants, stripImportant } from "../policy/variants.js";
+import { parseClass } from "../policy/variants.js";
 
 /**
  * no-spectral-color — Tailwind's built-in palette must not colour anything.
@@ -41,13 +41,6 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  * width, so it generates nothing, and the contract still wants the evident attempt at a
  * palette colour reported.
  *
- * ## The dynamic case, which this rule owns
- *
- * `` `bg-${tone}-500` `` is unknowable to every rule in the family, so giving all four the
- * diagnostic would produce four reports of one defect with one fix. It reports here, and
- * the message names the escape hatch — a lookup of complete class names, or a `--color-*`
- * custom property — because it is the one diagnostic with no correct token to suggest.
- *
  * ## Where its inputs come from
  *
  * Both halves are read from `context.options[0]`, and they get there by different routes.
@@ -70,8 +63,6 @@ export default {
         "{{className}} — spectral color class; use {{prefix}}-{{replacement}} instead",
       spectralColor:
         "{{className}} — spectral color class; use a semantic token from {{tokenFile}} instead of the {{family}} palette",
-      dynamicColorClass:
-        '{{prefix}}- is built from an interpolated value, so no rule can check which token it names. Map to complete class names instead — e.g. const CLASSES = { danger: "bg-danger" } — or use a --color-* custom property.',
       useReplacement: "Replace {{className}} with {{prefix}}-{{replacement}}",
     },
     // The JSON half only. `designSystem` and `tokens` are bound around `create` rather than
@@ -135,11 +126,8 @@ export default {
         const range = token.range;
         const at = range ? { loc: spanOf(context, range) } : { node: source.node };
 
-        if (token.dynamic) {
-          const prefix = danglingColorPrefix(token.head, colorPrefixes);
-          if (prefix) context.report({ ...at, messageId: "dynamicColorClass", data: { prefix } });
-          continue;
-        }
+        // A class with an interpolation in it is never judged: nothing says what it becomes.
+        if (token.dynamic) continue;
 
         const found = spectralIn(token.text, colorPrefixes, colorNames, semantic, flagFixedColors);
         if (!found) continue;
@@ -305,22 +293,6 @@ function startsWithColorPrefix(prefix, colorPrefixes) {
     if (prefix === candidate || prefix.startsWith(`${candidate}-`)) return true;
   }
   return false;
-}
-
-/**
- * The colour prefix standing immediately against an interpolation, or `null`.
- *
- * The gate is the prefix, not the backtick (decision **A7b**): `` `p-${size}` `` is ordinary
- * code and `` `bg-${tone}` `` is the one hole the token system cannot tolerate. "Immediately"
- * is meant literally — `` `bg-primary/${alpha}` `` is an opacity modifier against a hole and
- * belongs to `no-opacity-modifier`, `` `dark:${utility}` `` to `no-dark-variant`.
- */
-function danglingColorPrefix(head, colorPrefixes) {
-  const { base: decorated } = splitVariants(head);
-  const { base } = stripImportant(decorated);
-  if (!base.endsWith("-")) return null;
-  const prefix = base.slice(0, -1);
-  return colorPrefixes.has(prefix) ? prefix : null;
 }
 
 /**
