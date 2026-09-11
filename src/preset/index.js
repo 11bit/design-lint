@@ -84,6 +84,14 @@ export async function designLint({
   ]);
   const tokens = projectTokens(designSystem, palette);
 
+  // Every rule that reads class strings asks which utilities take a colour, and a theme with
+  // no colour answers "none" — so the lint run would pass on every file and look clean.
+  if (designSystem.colorPrefixes.size === 0) {
+    throw new Error(
+      `design-lint: your token stylesheets define no --color-* tokens (${tokenFiles.join(", ")}), so no rule can tell a colour class from any other class. Check that \`tokenFiles\` names the stylesheet that defines your colours, or the one that imports it.`,
+    );
+  }
+
   publish({ designSystem, tokens });
 
   const watching = wantsComponents && componentSources.length > 0;

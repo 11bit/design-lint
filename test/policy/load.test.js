@@ -67,4 +67,17 @@ describe("designLint", () => {
     // be missed by the text scan, and reported as palette.
     expect(consume().tokens).toEqual(new Set(["brand"]));
   });
+
+  it("refuses to start when the token stylesheets define no colour at all", async () => {
+    // Every rule that reads class strings is gated on which utilities take a colour, and a
+    // theme with no colours answers "none" — so the linter would run, report nothing, and
+    // look like a clean codebase.
+    const root = project();
+    symlinkSync(join(REPO, "node_modules"), join(root, "node_modules"));
+    writeFileSync(join(root, "styles.css"), '@import "tailwindcss";\n@theme { --color-*: initial; }\n');
+
+    await expect(
+      designLint({ tokenFiles: ["styles.css"], componentSources: [], base: root }),
+    ).rejects.toThrow(/define no --color-\* tokens/);
+  });
 });

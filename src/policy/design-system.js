@@ -32,16 +32,35 @@
  * derived set rather than replacing it.
  */
 
-/**
- * The colour whose presence in generated CSS marks a declaration as colour-carrying.
- *
- * Any token in the default palette would do. It is a probe, not a policy: it is used to
- * ask "which utilities accept a colour here?", and the answer is a property of Tailwind
- * rather than of this choice.
- */
 import { colorProperty } from "./properties.js";
 
+/**
+ * The colour a class list is probed with to find the utilities that accept one.
+ *
+ * Any colour the theme defines would do. It is a probe, not a policy: it asks "which
+ * utilities accept a colour here?", and the answer is a property of Tailwind rather than of
+ * this choice. `red-500` is preferred because it is always there in a stock setup, which
+ * keeps the derived set stable — but a project that resets the palette has no `red-500`,
+ * and probing for it there would derive nothing and leave every prefix-gated rule silent.
+ */
 const PROBE_TOKEN = "red-500";
+
+/**
+ * Colour names a probe must avoid: each is also a non-colour value somewhere, so
+ * `text-lg` or `border-2` would carry `text` and `border` in for the wrong reason and bring
+ * `leading`, `rounded` and the rest in with them.
+ */
+const VALUE_LIKE = /^(?:\d|x*s$|sm$|md$|x*l$|\dxl$|base$|full$|none$|auto$|px$|inherit$|current$)/;
+
+/**
+ * The name to probe with: `red-500` when the theme has it, otherwise the first of its own
+ * colours that cannot be mistaken for a size. `null` when the theme defines no colour.
+ */
+function probeName(colorNames) {
+  if (colorNames.has(PROBE_TOKEN)) return PROBE_TOKEN;
+  const names = [...colorNames].sort();
+  return names.find((name) => !VALUE_LIKE.test(name)) ?? names[0] ?? null;
+}
 
 /** Tailwind's own namespace for theme colours. A value mentioning one names a colour. */
 const THEME_COLOR_VAR = /var\(\s*--color-[\w-]/;
@@ -105,21 +124,6 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
   };
 
   /**
-   * Every utility root that accepts a colour.
-   *
-   * Derived by enumerating the class list and keeping the roots of every class the probe
-   * colour completes. This is where `inset-ring-`, `text-shadow-`, `mask-*-from-` and the
-   * per-side border families arrive without anyone maintaining a list — the whole reason
-   * the derivation exists.
-   */
-  const colorPrefixes = new Set(extraPrefixes);
-  for (const [className] of designSystem.getClassList()) {
-    if (!className.endsWith(`-${PROBE_TOKEN}`)) continue;
-    const root = parseRoot(className);
-    if (root) colorPrefixes.add(root);
-  }
-
-  /**
    * Every colour name a class can carry: `red-500`, `white`, and the project's own
    * `primary` alike.
    *
@@ -131,6 +135,25 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
    * that gates on this set gets them allowed for free.
    */
   const colorNames = new Set(designSystem.theme.namespace(COLOR_NAMESPACE).keys());
+
+  /**
+   * Every utility root that accepts a colour.
+   *
+   * Derived by enumerating the class list and keeping the roots of every class the probe
+   * colour completes. This is where `inset-ring-`, `text-shadow-`, `mask-*-from-` and the
+   * per-side border families arrive without anyone maintaining a list — the whole reason
+   * the derivation exists. A theme with no colour at all derives none, and the factory
+   * refuses to start rather than hand the rules an empty set.
+   */
+  const probe = probeName(colorNames);
+  const colorPrefixes = new Set(extraPrefixes);
+  if (probe) {
+    for (const [className] of designSystem.getClassList()) {
+      if (!className.endsWith(`-${probe}`)) continue;
+      const root = parseRoot(className);
+      if (root) colorPrefixes.add(root);
+    }
+  }
 
   const declarationsOf = (className) => {
     const [ast] = designSystem.candidatesToAst([className]);

@@ -237,3 +237,39 @@ describe("@theme inline", () => {
     }
   });
 });
+
+describe("colorPrefixes under a stylesheet that resets the stock palette", () => {
+  // A project that clears Tailwind's palette and defines only its own colours has no
+  // `red-500` to probe with. The prefixes are a fact about Tailwind, not about the palette,
+  // so they must come out the same — a rule gated on them would otherwise report nothing.
+  const RESET = [
+    '@import "tailwindcss";',
+    "@theme { --color-*: initial; --color-primary: oklch(0.6 0.2 25); --color-muted-foreground: oklch(0.5 0 0); }",
+  ].join("\n");
+
+  /** @type {import("../../src/policy/design-system.js").DesignSystemPolicy} */
+  let reset;
+  beforeAll(async () => {
+    reset = designSystemPolicy(await loadDesignSystem(RESET, { base: BASE }));
+  });
+
+  it("still derives the colour prefixes", () => {
+    for (const prefix of ["bg", "text", "border", "border-t", "ring", "shadow", "fill"]) {
+      expect(reset.colorPrefixes).toContain(prefix);
+    }
+  });
+
+  it("does not admit a prefix that never carries a colour", () => {
+    for (const prefix of ["p", "m", "w", "font", "grid-cols"]) {
+      expect(reset.colorPrefixes).not.toContain(prefix);
+    }
+  });
+
+  it("derives none when the theme defines no colour at all", async () => {
+    const bare = designSystemPolicy(
+      await loadDesignSystem('@import "tailwindcss";\n@theme { --color-*: initial; }', { base: BASE }),
+    );
+    expect(bare.colorNames.size).toBe(0);
+    expect(bare.colorPrefixes.size).toBe(0);
+  });
+});

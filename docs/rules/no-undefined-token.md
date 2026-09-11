@@ -338,8 +338,11 @@ This is a promise about the failure mode rather than a case.
 The linter reads your token stylesheets once, at startup, with the same Tailwind engine your
 build uses, and every rule works from what it found: which colour tokens you define, and
 which utilities take a colour. **Without token stylesheets the linter refuses to start**,
-rather than run rules that can't tell a token from a typo, and a stylesheet that does not
-exist stops it too, by name. There is no configuration under which this rule runs without
+rather than run rules that can't tell a token from a typo. A stylesheet that does not exist
+stops it too, by name, and so do stylesheets that define no `--color-*` token at all. A
+project that clears Tailwind's stock palette and defines only its own colours is fine: which
+utilities take a colour is worked out from whatever colours it does define. There is no
+configuration under which this rule runs without
 them — changing only its severity (`"…/no-undefined-token": "warn"`) leaves the tokens read
 at startup untouched. Falling over loudly is the cheapest diagnostic this rule can offer,
 and the only one that cannot be mistaken for a clean run.
