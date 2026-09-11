@@ -42,14 +42,12 @@ import { parseClass } from "../policy/variants.js";
  * variant map and a `.ts` object-literal constants file are one string each, and the
  * object-literal map was the known coverage regression the migration plan recorded.
  *
- * The backstop does **not** use the sweep, and the difference is the two blind spots at the
- * bottom of the contract. `canvas.fillStyle = "#ff0000"` and
- * `element.style.setProperty("--brand", "#ff0000")` are whole-string literals that a sweep
- * would report, and the contract declares both unreported: they are colours being *applied*
- * through a runtime channel, not colours written down as data. So the backstop is driven by
- * the positions where a constant lives — a declarator's initialiser, an object property's
- * value, an array element — and the two blind spots fall out of that shape rather than
- * needing a carve-out to exclude them.
+ * The backstop does **not** use the sweep. It is driven by the positions where a value is
+ * written down — a declarator's initialiser, an object property's value, an array element, a
+ * returned or assigned value, a default, and either branch of a conditional or `??` — and
+ * leaves function arguments out. An argument is where a hex-looking id turns up,
+ * `querySelector("#add")`, so `setProperty("--brand", "#ff0000")` stays the contract's
+ * declared blind spot by that shape rather than by a carve-out.
  *
  * ## Reporting granularity
  *
@@ -187,11 +185,13 @@ export default {
     /** The value-scoped backstop, applied to one expression in a constant position. */
     const backstop = (node) => {
       if (!valueScopedBackstop) return;
-      const value = staticString(node);
-      if (value === null) return;
+      for (const leaf of writtenLiterals(node)) {
+        const value = staticString(leaf);
+        if (value === null) continue;
 
-      const found = wholeValueColor(value, { ignoreValues });
-      if (found) report({ node }, found, "a string literal");
+        const found = wholeValueColor(value, { ignoreValues });
+        if (found) report({ node: leaf }, found, "a string literal");
+      }
     };
 
     /** Every colour-carrying property of a `style` prop's object. */
@@ -208,13 +208,15 @@ export default {
         if (name === null || !colorProperty(name)) continue;
         claimed.add(property);
 
-        const value = staticString(property.value);
-        if (value === null) continue;
-
-        // One report per property, however many literals the value holds: the author wrote
-        // one value and has one edit to make.
-        const found = firstRawColor(value, matching);
-        if (found) report({ node: property }, found, "a style prop");
+        // One report per written value, however many literals it holds: the author wrote one
+        // value and has one edit to make. A conditional writes two, so each branch is its own.
+        const leaves = writtenLiterals(property.value);
+        for (const leaf of leaves) {
+          const value = staticString(leaf);
+          if (value === null) continue;
+          const found = firstRawColor(value, matching);
+          if (found) report({ node: leaves.length === 1 ? property : leaf }, found, "a style prop");
+        }
       }
     };
 
@@ -259,17 +261,22 @@ export default {
         // fact about `style` properties rather than about SVG.
         if (colorProperty(name) !== "color") return;
 
-        const value = staticString(attributeValue(node));
-        if (value === null) return;
-
-        // One report per attribute, at the attribute: `fill="#f00" stroke="#0f0"` is two
-        // spans, and the whole element is neither of them.
-        const found = firstRawColor(value, matching);
-        if (found) report({ node }, found, "an SVG attribute");
+        // One report per written value, at the attribute: `fill="#f00" stroke="#0f0"` is two
+        // spans, and the whole element is neither of them. A conditional writes two values,
+        // so each branch is its own span.
+        const leaves = writtenLiterals(attributeValue(node));
+        for (const leaf of leaves) {
+          const value = staticString(leaf);
+          if (value === null) continue;
+          const found = firstRawColor(value, matching);
+          if (found) report(leaves.length === 1 ? { node } : { node: leaf }, found, "an SVG attribute");
+        }
       },
 
-      // The backstop's three positions — what it means for a colour to be written down as a
-      // constant rather than applied through a channel.
+      // The backstop's positions — everywhere a value is written down: a declaration, a
+      // property, an element, a returned value, an assigned one, a default. A function
+      // argument is not among them: `querySelector("#add")` passes an id that merely looks
+      // like hex, and an argument is where that happens.
       VariableDeclarator(node) {
         backstop(node.init);
       },
@@ -278,6 +285,18 @@ export default {
       },
       ArrayExpression(node) {
         for (const element of node.elements ?? []) backstop(element);
+      },
+      ReturnStatement(node) {
+        backstop(node.argument);
+      },
+      ArrowFunctionExpression(node) {
+        if (node.expression) backstop(node.body);
+      },
+      AssignmentExpression(node) {
+        backstop(node.right);
+      },
+      AssignmentPattern(node) {
+        backstop(node.right);
       },
     };
   },
@@ -395,6 +414,31 @@ function staticString(node) {
     return node.quasis[0].value.cooked ?? null;
   }
   return null;
+}
+
+/**
+ * The expressions a value could turn out to be, when each one is written in place.
+ *
+ * `dark ? "#000000" : "#ffffff"` and `props.color ?? "#ff0000"` write their literals down as
+ * plainly as `const c = "#ff0000"` does; only the choice between them is left to run time.
+ * Both branches of a conditional and both sides of a logical expression are followed, as are
+ * the TypeScript wrappers that change a value's type but not the value. Anything else is
+ * returned as it is, for the caller to read or to find unreadable.
+ */
+function writtenLiterals(node) {
+  switch (node?.type) {
+    case "ConditionalExpression":
+      return [...writtenLiterals(node.consequent), ...writtenLiterals(node.alternate)];
+    case "LogicalExpression":
+      return [...writtenLiterals(node.left), ...writtenLiterals(node.right)];
+    case "TSAsExpression":
+    case "TSSatisfiesExpression":
+    case "TSNonNullExpression":
+    case "ParenthesizedExpression":
+      return writtenLiterals(node.expression);
+    default:
+      return node ? [node] : [];
+  }
 }
 
 /** A source range as the report API wants it. */

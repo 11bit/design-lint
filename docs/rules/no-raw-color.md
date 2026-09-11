@@ -102,10 +102,13 @@ The contract requires **both** models, because each covers the other's hole:
    the color-carrying SVG presentation attributes, the color-carrying `style` properties, and
    the color-carrying Tailwind utility prefixes. This is what catches `fill="red"`,
    `style={{ color: "red" }}` and `text-[red]` without pattern-matching words.
-2. **Value-scoped backstop.** A syntactically unambiguous color literal — hex, or any of the
-   color function heads — is caught in *any* string literal in the file, whether or not its
-   context is on a list. This is what catches `const SERIES = ["#ff0000"]`, which belongs to
-   no attribute and no utility prefix at all.
+2. **Value-scoped backstop.** A string that is entirely a syntactically unambiguous color
+   literal — hex, or any of the color function heads — is caught wherever a value is written
+   down, whether or not its context is on a list: a variable's value, an object property, an
+   array element, a returned or assigned value, a default, and either branch of a
+   conditional or of `??` / `||`. This is what catches `const SERIES = ["#ff0000"]`, which
+   belongs to no attribute and no utility prefix at all. A function argument is not checked
+   — see [Non-CSS color channels](#non-css-color-channels).
 
 The context-scoped model alone is incomplete: the attribute and property lists are finite,
 and a free-standing constant has no context to scope to. The value-scoped
@@ -275,6 +278,12 @@ ways a design system leaks, and it is invisible to anything that only reads clas
 <path fill="rebeccapurple" />
 ```
 
+A conditional writes two values, and each branch is its own report.
+
+```tsx caught count=2
+<rect fill={active ? "#ff0000" : "#00ff00"} />
+```
+
 ### Style prop values
 
 Shared deliberately with `no-style-color`, which owns the *mechanism* while this rule owns
@@ -290,6 +299,10 @@ the *value* — see [Relationship to other rules](#relationship-to-other-rules).
 <div style={{ boxShadow: "0 0 4px #f00" }} />
 
 <div style={{ background: "linear-gradient(#fff, #000)" }} />
+```
+
+```tsx caught count=2
+<div style={{ color: active ? "red" : "blue" }} />
 ```
 
 ### String constants
@@ -314,7 +327,27 @@ string literal:
 <Chart colors={["#ff0000", "#00ff00"]} />
 ```
 
-A whole-string color literal is caught anywhere in a linted file, not only in JSX. Without
+A value is written down in more places than a declaration. A returned value, an assigned one,
+a default, and either side of a choice are all caught — only the choice is left to run time,
+and the colours are right there.
+
+```tsx caught
+function brand() { return "#0a7cff"; }
+
+const brandOf = () => "#0a7cff";
+
+canvas.getContext("2d").fillStyle = "#ff0000";
+
+function Swatch({ color = "#ff0000" }) {}
+
+const fallback = props.color ?? "#ff0000";
+```
+
+```tsx caught count=2
+const ink = dark ? "#000000" : "#ffffff";
+```
+
+A whole-string color literal is caught in any of those positions, not only in JSX. Without
 surrounding context there is a residual
 false-positive class — a DOM selector or anchor whose identifier happens to be hex-only,
 `"#face"` or `"#decade"` — which `bias: false-positives` accepts as suppressible noise. See
@@ -511,20 +544,20 @@ const Box = styled.div`
 
 ### Non-CSS color channels
 
-Colors reaching the page by a route that is neither a class string, an attribute, a style
-prop, nor a plain string constant.
+A colour passed as a function argument is not checked. An argument is where a string that
+only looks like hex turns up — `querySelector("#add")`, `navigate("#face")` — and reporting
+every one would bury the real colours in noise.
 
 ```tsx blindspot
-canvas.getContext("2d").fillStyle = "#ff0000";
+setBrandColor("#ff0000");
 
 element.style.setProperty("--brand", "#ff0000");
 ```
 
-The first is a member assignment whose right-hand side *is* a whole-string literal, so the
-value-scoped backstop could in principle see it; it is listed here because this rule does not
-promise it.
 The second is `no-style-color`'s sanctioned escape hatch being fed a literal. Neither rule
-catches it, and that is the accepted cost of the escape hatch existing.
+catches it, and that is the accepted cost of the escape hatch existing. Assigning the same
+colour — `canvas.getContext("2d").fillStyle = "#ff0000"` — is caught, under
+[String constants](#string-constants).
 
 ## Deferred: CSS surface
 
