@@ -1,0 +1,22 @@
+test/rules/no-opacity-modifier.test.js
+  s_7854930eea3f9d::t_7da5557eb56cab 79-110
+src/rules/no-opacity-modifier.js
+  s_7854930eea3f9d::t_9fe0654850161e 89-99,109,151-155
+  s_7854930eea3f9d::t_0246e56c25c851 156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "592480f21349389774ee5aeda4030f9cd37217c9",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
