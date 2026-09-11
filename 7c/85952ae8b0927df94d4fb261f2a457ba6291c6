@@ -1,0 +1,59 @@
+src/rules/no-spectral-color.js
+  s_7854930eea3f9d::t_df174171226b61 4
+  s_7854930eea3f9d::t_1af8d4a7917166 129-130
+docs/rules/no-useless-hover.md
+  s_7854930eea3f9d::t_f74d88d15d98bb 553-567
+src/rules/no-component-color-override.js
+  s_7854930eea3f9d::t_2474c443803138 4,45,47-50,157
+docs/rules/no-component-color-override.md
+  s_7854930eea3f9d::t_f8325472263ded 350
+  s_7854930eea3f9d::t_9afbab89de3ed5 79-80,290-291,533-552,555-556,766-768,795,803,831-832
+  s_7854930eea3f9d::t_b69a610791d3af 77,829-830
+  s_7854930eea3f9d::t_d638feb0f31082 78
+src/rules/no-dark-variant.js
+  s_7854930eea3f9d::t_3317471ee735d0 133-134,136,141-145,152,154,158
+  s_7854930eea3f9d::t_7fd6dbf6e6e93c 127-128
+src/rules/no-opacity-modifier.js
+  s_7854930eea3f9d::t_da8c0188013627 120
+  s_7854930eea3f9d::t_5765ef90689888 90,93-94,100,105-107,109-110
+docs/rules/no-opacity-modifier.md
+  s_7854930eea3f9d::t_4ffd136122e52e 221,223-226,229,337,339-343,346-347
+  s_7854930eea3f9d::t_9afbab89de3ed5 483
+docs/rules/no-dark-variant.md
+  s_7854930eea3f9d::t_994836037fa250 173,175-177,277,279-282,285-286,288-290,292-295,425-426,511
+src/rules/no-useless-hover.js
+  s_7854930eea3f9d::t_75656de1a696ef 244-247
+docs/rules/no-raw-color.md
+  s_7854930eea3f9d::t_e0ffa920a71a91 456-459,467-473,475-477
+test/harness/locations.test.js
+  s_7854930eea3f9d::t_176c0a2fc0dd6b 131,171,181-183,313,327-329
+docs/rules/no-undefined-token.md
+  s_7854930eea3f9d::t_652702de46cf01 296-300,305-306,310-311
+  s_7854930eea3f9d::t_cef56b3ed40cd9 513
+  s_7854930eea3f9d::t_fe54a280f050f3 312-313
+docs/rules/no-spectral-color.md
+  s_7854930eea3f9d::t_5339ecbfcb9026 40-42,341-358,439-441,518
+docs/open-questions.md
+  s_7854930eea3f9d::t_419dde3e0f17b2 207
+  s_7854930eea3f9d::t_4c222bb7111f06 195-206
+README.md
+  s_7854930eea3f9d::t_3b4b46bae40f7f 115-118
+docs/rules/token-constraints.md
+  s_7854930eea3f9d::t_dfc0e7abcd516f 713-716,718,730-735,737-739,793-797,805-806,925-927,942-944,1002,1031
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7c85952ae8b0927df94d4fb261f2a457ba6291c6",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
