@@ -33,15 +33,15 @@ not matter — semantic token, palette class or arbitrary value are all equally 
 call site.
 
 The rule is **context-free**: it asks "does this string contain a colour class with a
-modifier?" and never needs to know which element the string reaches. It runs over the broad
-sweep — every string literal and every static template literal in a `.tsx`, `.ts`, `.jsx` or
-`.js` file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge` arguments,
+modifier?" and never needs to know which element the string reaches. It checks every string
+literal and the static text of every template literal in a `.tsx`, `.ts`, `.jsx` or `.js`
+file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge` arguments,
 `cva` / `tv` variant maps and `.ts` object-literal constants are all in, for free, because
 the strings are simply there.
 
-Two gates keep that breadth quiet, and both come from `/policy` rather than from where the
-string was found. The class must sit under a **derived** colour prefix, and its body must
-not be something the design system resolves to a **non**-colour — which is what stops
+Two gates keep that breadth quiet, and neither depends on where the string was found. The
+class must sit under a prefix Tailwind uses for colours in your project, and its body must
+not be something Tailwind resolves to a **non**-colour — which is what stops
 `text-sm/6` being reported. Variants are stripped **by segment**, with bracket depth
 respected, so `[@media(hover:hover)]:` is one segment and `bg-[image:var(--x)]` is never
 split at its inner colon.
@@ -196,8 +196,8 @@ const scrimClass = { light: "bg-white/60", dark: "bg-black/60" };
 const scrim = "bg-black/50";
 ```
 
-The remaining routes on the corpus list are the same string in a different wrapper, and the
-sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+The remaining routes are the same string in a different wrapper, and the rule does not
+parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
 runtime, a props object spread onto an element, and an attribute on a line of its own are
 one string literal each.
 
@@ -264,22 +264,17 @@ The one genuinely dangerous near-miss. `text-` is a colour prefix *and* a font-s
 and `text-sm/6` is the font-size / line-height shorthand — an extremely common class with no
 colour in it at all.
 
-Prefix matching alone cannot separate these, which is why the verdict comes from resolving
-the class through the Tailwind design system in `/policy`: `text-sm` generates a `font-size`
-declaration, `text-primary` generates a `color` declaration, and only the second is this
-rule's business. A class that generates *neither* — a token nobody defined — is not
-excluded; see [Promises to catch](#promises-to-catch). The same derivation supplies the
-prefix set itself, which is how `inset-ring-`, `text-shadow-` and every per-side border
-family arrive without anyone maintaining a list.
+Prefix matching alone cannot separate these, which is why the verdict comes from asking
+Tailwind what the class generates, using your token stylesheets: `text-sm` generates a
+`font-size` declaration, `text-primary` generates a `color` declaration, and only the second
+is this rule's business. A class that generates *neither* — a token nobody defined — is not
+excluded; see [Promises to catch](#promises-to-catch). The same question supplies the prefix
+set itself, which is how `inset-ring-`, `text-shadow-` and every per-side border family
+arrive without anyone maintaining a list.
 
-A fallback for the case where the resolver is unavailable — prefix matching plus a deny list
-of known non-colour `text-` bodies (`xs`…`9xl`, bracketed lengths) — was described here as a
-degraded mode. It is **not built**, in `/policy` or anywhere else, and the rule does not
-pretend otherwise: without a resolved design system it throws. A rule that fell back to
-prefix matching would report `text-sm/6`, which is precisely the false positive this contract
-exists to remove, and one that reported nothing would be indistinguishable from a clean
-codebase. `text-` is still where the difference would show first, so it is the case that must
-be probed if the degraded mode is ever built.
+The rule never falls back to guessing from the prefix alone. That would report `text-sm/6`,
+which is precisely the false positive this contract exists to remove; without your token
+stylesheets the linter refuses to start instead.
 
 ```tsx allowed
 <div className="text-sm/6 text-lg/7 text-base/loose" />
@@ -352,7 +347,7 @@ the defect there.
 
 ### Use sites with no literal of their own
 
-The broad sweep catches the string where it is written, not where it is used.
+The rule catches the string where it is written, not where it is used.
 
 ```tsx blindspot
 <div className={SCRIMS[mode]} />;
@@ -376,19 +371,17 @@ The same result, arrived at without a modifier. Each belongs to a different rule
 
 Not a blind spot. A blind spot is something this contract has decided not to catch; what
 follows is something it has decided not to catch **yet**. The linter reads `.js`, `.jsx`,
-`.ts` and `.tsx` only, so the cases below are unenforced today and are recorded so that
-adding the CSS surface is an implementation task rather than a fresh design argument.
+`.ts` and `.tsx` only, so the cases below are unenforced today. They are recorded so that
+what CSS linting will catch is already decided when it arrives.
 
-The fenced blocks here are tagged `deferred`. The harness executes `caught`, `allowed` and
-`blindspot` blocks only, so nothing in this section asserts anything about the current
-implementation.
+The examples here are tagged `deferred`: they describe future behaviour, and nothing is
+checked against them today.
 
 ### `@apply` class lists
 
 An opacity modifier reached through `@apply` derives a colour at the call site exactly as a
-`className` does, and the same `/policy` gates decide it — the derived colour prefix, then
-the colour test. No entry point in the current package shape covers it, so the mechanism is
-an open choice; only the promise below is fixed.
+`className` does, and the same two gates decide it — the colour prefix, then the colour
+test. How CSS will be linted is still open; only the promise below is fixed.
 
 ```css deferred
 .scrim {
@@ -399,8 +392,8 @@ an open choice; only the promise below is fixed.
 ### The token-definition files, once `.css` is linted
 
 A translucent token has to be defined somewhere, and that definition is a colour derived on
-purpose in the one file allowed to do it. When `.css` becomes a linted surface the files
-named by `tokenFiles` stay exempt wholesale.
+purpose in the one file allowed to do it. When `.css` becomes a linted surface your token
+stylesheets stay exempt wholesale.
 
 ```css deferred
 @theme {
@@ -444,13 +437,13 @@ rule cannot invent its name or its value. The message's job is to make the fix �
 
 ## Configuration
 
-Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
-consuming project overrides in its own config — none is a fact baked into the rule.
+Mechanism ships; policy is supplied. Every value below is the rule's own default, which a
+project overrides in its own config — none is a fact baked into the rule.
 
-| Option | `recommended` | Overriding it |
+| Option | Default | Overriding it |
 | --- | --- | --- |
 | `allowFullOpacity` | `false` | `true` stops reporting a full-opacity modifier however it is spelled — `/100`, `/[100%]`, `/[1]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
-| `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
+| `colorPrefixes` | every prefix Tailwind uses for colours in your project | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips, matched against the path Oxlint reports. Storybook is excluded by default, as it is by every rule; a project that treats stories as production code sets this to `[]`. |
 
 ### Distribution

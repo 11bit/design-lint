@@ -24,7 +24,7 @@ supplied as rule **options**, which this rule is the mechanism for enforcing.
 
 Mechanism ships; policy is supplied. The *contents* of `allowed` and `denied` are policy, not
 part of this rule's semantics — they arrive from the consumer's configuration, and the
-`recommended` preset's values are documented in [Configuration](#configuration). Policy
+`recommended` values are documented in [Configuration](#configuration). Policy
 *semantics* — what an allow list means, how patterns match, which of two conflicting lists
 wins — live here and must not change quietly.
 
@@ -60,13 +60,12 @@ names only `denied` leaves every prefix without an allow list. See
 `primary`, `primary-hover`, `primary-foreground`, `muted`, `muted-foreground`, `foreground`,
 `border`, `input`, `ring`, `link`, `link-hover`, `warning`, `warning-foreground`, `danger`.
 
-These are illustrative, and deliberately smaller than what the `recommended` preset ships.
+These are illustrative, and deliberately smaller than the `recommended` policy.
 The real values are policy — see [Configuration](#configuration).
 
 ## Configuration semantics
 
-The parts of this rule that are *not* policy, and that the implementation must honour
-exactly.
+The parts of this rule that are *not* policy, and that no configuration changes.
 
 ### Keys
 
@@ -101,7 +100,7 @@ sibling peer — does not change the answer. `group-hover:bg-primary` paints **t
 when the group is hovered, so the token it names is still this element's hover colour and is
 still required to be named as one.
 
-Segment parsing lives in `/policy` and is shared by every rule that reads variants. It:
+Every rule that reads variants splits them into segments the same way. Splitting:
 
 - splits on **top-level** colons only, so a colon inside `[…]` is not a segment boundary;
 - strips a named-group suffix before testing membership, so `group-hover/nav` is tested as
@@ -251,8 +250,7 @@ allow list is only readable if it is complete in one place.
 the package this one skips stories by default. This rule has the weakest case of the nine for
 that default — a story demonstrates a component to a designer, so a story using the wrong
 semantic token teaches the wrong token — which is exactly why it is a configurable glob
-rather than a hardcoded `isStorybookFile` check. A project that wants its stories linted
-empties the list.
+rather than fixed. A project that wants its stories linted empties the list.
 
 **The colour-prefix set is derived, not configurable.** It comes from what Tailwind reports
 when the linter reads your token stylesheets, so every utility family that takes a colour is
@@ -265,12 +263,12 @@ silent holes: a 16-entry list misses every per-side border family, `inset-ring`,
 Any string that reads as a Tailwind colour utility, whose colour part is a declared semantic
 token, and whose prefix or variant policy it fails.
 
-**Extraction is the broad sweep.** This rule is context-free: it asks "is this string a
-forbidden class?" and never needs to know which element the class lands on. `/policy` hands it
-every string literal and every static template literal in the file, regardless of context.
-False-positive protection comes from the rule's own two gates — a declared colour prefix and a
-colour part that is a declared `--color-*` token — not from extraction precision, which is the
-argument behind `bias: false-positives`. `cva()` and `cn()` arguments and `.ts` object-literal
+**Every string in the file is read.** This rule is context-free: it asks "is this string a
+forbidden class?" and never needs to know which element the class lands on. It reads every
+string literal and the static text of every template literal in the file, regardless of
+context. False-positive protection comes from the rule's own two gates — a declared colour
+prefix and a colour part that is a declared `--color-*` token — not from where the string
+sits, which is the argument behind `bias: false-positives`. `cva()` and `cn()` arguments and `.ts` object-literal
 maps therefore fall in for free, with no special-case plumbing, because the strings are simply
 there.
 
@@ -278,8 +276,8 @@ A class is decomposed as `variant:variant:[!]prefix-colorPart[!][/opacity]`. All
 decorations are stripped before matching: leading and trailing `!`, the `/opacity` suffix,
 and every variant segment. Variant segments are split on **top-level** colons only —
 a colon inside `[…]` belongs to an arbitrary value or an arbitrary variant and is not a
-segment boundary. The segmentation is `/policy`'s, shared with every other rule that reads
-variants, so `bg-[image:var(--x)]` survives it intact.
+segment boundary. Every rule that reads variants splits them this way, and
+`bg-[image:var(--x)]` survives intact.
 
 ### Prefix allow-list failures
 
@@ -400,7 +398,7 @@ stripped before the test.
 
 The mechanism is general: any key ending in `:` is a variant policy, and `hover:` is not
 special-cased. The same family test applies, so one `"focus:"` key covers `focus`,
-`group-focus` and `peer-focus` with no new code. The example also assumes your token
+`group-focus` and `peer-focus` with nothing else to configure. The example also assumes your token
 stylesheets define `--color-primary-focus` — tokens come from there, not from this rule's
 options; see [Configuration](#configuration).
 
@@ -503,9 +501,8 @@ family scans it and the JSX rules do not. CSS is not a linted surface today — 
 )} />
 ```
 
-`cva()` is fully covered — base, `variants`, and `compoundVariants`. All nine rules are
-authored in-house, so there is no second extractor to stay in step with: one `/policy` module
-sees these strings for every rule that reads class names.
+`cva()` is fully covered — base, `variants`, and `compoundVariants` — and every rule in the
+package that reads class names sees these strings the same way.
 
 ```tsx caught count=3
 const badge = cva("text-muted", {
@@ -536,8 +533,9 @@ const CLASSES = ["text-muted", "p-2"];
 export const dangerText = "bg-muted-foreground";
 ```
 
-The last three routes on the corpus list are wrappers the sweep never opens: a `tv()` slot,
-an array joined at runtime, and a props object spread onto an element.
+Three more wrappers need no special handling — a `tv()` slot, an array joined at runtime,
+and a props object spread onto an element. Each holds an ordinary string literal, which is
+read like any other.
 
 ```tsx caught
 <div className={tv({ base: "text-muted" })} />
@@ -739,7 +737,7 @@ interpolation whose parts happen to be static. `no-spectral-color` reports the p
 stops, and this rule never sees a token.
 
 The escape hatch is a lookup of **complete** class names, statically visible to the linter —
-which this rule's broad sweep then lints like any other string, so the token choice is still
+which this rule then reads like any other string, so the token choice is still
 constrained — or a `--color-*` custom property.
 
 ```tsx allowed
@@ -808,10 +806,10 @@ literal are checked; a segment interrupted by an interpolation is never reassemb
 ```
 
 String concatenation is a blind spot even in the prefix-adjacent form. The dynamic-prefix
-check reads a template literal's interpolation points, which the extractor surfaces; a binary
-expression is a different shape and is not a class string. Extending that check to it later is
-compatible — the boundary is drawn where the extractor's is, not on a claim that the two cases
-differ in kind. It is `no-spectral-color`'s boundary to move, not this rule's.
+check looks at the interpolations in a template literal; a `+` concatenation is not read as a
+class string at all. That is where the line is drawn today, not a claim that the two cases
+differ in kind, and extending the check to `+` later would be compatible. It is
+`no-spectral-color`'s boundary to move, not this rule's.
 
 ```tsx blindspot
 <div className={"text-" + tone} />
@@ -893,22 +891,20 @@ handles `.js`, `.ts`, `.jsx` and `.tsx` only, and the CSS surface is planned wor
 landed. Nothing below is enforced today, and no assertion in this document depends on it.
 
 `@apply` is a class-string surface like any other, and a policy violation there is
-indistinguishable from one in JSX. When CSS lands, this rule will cover it, and the shape of
-that coverage is already decided: `@apply` arguments are extracted and handed to the same
-`/policy` module this rule uses today. Only the extraction differs — the resolution chain, the
-pattern semantics and the variant families stay one implementation, so the two surfaces cannot
-drift. Whatever entry point the CSS extractor eventually ships behind is an open question; the
+indistinguishable from one in JSX. When CSS lands, this rule will cover it with exactly the
+same policy — the same resolution order, pattern semantics and variant families — so a class
+means the same thing in `@apply` as in JSX. How CSS linting will be set up is still open; the
 one thing already settled is that it does not get its own copy of the policy.
 
-Files listed in `tokenFiles` are exempt when that happens — they define the tokens. They are
-already an input rather than a linted surface, and remain required regardless of this
-deferral (see [Configuration](#configuration)).
+Your token stylesheets will be exempt when that happens — they define the tokens. They are
+already read rather than linted, and the linter needs them whatever happens to CSS (see
+[Configuration](#configuration)).
 
 Until then, `@apply text-muted` in a stylesheet is unreported. That is a known, accepted gap
 for the current phase, not a claim that the usage is acceptable.
 
 The block below is **illustrative only**. It carries no `caught`, `allowed` or `blindspot`
-tag, so the harness does not execute it — it describes a promise we are not yet keeping, and
+tag, so it is not run against the rule — it describes a promise we are not yet keeping, and
 tagging it would assert behaviour that does not exist.
 
 ```css deferred
@@ -924,9 +920,8 @@ tagging it would assert behaviour that does not exist.
 
 ## Relationship to other rules
 
-The scope boundary is a single line of code in intent: **this rule only speaks about colour
-parts that are declared semantic tokens** — names derived from the `--color-*` declarations
-in `tokenFiles`. Everything else falls to a rule that owns it, with no exceptions — a colour
+The scope boundary is one line: **this rule only speaks about colour parts that are declared
+semantic tokens** — names from the `--color-*` declarations in your token stylesheets. Everything else falls to a rule that owns it, with no exceptions — a colour
 part this rule cannot resolve to a declared token is not this rule's business.
 
 - **`no-undefined-token`** owns colour classes whose token does not exist
@@ -949,15 +944,15 @@ part this rule cannot resolve to a declared token is not this rule's business.
   reports twice, correctly.
 - **`no-useless-hover`** asks whether *this element* should have a hover affordance at all.
   This rule asks which token a hover colour may use. They are orthogonal and may both fire on
-  one class. They share `/policy`'s variant segmentation and the same family definition, so
+  one class. They split variants the same way and share the family definition, so
   `group-hover:` means one thing across the plugin — but they draw opposite conclusions from
   it, and correctly: this rule constrains a group-triggered colour, while that rule treats the
   hovered *ancestor* as the thing that must be interactive.
-- **The dynamic-prefix check itself lives in `/policy`**, even though `no-spectral-color` is
-  what emits it. The definition of "a colour prefix immediately before an interpolation"
-  therefore cannot drift between rules, and this rule's own extraction — which uses the same
-  module — draws its "a segment interrupted by an interpolation is never reassembled"
-  boundary in exactly the same place.
+- **The dynamic-prefix check is one definition for every rule**, even though
+  `no-spectral-color` is the one that reports it. What counts as "a colour prefix immediately
+  before an interpolation" therefore cannot differ between rules, and this rule's "a segment
+  interrupted by an interpolation is never reassembled" boundary sits in exactly the same
+  place.
 - **`no-component-color-override`** governs whether a colour class may be passed to a design
   system component at all. This rule governs which token that class may name. A
   `<Button className="text-muted">` can violate both.
@@ -971,14 +966,12 @@ output.
 
 There are four rather than three because there are four kinds: a prefix key and a variant key
 may each sit in `allowed` or in `denied`, and [Resolution](#resolution) says so explicitly —
-`"hover:"` in `allowed` beside `"group-hover:"` in `denied` validates, and both apply. An
-earlier draft of this section listed only three and left a denied variant family with no
-diagnostic to emit, which would have meant enforcing it silently or not at all. Neither is
-acceptable, so the fourth id is named here rather than invented at the call site.
+`"hover:"` in `allowed` beside `"group-hover:"` in `denied` validates, and both apply. A
+denied variant family needs its own diagnostic, or it would be enforced silently.
 
-**The message text is the only channel.** `meta.docs.url` is inert under Oxlint — absent from
-every CLI format — so a message cannot link a developer to this contract, and suggestions do
-not render either. Everything a developer needs to act must be in the text.
+**The message text is the only channel.** Oxlint shows no link to a rule's documentation in
+any output format, so a message cannot point a developer to this page, and suggestions do not
+show in CLI output either. Everything a developer needs to act must be in the text.
 
 ```
 messageId: prefixNotAllowed
@@ -1023,10 +1016,10 @@ guarantees one exists. The one case that does not — a prefix against an interp
 **Suggestions.** For each `*-suffix` pattern in the failing list, `prefix-colorPart-suffix`
 is a candidate token. A candidate is offered **only if it is in the semantic token set** —
 otherwise the suggestion is a guess that will not compile, and this rule already has a rule
-next door (`no-undefined-token`) that would report the result. Surviving candidates become
-`suggest` entries in pattern order and are also interpolated into `{{suggestion}}`, because
-suggestions do not render in any CLI output format. No suggestion is destructive, so
-suggestion ordering carries no `--fix-suggestions` hazard.
+next door (`no-undefined-token`) that would report the result. Surviving candidates are
+offered as editor suggestions in pattern order, and are also written into the message as
+`{{suggestion}}`, because suggestions do not show in CLI output. No suggestion is
+destructive, so accepting them with `--fix-suggestions` is safe.
 
 No autofix. Where more than one token satisfies the policy, choosing between them is design
 intent the rule cannot infer; where exactly one does, the suggestion already covers it

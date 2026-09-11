@@ -105,9 +105,9 @@ value inspection.
 ### Narrowing shorthands to value inspection
 
 `shorthandProperties: "value"` reports a shorthand only when its value can be *seen* to
-carry a colour, using the same matcher [`no-raw-color`](./no-raw-color.md) uses — the same
-148 names, the same function heads. Two rules asking "is there a colour in this string" and
-answering it separately is how they would come to disagree about one `border` declaration.
+carry a colour, recognising one exactly as [`no-raw-color`](./no-raw-color.md) does — the
+same named colours, the same colour functions — so the two rules never disagree about one
+`border` declaration.
 
 ```json options=baseline
 {}
@@ -192,11 +192,12 @@ Every offending property in a single block is reported separately:
 
 ## Routes that cannot reach this rule
 
-The corpus enumerates the routes a *class string* travels — `cn()` / `clsx()` / `twMerge()`
-arguments, `cva()` / `tv()` variant maps, joined arrays, `.ts` constants files. None of them
-can carry a `style` prop: a composition helper returns a class string, and a `style` object
-reaches an element only as a JSX attribute in a `.tsx` or `.jsx` file. They are not blind
-spots here, they are unreachable — the same reason this rule's `files` scope excludes `.ts`.
+The other rules follow the routes a *class string* travels — `cn()` / `clsx()` /
+`twMerge()` arguments, `cva()` / `tv()` variant maps, joined arrays, `.ts` constants files.
+None of them can carry a `style` prop: a composition helper returns a class string, and a
+`style` object reaches an element only as a JSX attribute in a `.tsx` or `.jsx` file. They
+are not blind spots here, they are unreachable — the same reason a `.ts` file, which has no
+JSX, cannot trigger this rule.
 
 The value written into a colour property is likewise not this rule's subject. `color: "red"`
 and `color: computeColor()` are the same violation, because the property is what defeats the
@@ -266,15 +267,14 @@ const theme = { color: "red", backgroundColor: "blue" };
 ## Declared blind spots
 
 Not caught, by decision. Each is either statically undecidable or belongs to a different
-rule. Listing them here means a future change that *starts* catching one will fail its
-assertion and force this document to be updated.
+rule. If a future version starts catching one, this list changes with it.
 
 ### Indirect style values
 
-The object does not appear at the call site. Resolving it would require cross-statement
-analysis, which decision A8 declined: bounded and declared beats the slide toward dataflow
-analysis, where every answer to *how many levels, which scopes* is arbitrary and gets
-re-argued in review. Revisit only if it shows up in practice.
+The object does not appear at the call site. Resolving it would mean following values
+across statements, which this linter deliberately does not do: once it starts, every answer
+to *how many levels, which scopes* is arbitrary. A bounded rule with its limits declared
+beats that.
 
 ```tsx blindspot
 const s = { color: "red" };
@@ -301,8 +301,8 @@ Object.assign(element.style, { color: "red" });
 
 ### CSS-in-JS
 
-No `styled-components` / Emotion usage exists in the target codebase. If that changes, this
-becomes a new rule rather than an extension of this one.
+Tagged-template CSS-in-JS (`styled-components`, Emotion) is out of scope. Supporting it
+would be a new rule rather than an extension of this one.
 
 ```tsx blindspot
 const Box = styled.div`
@@ -335,10 +335,12 @@ generated property name would be a guess.
 
 ## Configuration
 
-| Option | `recommended` default | Overriding it |
+Defaults below apply whenever you don't set an option.
+
+| Option | Default | Overriding it |
 | --- | --- | --- |
 | `allowTokenValues` | `false` | `true` permits `style={{ color: "var(--color-primary)" }}`. See below — the default is deliberate. |
-| `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its value can be seen to carry a colour, by the same matcher `no-raw-color` uses. Quieter, and misses `boxShadow: shadowVar` — a value this rule cannot read is not a colour under this mode. Asserted in [Narrowing shorthands to value inspection](#narrowing-shorthands-to-value-inspection). |
+| `shorthandProperties` | `"key"` | `"value"` flags a colour-capable shorthand only when its value can be seen to carry a colour, recognised exactly as `no-raw-color` recognises one. Quieter, and misses `boxShadow: shadowVar` — a value this rule cannot read is not a colour under this mode. Examples in [Narrowing shorthands to value inspection](#narrowing-shorthands-to-value-inspection). |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips, matched against the path Oxlint reports. Stories are where ad-hoc inline colour is most tempting and least harmful; a project that treats stories as production code sets this to `[]`. |
 
 **`var()` values are a violation by default.** `style={{ color: "var(--color-primary)" }}`
@@ -353,17 +355,14 @@ create a second, weaker way to do the same thing.
 `oxlint-disable`. Value inspection is available via `shorthandProperties: "value"` if the
 noise proves real.
 
-### Distribution
+### Setup
 
-This rule reads nothing from disk and resolves no path relative to the package. It needs no
-token set and no design-system resolution — the colour-property list is a fact about CSS,
-not about any project — which makes it the only rule of the nine with no required option.
+This rule does not use your token stylesheets — the CSS files that define your `--color-*`
+tokens, which you name once when you [set up the linter](../../README.md). Which properties
+apply a colour is a fact about CSS, not about your project, so it needs nothing from you.
 
-That has one consequence worth stating: the **options-replace-not-merge** footgun cannot
-silence this rule. A consumer writing `"design/no-style-color": "error"` to bump severity
-wipes the preset's options and falls back to `defaultOptions`, which is the recommended
-policy. Elsewhere that mistake produces zero diagnostics at exit 0; here it produces the
-correct behaviour.
+Changing only this rule's severity keeps its behaviour: options you don't write fall back to
+the defaults in the table.
 
 ## Deltas from the current implementation
 

@@ -16,9 +16,10 @@ Concretely: the `dark:` variant must not appear in application code, and neither
 
 The design system resolves themes in exactly one place: the `--color-*` custom properties in
 your token stylesheets — the CSS files that define your `--color-*` tokens, which you name
-once when you [set up the linter](../../README.md). `bg-card` is dark-mode-correct because `--color-card` has a
-dark value, and every component that uses it becomes correct at the same moment. A `dark:`
-variant opts one element out of that arrangement and re-decides the theme locally.
+once when you [set up the linter](../../README.md). `bg-card` is dark-mode-correct because
+`--color-card` has a dark value, and every component that uses it becomes correct at the
+same moment. A `dark:` variant opts one element out of that arrangement and re-decides the
+theme locally.
 
 The cost is not stylistic. Each `dark:bg-slate-800` is a theme fork that no token change can
 reach, that the next theme (high-contrast, a second brand) will not have an answer for, and
@@ -37,20 +38,21 @@ The `dark:` variant on any class, and any `light-dark()` that appears inside a c
 in any string the project authors.
 
 The rule is **context-free**: it asks "does this string carry a `dark:` segment or a
-`light-dark()` call?" and never needs to know which element the string reaches. It runs over
-the broad sweep — every string literal and every static template literal in a `.tsx`, `.ts`,
+`light-dark()` call?" and never needs to know which element the string reaches. It reads
+every string literal and the static text of every template literal in a `.tsx`, `.ts`,
 `.jsx` or `.js` file, regardless of position. `className` literals, `cn` / `clsx` / `twMerge`
 arguments, `cva` / `tv` variant maps and `.ts` object-literal constants are all in, for free.
 
-`dark` is matched **as a variant segment**, never as a substring. Segmentation comes from
-`/policy`, splits on `:` at bracket depth zero, and strips named-group suffixes — so
+`dark` is matched **as a variant segment**, never as a substring. A class is split into
+segments on `:` outside brackets, with named-group suffixes stripped — so
 `bg-dark-muted` is a token name, `[@media(prefers-color-scheme:dark)]:` is a single
 arbitrary-variant segment, and `md:dark:hover:` is three segments of which the second
 matches. Position in a stacked chain is therefore irrelevant by construction rather than by
 regex luck.
 
-`not-dark:` **is** caught. A3's inverse carve-out exists for `not-hover:`, where a `-hover`
-token would read backwards; there is no such reading here. `not-dark:` depends on the same
+`not-dark:` **is** caught. `token-constraints` leaves `not-hover:` out of the `hover` family
+because requiring a `-hover` token for the not-hovered state would read backwards; there is
+no such reading here. `not-dark:` depends on the same
 `.dark` root class this design system does not use, so it is the same fork seen from the
 other side.
 
@@ -146,8 +148,8 @@ const panel = cva("rounded", {
 const themeClass = { night: "dark:bg-black", day: "bg-white" };
 ```
 
-The remaining routes on the corpus list are the same string in a different wrapper, and the
-sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+The remaining routes are the same string in a different wrapper, and the rule does not need
+to understand the wrapper to find the string. A `twMerge()` argument, a `tv()` slot, an array joined at
 runtime, a props object spread onto an element, and an attribute on a line of its own are
 one string literal each.
 
@@ -183,8 +185,8 @@ real, and unlike an interpolated colour the rule's entire subject is visible in 
 
 Banned outright, tokens on both sides or not.
 
-This is the arbitrary-value class form — a class string in a `.tsx` file, reached by the same
-broad sweep as every other case above, and caught today. The same function written as a CSS
+This is the arbitrary-value class form — a class string in a `.tsx` file, read like every
+other case above, and caught today. The same function written as a CSS
 declaration is the deferred half; see
 [Deferred: CSS surface](#deferred-css-surface). Nothing about the argument changes between
 the two forms, only which file the text sits in.
@@ -258,9 +260,9 @@ it, and banning it would ban the design system's own switch.
 ### `light-dark()` inside the token-definition files
 
 The ban is on a *second* theming mechanism, and inside your token stylesheets there is no
-second one. That is where a `--color-*`
-property is given its per-theme value, and `light-dark()` is one legitimate way to write
-that. The same exemption `.dark &` gets in those files, for the same reason.
+second one. That is where a `--color-*` property is given its per-theme value, and
+`light-dark()` is one legitimate way to write that. The same exemption `.dark &` gets in
+those files, for the same reason.
 
 Nothing is exempt yet, and nothing needs to be: token stylesheets are CSS, and CSS files
 aren't linted yet, so nothing in them is reported. The exemption becomes load-bearing when
@@ -276,7 +278,7 @@ Not caught, by decision.
 ### The variant itself interpolated, or concatenated
 
 `dark:` is only caught when `dark` is statically a variant segment. An interpolated *variant*
-is not one, and `+` is not a template literal — the bare `"dark:"` the broad sweep sees is a
+is not one, and `+` is not a template literal — the bare `"dark:"` string the rule sees is a
 prefix with no class attached, and treating it as a violation would report a fragment rather
 than a defect.
 
@@ -288,7 +290,7 @@ than a defect.
 
 ### Use sites with no literal of their own
 
-The broad sweep catches the string where it is written, not where it is used.
+The rule catches the string where it is written, not where it is used.
 
 ```tsx blindspot
 <div className={THEME_CLASSES[mode]} />;
@@ -326,9 +328,8 @@ follows is something it has decided not to catch **yet**. The linter reads `.js`
 `.ts` and `.tsx` only, so the cases below are unenforced today and are recorded so that
 adding the CSS surface is an implementation task rather than a fresh design argument.
 
-The fenced blocks here are tagged `deferred`. The harness executes `caught`, `allowed` and
-`blindspot` blocks only, so nothing in this section asserts anything about the current
-implementation.
+The examples here are tagged `deferred`: they record the promise, and nothing checks them
+today.
 
 Read this section against the boundary drawn in [Promises to catch](#promises-to-catch):
 `light-dark()` **inside a class string** is caught today, and only the CSS-declaration form of
@@ -337,8 +338,8 @@ it waits here.
 ### `@apply` class lists
 
 `@apply dark:bg-card` is the same theme fork as `className="dark:bg-card"`, decided by the
-same segmentation. No entry point in the current package shape covers it, so the mechanism is
-an open choice; only the promise below is fixed.
+same segmentation. How `.css` files will be read is still open; only the promise below is
+fixed.
 
 ```css deferred
 .panel {
@@ -364,12 +365,12 @@ does not read.
 
 ### `.dark &` selectors and `prefers-color-scheme` blocks
 
-Inside `tokenFiles` these are the *implementation* of the theme — how `--color-card` gets a
+Inside your token stylesheets these are how the theme is defined — how `--color-card` gets a
 dark value — and a rule that flagged them would flag the design system itself. Outside those
 files, in a component stylesheet, they are the same offence as `dark:` and equally unwanted.
 That asymmetry, not the selector syntax, is the substance of the promise: when the CSS
-surface lands, selector-level dark theming reports outside `tokenFiles` and is silent inside
-them.
+surface lands, selector-level dark theming reports outside your token stylesheets and is
+silent inside them.
 
 ```css deferred
 .panel {
@@ -389,8 +390,8 @@ them.
 
 ### `light-dark()` inside the token-definition files
 
-The exemption above applies to `light-dark()` too: `tokenFiles` is where a `--color-*`
-property is given its per-theme value, and `light-dark()` is one legitimate way to write it.
+The exemption above applies to `light-dark()` too: your token stylesheets are where a
+`--color-*` property is given its per-theme value, and `light-dark()` is one legitimate way to write it.
 
 ```css deferred
 @theme {
@@ -419,8 +420,8 @@ property is given its per-theme value, and `light-dark()` is one legitimate way 
 
 ## Message
 
-The token file is named through `data`, never hardcoded — the consuming project decides
-where its tokens live.
+The message names your token stylesheet — the file in this rule's `tokenFiles` option —
+never a fixed path, because your project decides where its tokens live.
 
 ```
 messageId: darkVariant
@@ -449,10 +450,10 @@ name.
 
 ## Configuration
 
-Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
-consuming project overrides in its own config — none is a fact baked into the rule.
+Mechanism ships; policy is supplied. Every value below is the rule's default, and your own
+config can override any of them — each is a policy choice, not a fact about the mechanism.
 
-| Option | `recommended` | Overriding it |
+| Option | Default | Overriding it |
 | --- | --- | --- |
 | `flagNonColorUtilities` | `true` | `false` limits reporting to `dark:` on a class that sets a colour, which buys back the asset-swap idiom at the price of a per-utility boundary. The default is the widest reading, deliberately. |
 | `flagLightDark` | `true` | `false` allows `light-dark()` in an arbitrary value. A project that has genuinely chosen `light-dark()` *as* its theming mechanism sets this and stops using `--color-*` variants — the two are alternatives, not a spectrum. The same switch will govern the deferred CSS-declaration case. |
@@ -466,9 +467,9 @@ belongs to the preset.
 
 ### Distribution
 
-- **The rule reads no files and derives no path from its own location.** `tokenFiles` and
-  `ignoreGlobs` arrive through `options`; nothing is discovered, and the `.dark` class name
-  is never inferred from a Tailwind config on disk.
+- **The rule reads no files of its own.** Everything it needs is in its options or in what
+  the linter read from your token stylesheets at startup, and the `.dark` class name is
+  never inferred from a Tailwind config.
 - **Everything you configure goes in this rule's options**, not in `settings`, so nothing
   here depends on `settings` being inherited through `extends`. What
   `flagNonColorUtilities: false` needs to know — which utilities take a colour — the linter

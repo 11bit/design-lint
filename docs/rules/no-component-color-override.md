@@ -84,9 +84,9 @@ A prefix without a color value — `text-sm`, `border-2`, `shadow-md`, `divide-y
 ## How a component becomes watched
 
 **A JSX element is watched when its identifier was imported from a path matching a
-configured `componentSources` pattern.** Nothing is read from disk, no directory is
-scanned, and no path is derived from the plugin's own location — the information the rule
-needs is already in the file being linted.
+configured `componentSources` pattern.** No directory is scanned and no list of component
+names is kept — the information the rule needs is already in the file being linted: its
+imports.
 
 ```tsx
 componentSources: ["@/components/ui/*"]
@@ -94,18 +94,17 @@ componentSources: ["@/components/ui/*"]
 import { Card, CardHeader } from "@/components/ui/card";
 ```
 
-Three properties follow, and each replaces something that used to be a hole:
+Three properties follow:
 
-- **Compound members are free.** `CardHeader` is a named import like any other, so the
-  one-PascalCase-name-per-filename limit — the rule's largest live gap, which left
-  `<CardHeader>`, `<DialogFooter>`, and every other compound member unwatched — simply does
-  not arise.
+- **Compound members are watched.** `CardHeader` is a named import like any other, so
+  `<CardHeader>`, `<DialogFooter>`, and every other member of a compound component is
+  watched along with its parent.
 - **Nothing has to be kept in sync.** An explicit name list drifts the moment someone adds
   a component; a directory scan requires the consumer to have that directory, and this
   package ships to projects that do not.
-- **Import path, not identifier name, is the key.** An alias is followed (the binding is
-  what matters, not the spelling), and a locally declared `Button` that was never imported
-  is not watched.
+- **Import path, not identifier name, is the key.** A component renamed at the import site
+  (`import { Button as Btn }`) is still watched, and a locally declared `Button` that was
+  never imported is not.
 
 Precedent: `eslint-plugin-primer-react` resolves components the same way.
 
@@ -113,10 +112,9 @@ Precedent: `eslint-plugin-primer-react` resolves components the same way.
 
 A color class that statically reaches the `className` attribute of a watched component.
 
-The rule uses the **precise AST walk** (`/policy`'s context-dependent extractor), not the
-broad string sweep the token rules get: a class on `<Button>` means something different
-from the same class on `<div>`, so extraction has to know which element it is looking at.
-The walk resolves `className` on a specific element and unwraps `cn()` / `clsx()` /
+The rule looks only at the classes that reach a watched element's `className` — unlike the
+token rules, which check every class string in the file — because a class on `<Button>`
+means something different from the same class on `<div>`. It follows `cn()` / `clsx()` /
 `twMerge()` arguments **in any position**, at any nesting depth, including template
 literals.
 
@@ -259,9 +257,8 @@ classes is two offending classes and two reports.
 <Button className={isActive ? "bg-primary" : "bg-muted"} />
 ```
 
-**This resolves the migration plan's open question about `cn(className, "bg-primary")`.**
-The literal argument is caught; what the incoming `className` prop happens to hold is a
-[declared blind spot](#color-arriving-through-props).
+**In `cn(className, "bg-primary")`, the literal argument is caught**; what the incoming
+`className` prop happens to hold is a [declared blind spot](#color-arriving-through-props).
 
 ```tsx caught
 <Button className={cn(className, "bg-primary")} />
@@ -333,8 +330,8 @@ const TONES = { danger: "text-danger", ok: "text-success" };
 
 ### Aliased imports
 
-Matching is by binding, not by spelling, so renaming a watched component at the import site
-does not un-watch it.
+Matching follows the import, not the name, so renaming a watched component at the import
+site does not un-watch it.
 
 ```tsx caught
 import { Button as Btn } from "@/components/ui/button";
@@ -343,7 +340,7 @@ import { Button as Btn } from "@/components/ui/button";
 
 ### Namespaced components
 
-A member-expression tag matches when the object identifier is bound to a watched import, so
+A dotted tag like `<Card.Header>` matches when `Card` came from a watched import, so
 compound components are covered whether they are imported flat or as a namespace.
 
 ```tsx caught
@@ -482,13 +479,14 @@ color as a prop has made that an intentional part of its API.
 
 A `cva()` / `tv()` call is where the design system *declares* its colors, and declaring
 variants is the behaviour this rule exists to push people toward. It is also not a JSX
-element, and this rule matches JSX elements by import binding, so definitions fall outside
-it structurally as well as on the merits. Both halves of that answer point the same way,
-which is why this needs no special-casing.
+element, and this rule matches JSX elements by where they were imported from, so
+definitions fall outside it structurally as well as on the merits. Both halves of that
+answer point the same way, which is why this needs no special-casing.
 
-The token rules do see `cva()`, through the broad sweep — a variant defined with a spectral
-colour is as wrong as one used inline. The divergence between the two families is
-deliberate and documented once in `docs/rules/README.md` rather than rediscovered per rule.
+The token rules do check `cva()`, because they check every class string in the file — a
+variant defined with a spectral colour is as wrong as one used inline. The divergence
+between the two families is deliberate and described once in
+[the rules overview](./README.md) rather than rediscovered per rule.
 
 ```tsx allowed
 const badge = cva("inline-flex rounded", {
@@ -527,16 +525,14 @@ const TONE = { danger: "bg-red-500", ok: "bg-green-500" };
 <Button className={getClasses(tone)} />;
 ```
 
-The object-map case is the one the current line-wise scanner catches by accident, by
-extracting every string literal in the file rather than by connecting it to an element.
-That is a coincidence, not coverage: the same scan cannot tell whether the map is used on
-a `<Button>` or a `<div>`. Under the two-extractor split, the token rules keep catching
-`{ danger: "bg-red-500" }` as a forbidden *class*; nothing catches it as a forbidden
-*channel*, and that is the accepted line.
+The token rules still report `{ danger: "bg-red-500" }` as a forbidden *class*, because
+they check every string in the file. Nothing reports it as a forbidden *channel*, because
+nothing connects the map to the element it ends up on — it could as well be used on a
+`<div>` — and that is the accepted line.
 
 ### Dynamic `import()`
 
-Watching depends on a static import binding. A component pulled in through `import()` — or
+Watching depends on a static `import` statement. A component pulled in through `import()` — or
 `React.lazy(() => import(…))` — has no import specifier the rule can match against a
 pattern.
 
@@ -588,9 +584,9 @@ const C = condition ? Button : Card;
 ### Color reaching the component through CSS
 
 A CSS module class, a global stylesheet rule, or an `@apply` block targeting the
-component's rendered element is outside the JS surface. Oxlint JS plugins do not parse CSS;
-that surface belongs to the `/stylelint` entry point, which reads the same `/policy` module
-but has no notion of a JSX element to attribute the colour to.
+component's rendered element is outside what this rule can see: it reads JavaScript and
+TypeScript files, not CSS. Checking stylesheets is a separate surface, and a stylesheet has
+no JSX element to attribute the colour to.
 
 ```tsx blindspot
 import cardStyles from "./card.module.css";
@@ -616,9 +612,10 @@ import { Toaster } from "../components/ui/sonner";
 
 ### `.ts` files
 
-This rule keys on JSX opening elements, which `.ts` cannot contain. Class maps living in
-`.ts` constants files are therefore invisible to it by construction, and are covered — as
-classes, not as channel violations — by the token rules' broad sweep.
+This rule looks at JSX elements, which `.ts` cannot contain. Class maps living in `.ts`
+constants files are therefore invisible to it by construction, and are covered — as
+classes, not as channel violations — by the token rules, which check every class string in
+any file.
 
 ## Planned: matching where an import points
 
@@ -631,14 +628,15 @@ before asking whether it lies inside that directory. `#/components/ui/button`,
 `@/components/ui/button` and `../components/ui/sonner` would then be the same component,
 because they are the same file.
 
-- **Resolution happens at load, not in the rule.** The factory reads the project's alias
-  maps once — `compilerOptions.paths` in tsconfig and `imports` in package.json — and binds
-  them to the rule the way it binds the design system. The rule still reads no file.
+- **Aliases are read once, at startup.** The linter would read the project's alias maps —
+  `compilerOptions.paths` in tsconfig and `imports` in package.json — once, at startup, the
+  way it reads your token stylesheets. The rule itself would still read no file.
 - **The default comes from the project.** A shadcn project declares its component alias as
   `aliases.ui` in `components.json`; resolved through the alias maps, that is a folder, and
   no consumer has to spell anything.
 - **A wrong setting becomes detectable.** A folder either exists or it does not, so the
-  factory can throw on one that does not. A glob can only ever match nothing, silently.
+  linter can refuse to start on one that does not. A glob can only ever match nothing,
+  silently.
 - **A library exemption becomes expressible by location**, should one be wanted: a file
   inside the component folder styling its own components. Today's relative-import escape
   valve exempts by spelling, so it exempts nothing in a library that imports its siblings
@@ -646,18 +644,16 @@ because they are the same file.
   [Inside the component library itself](#inside-the-component-library-itself); this makes
   either answer implementable.
 
-What it costs: alias resolution (wildcard `paths`, `baseUrl`, `extends` chains, and
-`imports` conditions), a resolved alias map in the harness alongside the design system, and
-rewriting the cases in this contract that rely on the relative-import escape valve.
+What it costs: resolving aliases the way TypeScript and Node do (wildcard `paths`,
+`baseUrl`, `extends` chains, and `imports` conditions), and rewriting the cases in this
+contract that rely on the relative-import escape valve.
 
 ## Configuration
 
-Mechanism ships; policy is supplied. The colour-prefix set, the colour-value predicate, the
-import-binding resolution, and the precise AST walk are mechanism and are not configurable.
-Everything below is policy, shipped as a `recommended` default that a consuming project
-overrides.
+What counts as a colour class, how a component becomes watched, and how `className` is
+followed are fixed. Everything below is configurable, with the default shown.
 
-| Option | Type | `recommended` default | Overriding it |
+| Option | Type | Default | Overriding it |
 | --- | --- | --- | --- |
 | `componentSources` | `string[]` (glob patterns) | **none — required** | Which import sources make a component watched, spelled as the imports are written |
 | `ownedUtilities` | `string[]` (utility prefixes) | `[]` | Adds non-colour prefixes the design system also claims |
@@ -695,7 +691,7 @@ and [Planned: matching where an import points](#planned-matching-where-an-import
 ### `ownedUtilities`
 
 The configured answer to "are non-colour classes on a watched component flagged?" The
-`recommended` default is **no** — the option is empty. The line between "appearance the
+default is **no** — the option is empty. The line between "appearance the
 system owns" and "placement the caller owns" is real but not crisply expressible in
 general: `rounded-full` and `shadow-lg` on a `<Button>` are the same category of defect as
 a colour, while `mt-4`, `w-full`, and `absolute` genuinely are the caller's business.
@@ -713,8 +709,8 @@ Stories are where `<Badge className="bg-red-500">` is most likely to be a delibe
 illustration of something the design system does *not* offer. The rule skips any file
 matching `ignoreGlobs`, which defaults to `["**/*.stories.@(js|jsx|ts|tsx)"]` — the same
 option, with the same default, as every other rule in the package. A consumer lints stories
-like anything else by setting it to `[]`. The default is carried in the rule's
-`defaultOptions`, so a severity-only override does not bring stories back.
+like anything else by setting it to `[]`. Changing only the rule's severity keeps that
+default, so stories stay skipped.
 
 Note that no such exclusion exists for the component library. That is deliberate — see
 [Inside the component library itself](#inside-the-component-library-itself).
@@ -741,18 +737,16 @@ like success.
 naming the option, rather than running with nothing to watch. Failing loudly is the entire
 mitigation available at the rule level, and it is why the option has no default to fall
 back on: a guessed alias would turn this error back into silence. The
-[README](../../README.md) says how to spell it. An empty list in your linter setup is
-different: passing an empty list when you set up the linter turns this rule off. To change
-only the severity, re-pass `componentSources` alongside it.
+[README](../../README.md) says how to spell it. Passing an empty list when you set up the
+linter is different: it turns this rule off. To change only the severity, re-pass
+`componentSources` alongside it.
 
 ## Relationship to other rules
 
 - **`no-style-color`** owns the `style` channel, for every element, and its contract states
   explicitly that the two rules do not overlap. This rule therefore does **not** inspect
-  `style` on watched components — a divergence from the current implementation, which
-  reports raw colors in `style=` a second time under this rule's id. Under the split,
-  `<Button style={{ color: "#f00" }} />` reports from `no-style-color` and
-  `no-raw-color`, and not from here.
+  `style` on watched components: `<Button style={{ color: "#f00" }} />` reports from
+  `no-style-color` and `no-raw-color`, and not from here.
 - **`no-spectral-color`**, **`no-undefined-token`**, **`token-constraints`**, and
   **`no-raw-color`** fire on the *class*, wherever it appears. This rule fires on the
   *channel* — a design-system component's `className`. The two are orthogonal and
@@ -760,13 +754,14 @@ only the severity, re-pass `componentSources` alongside it.
   class and a forbidden mechanism, and fixing only one of them leaves a real defect.
   `<Button className="bg-primary" />` uses a perfectly good token and reports once, from
   here only.
-- **`no-useless-hover`** is the other JSX-scoped custom rule, and the two consume the same
-  precise AST walk. It reports on intrinsic tags only unless a project explicitly opts
+- **`no-useless-hover`** is the other JSX-scoped custom rule, and the two follow
+  `className` the same way. It reports on intrinsic tags only unless a project explicitly opts
   components in through its `nonInteractiveComponents` option, so by default the two never
   fire on the same element: `<Button className="hover:bg-primary" />` is this rule's
   business only.
-- **The token rules see `cva()`; this rule does not.** Same package, different extractor,
-  and the divergence is the intended one — see [Variant definitions](#variant-definitions).
+- **The token rules see `cva()`; this rule does not.** They check every class string in the
+  file; this rule checks only what reaches a watched component. The divergence is the
+  intended one — see [Variant definitions](#variant-definitions).
 
 ## Message
 
@@ -792,21 +787,19 @@ text:      "{{prefix}}-* is interpolated into className on <{{component}}> — a
 `` `bg-${tone}` `` → `bg`, `` `bg-red-${shade}` `` → `bg-red`.
 
 The second message names the escape hatch in its text rather than only reporting the
-violation, and it has to: suggestions do not render in any CLI output format, and
-`meta.docs.url` is dead under Oxlint, so the message is this rule's only channel to the
-developer.
+violation, and it has to: suggestions do not appear in any CLI output format, and Oxlint
+shows no link to this page, so the message is this rule's only channel to the developer.
 
 No autofix. The replacement is a variant name, which requires reading the component's
 variant map and deciding which appearance was actually intended.
 
 No suggestion. Offering "remove the class" would be destructive and would be applied
 without prompting as index 0 by `oxlint --fix-suggestions`. Offering a *list* of the
-component's variants was considered and rejected for v1: it would require the plugin to
-parse each component's `cva()` map at load time — which now also means reading files the
-rule is forbidden to read — and a suggestion is invisible on the CLI anyway, so the same
-information would have to be duplicated into the message text, at which point the message
-becomes unreadably long for a component with ten variants. Revisit once editor integration
-is verified in Phase 5.
+component's variants was considered and rejected for v1: it would require the linter to
+read each component's source to find its `cva()` map, and a suggestion is invisible on the
+CLI anyway, so the same information would have to be duplicated into the message text, at
+which point the message becomes unreadably long for a component with ten variants. Worth
+revisiting once editor integration is verified.
 
 ## Deltas from the current implementation
 

@@ -43,24 +43,24 @@ classes contributed by a plugin — the rule stays silent.
 
 A class under a colour-carrying prefix that the Tailwind design system built from your token
 stylesheets — the CSS files that define your `--color-*` tokens, which you name once when
-you [set up the linter](../../README.md) — generates no CSS for. Variants, the important modifier and the
-opacity modifier are stripped before resolution: they change when a declaration applies, not
-whether one exists. Stripping is **segment-aware** and respects bracket depth, so
+you [set up the linter](../../README.md) — generates no CSS for. Variants, the important
+modifier and the opacity modifier are stripped before resolution: they change when a
+declaration applies, not whether one exists. Stripping is **segment-aware** and respects bracket depth, so
 `bg-[image:var(--x)]` is never split at its inner colon and `[@media(hover:hover)]:` is one
 variant segment rather than two.
 
 The rule is **context-free**: it asks "does this string resolve?" and never needs to know
-which element the string reaches. It runs over the broad sweep — every string literal and
-every static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless of
-position. `className` literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant maps
-and `.ts` object-literal constants are all in, for free.
+which element the string reaches. It checks every string literal and every static template
+literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless of position. `className`
+literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant maps and `.ts`
+object-literal constants are all in, for free.
 
-Of the four rules on this sweep, this one has the strongest claim on the `.ts` surface: a
-constants file is where a token name is written once, far from the element it styles, and
-where a typo survives longest.
+Of the rules that check every string in a file, this one has the strongest claim on `.ts`
+files: a constants file is where a token name is written once, far from the element it
+styles, and where a typo survives longest.
 
-Two gates keep the breadth quiet, and both come from `/policy`. The class must sit under a
-**derived** colour-carrying prefix — derived from the Tailwind design system, which is how
+Two gates keep the breadth quiet. The class must sit under a **derived** colour-carrying
+prefix — derived from the Tailwind design system, which is how
 `inset-ring-` and every per-side border family arrive without a hand-maintained list — and
 it must fail to generate CSS. A string that is not a class satisfies neither.
 
@@ -146,13 +146,14 @@ const tone = "text-secondary";
 <Chart palette="text-secondary" />
 ```
 
-The last one is the accepted cost of a context-free sweep: a string that looks exactly like
-an undefined colour token, in a position where it may never reach a `className`. It reports
-anyway. The alternative — a precise walk — would cost the `.ts` constants surface, which is
-the more valuable half; `oxlint-disable` is the escape hatch.
+The last one is the accepted cost of checking every string regardless of where it sits: a
+string that looks exactly like an undefined colour token, in a position where it may never
+reach a `className`. It reports anyway. The alternative — checking only strings that reach a
+`className` — would cost the `.ts` constants files, which are the more valuable half;
+`oxlint-disable` is the escape hatch.
 
-The remaining routes on the corpus list are the same string in a different wrapper, and the
-sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
+The remaining routes are the same string in a different wrapper, and the rule does not need
+to understand the wrapper to see the string. A `twMerge()` argument, a `tv()` slot, an array joined at
 runtime, a props object spread onto an element, and an attribute on a line of its own are
 one string literal each.
 
@@ -238,8 +239,8 @@ defined — no static check can tell. Raw literals inside brackets belong to
 
 ### Strings that cannot be a class
 
-The broad sweep hands the rule every string in the file; the gates discard the ones that
-cannot be a colour class. A path is a single whitespace-delimited token that starts with `/`,
+The rule looks at every string in the file; the two gates discard the ones that cannot be a
+colour class. A path is a single whitespace-delimited token that starts with `/`,
 so no prefix matches it.
 
 ```tsx allowed
@@ -248,15 +249,15 @@ so no prefix matches it.
 fetch("/api/border-radius");
 ```
 
-Prose is the one shape where the broad sweep pulls against `bias: false-negatives`: a
+Prose is the one shape where checking every string pulls against `bias: false-negatives`: a
 sentence containing a hyphenated word under a colour prefix — `"text-heavy layouts"` —
 tokenises to `text-heavy`, which resolves to nothing and would report. For the rule that
 asserts *"this class does nothing"*, a false positive is the linter confidently calling
 working prose broken, which is precisely the failure the bias exists to prevent.
 
-**Mitigated in `/policy` by an all-segments test.** A string is treated as a class list only
-when *every* whitespace-separated segment is class-shaped. This costs nothing on the
-surfaces the sweep exists for and removes the prose shape entirely:
+**Mitigated by an all-segments test.** A string is treated as a class list only when
+*every* whitespace-separated segment is class-shaped. This costs nothing on the class
+strings the rule exists for and removes the prose shape entirely:
 
 ```
 "text-heavy layouts"     → "layouts" is not class-shaped → not a class list → silent
@@ -269,7 +270,7 @@ const copy = "text-heavy layouts";
 ```
 
 "Class-shaped" is itself a question only the design system can answer, which is why the test
-lives beside it: `flex` and `layouts` are both plain words, and nothing short of Tailwind
+asks Tailwind: `flex` and `layouts` are both plain words, and nothing short of Tailwind
 distinguishes the one that generates CSS from the one that does not. A segment counts as
 class-shaped when it generates CSS *or* sits under a colour-carrying prefix with something
 after it — the second half is what keeps the undefined classes this rule exists for from
@@ -283,8 +284,8 @@ construction, and reporting it is correct behaviour rather than a false positive
 const cls = "text-heavy";
 ```
 
-The alternative — narrowing the sweep itself — was rejected: it would cost the `.ts`
-constants surface, which is the reason the sweep exists.
+The alternative — checking fewer strings — was rejected: it would cost the `.ts` constants
+files, which are the reason the rule checks every string.
 
 ## Declared blind spots
 
@@ -306,8 +307,8 @@ would name the same character span twice with the same fix.
 
 ### Use sites with no literal of their own
 
-The broad sweep catches the string where it is *written*, which is what closes the `.ts`
-constants gap. What it cannot do is report the place the string is *used*, because no class
+The rule catches the string where it is *written*, which is what covers `.ts` constants
+files. What it cannot do is report the place the string is *used*, because no class
 appears there.
 
 ```tsx blindspot
@@ -328,7 +329,7 @@ separate diagnostic.
 <div className="darkk:bg-primary" />
 ```
 
-### Tokens defined outside the resolver's reach
+### Tokens defined outside your token stylesheets
 
 A `--color-*` added by a Tailwind plugin, or in a stylesheet that is neither one of your
 token stylesheets nor something they import, resolves as undefined and would be a false
@@ -340,11 +341,10 @@ complete is a configuration responsibility, not something the rule can detect.
 If the design system cannot be loaded — or if the linter was never given your token
 stylesheets — linting must **error out**, not fall silent. A rule that reports nothing
 looks identical to a codebase with no violations, and this is the one rule in the set whose
-entire output depends on an external resolution step succeeding. It is also the gate for
-`token-constraints`, so a silent failure here quietly weakens two rules rather than one.
+entire output depends on Tailwind reading your stylesheets successfully. It is also the gate
+for `token-constraints`, so a silent failure here quietly weakens two rules rather than one.
 
-This is a promise about the failure mode rather than a case, and it is stated here because
-the proof of concept did the opposite.
+This is a promise about the failure mode rather than a case.
 
 The linter reads your token stylesheets once, at startup, with the same Tailwind engine your
 build uses, and every rule works from what it found: which colour tokens you define, and
@@ -362,9 +362,8 @@ follows is something it has decided not to catch **yet**. The linter reads `.js`
 `.ts` and `.tsx` only, so the case below is unenforced today and is recorded so that adding
 the CSS surface is an implementation task rather than a fresh design argument.
 
-The fenced block here is tagged `deferred`. The harness executes `caught`, `allowed` and
-`blindspot` blocks only, so nothing in this section asserts anything about the current
-implementation.
+The example here is tagged `deferred`: it documents planned coverage, and nothing in this
+section is checked today.
 
 The distinction matters more for this rule than for its neighbours, because its subject is an
 absence. "No report" already looks like "no violations", and the one thing this contract
@@ -375,7 +374,7 @@ than silence.
 
 A class list under `@apply` resolves — or fails to resolve — through the same design system,
 so the verdict for `@apply bg-danger-muted` is already decided; only the surface is missing.
-No entry point in the current package shape covers it, so the mechanism is an open choice.
+How the linter will read CSS files is not decided yet.
 
 ```css deferred
 .alert {
@@ -433,19 +432,12 @@ that guess will be wrong often enough to be worse than a slightly over-general s
 clause. Both messages therefore lead with "check the spelling", which is correct in both
 cases, and offer the token hint after it.
 
-The second id is chosen by a *fact* rather than a guess: whether the design system had a
-near-miss token to name. `undefinedColorTokenWithCandidate` is the same sentence with the
-candidates spliced into the clause the reader is already being pointed at, which is where
-the retired Phase 4's acceptance criterion (below) requires them to be. The alternative —
-one id with a `{{didYouMean}}` slot that is sometimes the empty string — puts the sentence's
-own punctuation in `data` and reads as a bug the first time someone greps for it.
-
-> **Revised in Phase 5.** This section said "one message id, not two", which read as a rule
-> about the *count* rather than about the heuristic it was rejecting — and it contradicted
-> the acceptance criterion three paragraphs below, which requires a candidate the specified
-> `data` had no field for. The prohibition is on selecting an id by guessing at the author's
-> intent; a second id selected by whether a candidate exists breaks nothing it was
-> protecting. `no-spectral-color` already carries the same pair for the same reason.
+The second id is chosen by a *fact* rather than a guess: whether one of your tokens is a
+near miss for the one written. `undefinedColorTokenWithCandidate` is the same sentence with
+the candidates spliced into the clause the reader is already being pointed at. The
+alternative — one message with a "did you mean" slot that is sometimes empty — leaves a
+sentence whose punctuation is sometimes wrong. `no-spectral-color` carries the same pair
+for the same reason.
 
 Candidates come from the **semantic token set** — the colour tokens your token stylesheets
 define, read at the same time as the design system — not from the design system's full
@@ -455,30 +447,23 @@ author a class `no-spectral-color` then forbids, which is the partition between 
 rules breaking from the inside.
 
 No autofix. A suggestion per near-miss token is offered where a candidate exists, ordered by
-edit distance; none of them is destructive, so any may sit at index 0. The token set is the
-only optional input here: without it the rule still answers its own question and loses only
-the hint, so its absence is not the thrown error a missing design system is.
+edit distance; none of them is destructive, so any may be listed first.
 
-### Acceptance criterion (retired Phase 4)
+### Candidates are in the message text
 
-**The typo candidate must reach the message text via `data`.** Suggestions do not render in
-any CLI output format, and `meta.docs.url` is dead under Oxlint, so the message text is the
-only channel. Emitting candidates only as a suggestion would make the CLI experience *worse*
-than today's, which prints the token name and the `--color-*` hint inline.
-
-This is a criterion, not a preference, and owning the rule is what makes it cheap to meet:
-the candidate list comes from the token set the rule's own load step already resolved, and
-interpolating it into `{{...}}` is a decision this contract gets to make rather than one it
-has to discover. What is verified is the rendered text, not the suggestion payload — the
-rule's own test asserts the string a terminal prints, and `locations.test.js` asserts the
-payload separately.
+**The near-miss tokens appear in the message itself, not only as editor suggestions.**
+Suggestions do not render in any CLI output format, and Oxlint does not show a rule's
+documentation link, so the message text is the only thing every reader sees. Offering
+candidates only as a suggestion would leave someone reading terminal or CI output with
+nothing but the token name. The editor quick-fix is an addition to the message, never a
+substitute for it.
 
 ## Configuration
 
-Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
-consuming project overrides in its own config — none is a fact baked into the rule.
+Mechanism ships; policy is supplied. Every value below is the rule's own default, which a
+project overrides in its own config — none is a fact baked into the rule.
 
-| Option | `recommended` | Overriding it |
+| Option | Default | Overriding it |
 | --- | --- | --- |
 | `entryPoint` | `"src/styles.css"` | Decides which file the hint tells you to add a token to ("add `--color-x` to …"); it doesn't change what the rule checks. The recommended setup fills it in with your first token stylesheet. The tokens themselves come from your token stylesheets, which no option of this rule affects — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
 | `colorPrefixes` | derived from the design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid. |
@@ -490,8 +475,7 @@ that does not exist. There is no policy position on the other side of it.
 
 ### Distribution
 
-- **The rule reads no files while linting and derives no path from where it is installed.**
-  The linter reads your token stylesheets once, at startup, with the same Tailwind engine
+- **The rule reads no files of its own.** The linter reads your token stylesheets once, at startup, with the same Tailwind engine
   your build uses, and every rule works from what it found: which colour tokens you define,
   and which utilities take a colour. Linting a file costs no filesystem access.
 - **Your token stylesheets are named once, when you set up the linter** — not per rule.

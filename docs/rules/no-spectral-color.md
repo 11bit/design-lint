@@ -19,9 +19,8 @@ design system's entire premise is that colour is addressed semantically — `bg-
 spectral class is a private fork of the palette embedded in a component.
 
 The replacement is always a semantic token. Where the mapping is known, the rule's
-`replacement` option records it — supplied by the consuming project, defaulted by the
-`recommended` preset — and the diagnostic must name the token rather than leave the
-developer to guess.
+`replacement` option records it — the rule ships a default map, and your project can supply
+its own — and the diagnostic must name the token rather than leave the developer to guess.
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
@@ -34,11 +33,11 @@ Any class whose colour value comes from a Tailwind palette family, in any string
 authors.
 
 The rule is **context-free**: it asks "is this string a forbidden class?" and never needs to
-know which element the string reaches. It therefore runs over the broad sweep — every string
-literal and every static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless
-of the position it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments,
-`cva` / `tv` variant maps and `.ts` object-literal constants all fall in for free, because
-the strings are simply there and no special-case plumbing distinguishes them. Interpolated
+know which element the string reaches. It therefore checks every string literal and every
+static template literal in a `.tsx`, `.ts`, `.jsx` or `.js` file, regardless of the position
+it occupies. `className` literals, `cn` / `clsx` / `twMerge` arguments, `cva` / `tv` variant
+maps and `.ts` object-literal constants are all covered, because the rule does not care what
+surrounds a string. Interpolated
 template literals are scanned for complete classes in their static text, and for a colour
 prefix left dangling against an interpolation (see
 [Dynamically assembled class names](#dynamically-assembled-class-names)).
@@ -47,14 +46,15 @@ Precision is not what keeps this quiet. The gate is a name in the theme's `--col
 namespace, under a colour-carrying prefix, that is Tailwind's own stock palette rather than
 the project's — and a random string cannot accidentally satisfy all three. Which names are
 the project's is itself a subtraction: the namespace minus what a bare `@import "tailwindcss"`
-defines. So a token defined in a stylesheet the token file imports is the project's, a shared
-token package is the project's, and redefining `--color-red-500` does **not** make
-`bg-red-500` the project's — the name is still stock palette whatever colour it now holds. Stating it as a *subtraction*
-rather than as a family-plus-scale pattern is what makes the allow list below fall out
-instead of being enumerated: `text-sm` and `border-2` are not colours at all, `transparent`
-and `current` are keywords Tailwind handles rather than theme colours, and `bg-brand` is a
-name this project defined. The accepted cost is the string that *is* a palette class but never reaches a
-`className` — a chart series colour, a prop on a non-DOM component. It reports anyway. Under
+defines. So a token defined in a stylesheet your token stylesheets import is the project's, a
+shared token package is the project's, and redefining `--color-red-500` does **not** make
+`bg-red-500` the project's — the name is still stock palette whatever colour it now holds.
+Stating it as a *subtraction* rather than as a family-plus-scale pattern is what makes the
+allow list below fall out instead of being enumerated: `text-sm` and `border-2` are not
+colours at all, `transparent` and `current` are keywords Tailwind handles rather than theme
+colours, and `bg-brand` is a name this project defined. The accepted cost is the string that
+*is* a palette class but never reaches a `className` — a chart series colour, a prop on a
+non-DOM component. It reports anyway. Under
 `bias: false-positives` that is the deliberate trade, and `oxlint-disable` is the escape
 hatch.
 
@@ -132,8 +132,8 @@ and the least likely to be noticed in review.
 
 ### Compound and nested prefixes
 
-The palette name is not always the second segment. Detection must scan for a family name
-followed by a scale anywhere in the class, not parse a fixed prefix.
+The palette name is not always the second segment. It is caught after any colour-carrying
+prefix, including the directional and compound ones.
 
 ```tsx caught
 <div className="border-t-red-500" />
@@ -201,7 +201,7 @@ to weaken the rule — and to name the overlay colour as a token. See
 
 ### Wherever class strings are authored
 
-Position is irrelevant. These are all just strings to the broad sweep.
+Position is irrelevant. The rule reports the string wherever it is written.
 
 ```tsx caught
 <div className={cn("bg-red-500", className)} />
@@ -233,10 +233,9 @@ const button = cva("rounded", {
 const badgeColor = { danger: "bg-red-500", ok: "bg-green-500" };
 ```
 
-The remaining routes on the corpus list are the same string in a different wrapper, and the
-sweep does not parse wrappers. A `twMerge()` argument, a `tv()` slot, an array joined at
-runtime, a props object spread onto an element, and an attribute on a line of its own are
-one string literal each.
+Other wrappers make no difference either. A `twMerge()` argument, a `tv()` slot, an array
+joined at runtime, a props object spread onto an element, and an attribute on a line of its
+own are one string literal each.
 
 ```tsx caught
 <div className={`bg-red-500`} />
@@ -335,8 +334,8 @@ span from two rules with two different fixes.
 
 ### Interpolation under a prefix that carries no colour
 
-The A7b gate is the prefix, not the backtick. A template literal whose interpolation sits
-under a non-colour utility is ordinary code.
+What triggers the report is the colour prefix, not the backtick. A template literal whose
+interpolation sits under a non-colour utility is ordinary code.
 
 ```tsx allowed
 <div className={`p-${size}`} />
@@ -346,8 +345,8 @@ under a non-colour utility is ordinary code.
 
 ### Strings that are not classes
 
-The broad sweep hands the rule every string in the file; the gate discards the ones that
-cannot be a palette class. A family name with no prefix is not a class, and a path is a
+The rule looks at every string in the file, and reports only the ones that can be a palette
+class. A family name with no prefix is not a class, and a path is a
 single whitespace-delimited token that starts with neither.
 
 ```tsx allowed
@@ -373,8 +372,8 @@ Not caught, by decision.
 ### String concatenation
 
 The `+` operator is not a template literal, so the prefix and the interpolation are two
-unrelated expressions rather than one string with a hole in it. A7b's gate does not reach
-it, and reconstructing it would be the first step of dataflow analysis.
+unrelated expressions rather than one string with a hole in it. The rule does not join them
+back together, which would mean tracking values from one expression to another.
 
 ```tsx blindspot
 <div className={"bg-" + tone} />
@@ -384,8 +383,8 @@ it, and reconstructing it would be the first step of dataflow analysis.
 
 ### Use sites with no literal of their own
 
-The broad sweep catches the string where it is *written*, which is what closes the `.ts`
-constants gap. What it cannot do is report the place the string is *used*, because no class
+The rule catches the string where it is *written*, which is why `.ts` constants files are
+covered. What it cannot do is report the place the string is *used*, because no class
 appears there. This matters when the definition lives outside the linted file set.
 
 ```tsx blindspot
@@ -411,15 +410,13 @@ follows is something it has decided not to catch **yet**. The linter reads `.js`
 `.ts` and `.tsx` only, so the cases below are unenforced today and are recorded so that
 adding the CSS surface is an implementation task rather than a fresh design argument.
 
-The fenced blocks here are tagged `deferred`. The harness executes `caught`, `allowed` and
-`blindspot` blocks only, so nothing in this section asserts anything about the current
-implementation.
+The examples here describe planned behaviour; none of them is checked today.
 
 ### `@apply` class lists
 
 A palette class reached through `@apply` is the same violation as one written in a
-`className`, and the same policy decides it. No entry point in the current package shape
-covers it, so the mechanism is an open choice; only the promise below is fixed.
+`className`, and the same policy decides it. How it will be checked is still open; only the
+promise below is fixed.
 
 ```css deferred
 .card {
@@ -462,9 +459,9 @@ surface, your token stylesheets are exempt wholesale.
 
 ## Message
 
-Two ids for the static case, because the replacement map covers only part of the palette and
-a message cannot be conditional. The token file is named through `data`, never hardcoded —
-the consuming project decides where its tokens live.
+Two messages for the static case, because the replacement map covers only part of the
+palette. The second names the file set by `tokenFiles` rather than a fixed path — your
+project decides where its tokens live.
 
 ```
 messageId: spectralColorWithReplacement
@@ -479,7 +476,7 @@ text:      "{{className}} — spectral color class; use a semantic token from {{
             instead of the {{family}} palette"
 ```
 
-A third id for the dynamic case, which this rule owns.
+A third message for the dynamic case, which this rule owns.
 
 ```
 messageId: dynamicColorClass
@@ -494,9 +491,8 @@ the one diagnostic here with no correct token to suggest, so without the alterna
 text it reads as "you may not do this" with no way forward.
 
 Ownership sits here because the colour prefix is the visible half of the defect and the
-escape hatch the message names is this rule's standing recommendation everywhere else. The
-rule is authored in-house, so nothing about detecting a prefix standing against an
-interpolation is out of reach. `no-undefined-token`, `no-opacity-modifier` and
+escape hatch the message names is this rule's standing recommendation everywhere else.
+`no-undefined-token`, `no-opacity-modifier` and
 `no-dark-variant` stay silent on `` `bg-${tone}-500` `` so that one unknowable string yields
 one report.
 
@@ -510,20 +506,18 @@ index 0 unprompted.
 
 ## Configuration
 
-Mechanism ships; policy is supplied. Every value below is a `recommended` preset default the
-consuming project overrides in its own config — none is a fact baked into the rule.
+Mechanism ships; policy is supplied. Every value below is the rule's default, and each is
+policy your own config can override rather than a fact the rule depends on.
 
-| Option | `recommended` | Overriding it |
+| Option | Default | Overriding it |
 | --- | --- | --- |
 | `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
 | `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
 | `tokenFiles` | `["src/styles.css"]` | Decides which file the `spectralColor` message points you to; it doesn't change what the rule checks. The recommended setup fills it in with your token stylesheets. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 
-The `replacement` map is a plain rule option, read from `options` at load like every other
-value in the table. There is no generated config and no build step: the rule is ours, so the
-map is data it reads rather than 27 patterns something has to bake into `.oxlintrc` from the
-policy file and keep in sync.
+The `replacement` map is an ordinary rule option like every other value in the table: you
+write it in your lint config, and there is no generated file or build step to keep in sync.
 
 ### Distribution
 
@@ -538,11 +532,9 @@ policy file and keep in sync.
   don't write fall back to the defaults in the table, and the tokens read at startup are
   unaffected. The one visible change is that the message names `src/styles.css` instead of
   your token stylesheet.
-- **`replacement` is the one default that cannot live in `meta.defaultOptions`.** Oxlint
-  merges those **deeply** for an object-valued option, so a consumer supplying a map with
-  `text` deliberately left out would get the default's `text` entries back and never learn
-  why. Booleans and arrays are replaced whole and are safe there; the map is defaulted
-  inside the rule, where "no map supplied" and "this map" are the only two outcomes.
+- **A `replacement` map you supply replaces the default whole.** Leave `text` out of your
+  map and no `text-` class gets a suggested token; none of the default's entries come back.
+  Either you supply no map and get the default, or you supply one and get exactly that.
 
 ## Deltas from the current implementation
 
