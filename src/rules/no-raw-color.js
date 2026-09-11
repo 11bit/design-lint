@@ -20,7 +20,7 @@ import { parseClass } from "../policy/variants.js";
  * ## Two enforcement models, because each covers the other's hole
  *
  * **Context-scoped.** Every channel that is known to carry a colour must resolve it through
- * a token: a colour-carrying SVG presentation attribute, a colour-carrying `style`
+ * a token: a colour attribute on any element or component, a colour-carrying `style`
  * property, the bracket of a colour-carrying Tailwind utility. Inside a delimited context
  * like these, a bare `red` is unambiguously a colour, which is the only way the 148 named
  * colours can be enforced at all — matching them as bare words anywhere would flag
@@ -254,8 +254,9 @@ export default {
           return;
         }
 
-        // SVG presentation attributes, in either spelling — `stopColor` and `stop-color`
-        // are the same attribute and `normalizeProperty` inside `colorProperty` knows it.
+        // Colour attributes, in either spelling — `stopColor` and `stop-color` are the same
+        // attribute and `normalizeProperty` inside `colorProperty` knows it. The name decides,
+        // not the element: `<Badge color="red">` is as much a colour as `<rect fill="red">`.
         // Only the colour-*only* reading applies here: an attribute named `mask` or `src`
         // takes an address rather than a colour, and the shorthand half of that list is a
         // fact about `style` properties rather than about SVG.
@@ -269,7 +270,7 @@ export default {
           const value = staticString(leaf);
           if (value === null) continue;
           const found = firstRawColor(value, matching);
-          if (found) report(leaves.length === 1 ? { node } : { node: leaf }, found, "an SVG attribute");
+          if (found) report(leaves.length === 1 ? { node } : { node: leaf }, found, "a color attribute");
         }
       },
 
@@ -345,11 +346,25 @@ function arbitraryValue(className, colorPrefixes) {
   const close = base.lastIndexOf("]");
   if (close <= open) return null;
 
+  const inner = base.slice(open + 1, close);
+
+  // An arbitrary property, `[color:#f00]`, has no utility prefix: the property it names is
+  // the context, so it is judged when that property carries a colour.
+  if (open === 0 && close === base.length - 1) {
+    const colon = inner.indexOf(":");
+    if (colon <= 0 || !colorProperty(inner.slice(0, colon))) return null;
+    return unescapeArbitrary(inner.slice(colon + 1));
+  }
+
   const prefix = base.slice(0, open).replace(/-$/, "");
   if (!prefix || !startsWithPrefix(prefix, colorPrefixes)) return null;
 
-  return unescapeArbitrary(base.slice(open + 1, close));
+  // A type hint, `text-[color:#f00]`, tells Tailwind which property the value is for; the
+  // value is what follows it.
+  return unescapeArbitrary(inner.replace(TYPE_HINT, ""));
 }
+
+const TYPE_HINT = /^[a-z-]+:/;
 
 /**
  * A Tailwind arbitrary value, spelled as the CSS it stands for.
