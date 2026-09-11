@@ -251,41 +251,24 @@ fetch("/api/border-radius");
 
 Prose is the one shape where checking every string pulls against `bias: false-negatives`: a
 sentence containing a hyphenated word under a colour prefix — `"text-heavy layouts"` —
-tokenises to `text-heavy`, which resolves to nothing and would report. For the rule that
-asserts *"this class does nothing"*, a false positive is the linter confidently calling
-working prose broken, which is precisely the failure the bias exists to prevent.
+tokenises to `text-heavy`, which resolves to nothing and reports. The rule accepts that.
 
-**Mitigated by an all-segments test.** A string is treated as a class list only when
-*every* whitespace-separated segment is class-shaped. This costs nothing on the class
-strings the rule exists for and removes the prose shape entirely:
+**Each word is judged on its own.** The alternative — checking a string only when every word
+in it is a Tailwind class — keeps prose out, but it also switches the rule off for any class
+string that holds a word Tailwind does not generate CSS for. That is most of them: `group`
+and `peer` generate none, and neither does a project's own `card` or `my-button`. A typo
+beside one of those is still a typo.
 
-```
-"text-heavy layouts"     → "layouts" is not class-shaped → not a class list → silent
-"bg-primary text-white"  → every segment class-shaped    → class list      → checked
-"text-heavy"             → single class-shaped segment   → class list      → reported
-```
+```tsx caught
+<div className="group flex text-secondry" />
 
-```tsx allowed
+<div className="card bg-nonesuch" />
+
 const copy = "text-heavy layouts";
 ```
 
-"Class-shaped" is itself a question only the design system can answer, which is why the test
-asks Tailwind: `flex` and `layouts` are both plain words, and nothing short of Tailwind
-distinguishes the one that generates CSS from the one that does not. A segment counts as
-class-shaped when it generates CSS *or* sits under a colour-carrying prefix with something
-after it — the second half is what keeps the undefined classes this rule exists for from
-disqualifying their own string.
-
-The residual is a single-word string that is class-shaped and undefined — `"text-heavy"`
-alone, with no sentence around it. That is indistinguishable from a real typo'd class by
-construction, and reporting it is correct behaviour rather than a false positive.
-
-```tsx caught
-const cls = "text-heavy";
-```
-
-The alternative — checking fewer strings — was rejected: it would cost the `.ts` constants
-files, which are the reason the rule checks every string.
+The last one is prose. It is rare — the word has to start with a colour prefix and be
+hyphenated — and when it happens, `oxlint-disable-next-line` on the line is the answer.
 
 ## Declared blind spots
 

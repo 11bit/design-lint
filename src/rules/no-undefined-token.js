@@ -1,5 +1,5 @@
 import { sweepVisitors } from "../extract/index.js";
-import { colorPrefixOf, isClassList } from "../policy/class-list.js";
+import { colorPrefixOf } from "../policy/class-list.js";
 import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
 import { parseClass } from "../policy/variants.js";
@@ -35,9 +35,11 @@ import { parseClass } from "../policy/variants.js";
  * here says "this class is forbidden", which a reader can verify by looking at it. This one
  * says "this class does nothing", which a reader cannot verify without running Tailwind, so
  * a false positive is not noise — it is the rule confidently asserting something false
- * about working code. Hence the arbitrary-value skip, the dynamic-token skip, and the
- * all-segments class-list test in `/policy` that keeps a hyphenated word in a sentence from
- * being read as a class.
+ * about working code. Hence the arbitrary-value skip and the dynamic-token skip. Each word is
+ * judged on its own, though, rather than only strings made entirely of classes: that test
+ * kept prose out, but it also switched the rule off for every class string holding `group`
+ * or a project's own class, which is most of them. A colour-prefixed word in a sentence is
+ * the accepted cost.
  *
  * ## Silence is the one thing it must never do by accident
  *
@@ -118,24 +120,17 @@ export default {
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     return sweepVisitors((source) => {
-      const found = classTokens(source);
-
-      // Prose, not a class list. One segment that could not be a class is enough: a
-      // sentence is the shape this rule most has to stay out of, and a class string that
-      // mixes in a word Tailwind has never heard of is a false negative the contract
-      // accepts by name.
-      if (!isClassList(found, resolved, prefixes)) return;
-
-
-      for (const token of found) {
+      // Each word is judged on its own, whatever else the string holds. A class string that
+      // mixes in `group` or a project's own `card` is still a class string, and the typo
+      // beside them is still a typo. The cost is a colour-prefixed word in prose —
+      // "a text-heavy layout" — which the contract accepts by name.
+      for (const token of classTokens(source)) {
         // Every token advances the cursor, reported or not, so a class written twice in one
         // string is located twice rather than resolving to its first occurrence both times.
         const range = token.range;
 
         // A class built around an interpolation is not a class this rule has seen, and it
-        // cannot say "generates no CSS" about something it never read. The defect is real
-        // and `no-spectral-color` reports it once, under the prefix standing against the
-        // hole.
+        // cannot say "generates no CSS" about something it never read.
         if (token.dynamic) continue;
 
         const { base } = parseClass(token.text);
