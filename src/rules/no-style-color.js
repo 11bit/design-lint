@@ -59,31 +59,62 @@ export default {
         if (node.name?.name !== "style") return;
         if (node.value?.type !== "JSXExpressionContainer") return;
 
-        const object = node.value.expression;
-        if (object?.type !== "ObjectExpression") return;
-
-        for (const property of object.properties) {
-          // A `SpreadElement` carries no key to judge — the indirect-value blind spot.
-          if (property.type !== "Property") continue;
-
-          const name = keyName(property);
-          const kind = colorProperty(name === null ? "" : name);
-          if (name === null || !kind) continue;
-          if (allowTokenValues && isTokenReference(property.value)) continue;
-          if (kind === "shorthand" && shorthandProperties === "value" && !carriesColor(property.value)) {
-            continue;
-          }
-
-          context.report({
-            node: property,
-            messageId: "colorInStyleProp",
-            data: { property: name },
-          });
+        for (const object of writtenObjects(node.value.expression)) {
+          styleObject(object);
         }
       },
     };
+
+    /** Every colour-carrying property of one object literal a `style` prop can be. */
+    function styleObject(object) {
+      for (const property of object.properties) {
+        // A `SpreadElement` carries no key to judge — the indirect-value blind spot.
+        if (property.type !== "Property") continue;
+
+        const name = keyName(property);
+        const kind = colorProperty(name === null ? "" : name);
+        if (name === null || !kind) continue;
+        if (allowTokenValues && isTokenReference(property.value)) continue;
+        if (kind === "shorthand" && shorthandProperties === "value" && !carriesColor(property.value)) {
+          continue;
+        }
+
+        context.report({
+          node: property,
+          messageId: "colorInStyleProp",
+          data: { property: name },
+        });
+      }
+    }
   },
 };
+
+/**
+ * The object literals a `style` value could turn out to be, when each one is written in place.
+ *
+ * `{ … } as React.CSSProperties` is how TypeScript code spells a style object that carries a
+ * custom property, and `cond ? { … } : undefined` writes its object down as plainly as a bare
+ * literal does; only the choice is left to run time. Both branches of a conditional and both
+ * sides of a logical expression are followed, as are the TypeScript wrappers that change a
+ * value's type but not the value. Anything that is not an object literal is dropped.
+ */
+function writtenObjects(node) {
+  switch (node?.type) {
+    case "ObjectExpression":
+      return [node];
+    case "ConditionalExpression":
+      return [...writtenObjects(node.consequent), ...writtenObjects(node.alternate)];
+    case "LogicalExpression":
+      return [...writtenObjects(node.left), ...writtenObjects(node.right)];
+    case "TSAsExpression":
+    case "TSSatisfiesExpression":
+    case "TSNonNullExpression":
+    case "ParenthesizedExpression":
+      return writtenObjects(node.expression);
+    default:
+      return [];
+  }
+}
 
 /**
  * The property's name, however it was written: `color`, `{ color }`, `"color"`,

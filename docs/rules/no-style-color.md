@@ -179,6 +179,26 @@ The property must be found regardless of how the object literal or the prop is w
 />
 ```
 
+The object is found through a TypeScript type assertion — the usual spelling next to a
+custom property, which TypeScript's `CSSProperties` does not know — and through a choice
+between objects, each of which is checked.
+
+```tsx caught
+<div style={{ "--brand": x, color: "red" } as React.CSSProperties} />
+
+<div style={{ color: "red" } satisfies CSSProperties} />
+
+<div style={{ color: "red" }!} />
+
+<div style={cond ? { color: "red" } : undefined} />
+
+<div style={cond && { color: "red" }} />
+```
+
+```tsx caught count=2
+<div style={cond ? { color: "red" } : { backgroundColor: "blue" }} />
+```
+
 Every offending property in a single block is reported separately:
 
 ```tsx caught count=2
