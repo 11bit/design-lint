@@ -37,3 +37,27 @@ tester.run("token-constraints — the recommended policy", ruleFor("token-constr
     { code: '<div className="bg-muted-foreground" />;', options: [{}], errors: [{ messageId: "prefixDenied" }] },
   ],
 });
+
+tester.run("token-constraints — message text", ruleFor("token-constraints"), {
+  valid: [],
+  invalid: [
+    // A developer who wrote `group-hover:` and is told a "hover colour" is constrained needs
+    // to see the segment that connected them.
+    {
+      code: '<div className="group-hover:bg-muted" />;',
+      options: [{ allowed: { "hover:": ["*-hover"] } }],
+      errors: [
+        {
+          message:
+            "group-hover:bg-muted — muted is not allowed for a hover colour, written via group-hover: (allowed: *-hover)",
+        },
+      ],
+    },
+    // An empty allow list is a total ban, and says so rather than rendering "(allowed: )".
+    {
+      code: '<div className="text-primary" />;',
+      options: [{ allowed: { text: [] } }],
+      errors: [{ message: "text-primary — primary is not allowed after text- (nothing is allowed)" }],
+    },
+  ],
+});

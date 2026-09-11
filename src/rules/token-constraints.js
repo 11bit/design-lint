@@ -69,11 +69,11 @@ export default {
     },
     messages: {
       prefixNotAllowed:
-        "{{className}} — {{colorPart}} is not allowed after {{prefix}}- (allowed: {{allowed}}){{suggestion}}",
+        "{{className}} — {{colorPart}} is not allowed after {{prefix}}- ({{allowed}}){{suggestion}}",
       prefixDenied:
         "{{className}} — {{colorPart}} matches the forbidden pattern {{pattern}} for {{prefix}}- (token-constraints policy)",
       variantNotAllowed:
-        "{{className}} — a {{family}} colour must use a token matching {{allowed}}{{suggestion}}",
+        "{{className}} — {{colorPart}} is not allowed for a {{family}} colour, written via {{variant}}: ({{allowed}}){{suggestion}}",
       variantDenied:
         "{{className}} — {{colorPart}} matches the forbidden pattern {{pattern}} for a {{family}} colour (token-constraints policy)",
       useToken: "Use {{candidate}}",
@@ -384,7 +384,8 @@ function report(context, violation, range, node, tokens) {
       variant: where.variant ?? "",
       family: where.family ?? "",
       pattern: violation.pattern ?? "",
-      allowed: patterns.join(", "),
+      // An empty allow list is a total ban, and "(allowed: )" reads like a rendering bug.
+      allowed: patterns.length ? `allowed: ${patterns.join(", ")}` : "nothing is allowed",
       suggestion: suggestions.length ? ` — try ${suggestions.map((s) => s.utility).join(", ")}` : "",
     },
     suggest: suggestions.map((suggestion) => ({
