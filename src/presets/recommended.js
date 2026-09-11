@@ -2,9 +2,10 @@
  * The `recommended` preset: every rule on, at `error`.
  *
  * These are severities, not semantics. What each rule *means* lives in its contract and in
- * `meta.defaultOptions`, which carries the recommended policy so that a consumer who wipes
- * a rule's options by restating its severity lands on the right behaviour rather than on
- * nothing. This file only says which rules run and how loudly.
+ * the rule itself, which carries the recommended policy — in `meta.defaultOptions`, or for
+ * `token-constraints` in `create`, when neither `allowed` nor `denied` is written — so that
+ * a consumer who wipes a rule's options by restating its severity lands on the right
+ * behaviour rather than on nothing. This file only says which rules run and how loudly.
  *
  * **Versioning.** A new rule ships **disabled** and joins `recommended` only in a major
  * release. Adding one here turns a patch upgrade into a failing build for every consumer,

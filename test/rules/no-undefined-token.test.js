@@ -22,9 +22,10 @@ describe("refusing to run", () => {
    * `@import` turned the rule off with no output and exit code 0 — indistinguishable from a
    * codebase with no violations, and quietly weakening `token-constraints` with it.
    *
-   * Distribution adds a second route to the same place: options replace rather than merge,
-   * so a consumer writing `"design/no-undefined-token": "error"` to bump a severity wipes
-   * `entryPoint` and everything the preset supplied with it.
+   * The design system is bound rather than passed as an option, so a severity-only
+   * override cannot remove it; what reaches this check is the rule run outside the plugin.
+   * `entryPoint` names a file in the message and builds nothing, so supplying it alone
+   * changes nothing here.
    */
   it("throws without a resolved design system, rather than reporting nothing", () => {
     expect(() => rule.create({ options: [] })).toThrow(/designSystem/);

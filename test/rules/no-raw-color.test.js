@@ -8,10 +8,11 @@ import { designSystem, tokens } from "../harness/options.js";
  *
  * None can be written as a contract case: the corpus asserts what a rule reports, and a
  * rule that throws reports nothing at all — which is exactly the failure mode being guarded
- * against. `tokenFiles` is the one a consumer will actually hit, because Oxlint *replaces*
- * rule options rather than merging them, so writing `"design/no-raw-color": "error"` to bump
- * a severity wipes the preset's options. A rule that returned early there would be enabled,
- * silent and exit 0, which is indistinguishable from a codebase with no raw colours in it.
+ * against. Under Oxlint none of the three is reachable from a consumer's config: the plugin
+ * binds `designSystem` and `tokens`, and `meta.defaultOptions` supplies `tokenFiles` when a
+ * severity-only override drops the preset's. They guard a rule run outside the plugin. A rule
+ * that returned early there would be enabled, silent and exit 0, which is indistinguishable
+ * from a codebase with no raw colours in it.
  */
 const create = (options) => rule.create({ options: [options] });
 

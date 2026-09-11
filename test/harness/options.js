@@ -91,9 +91,9 @@ export const tokens = projectTokens(designSystem, palette);
  * that contract needs. It is deliberately *not* a change to `test/fixtures/theme.css`:
  * that file is a shared probe surface, and widening the colour namespace under every rule
  * would move `no-undefined-token`'s and `no-spectral-color`'s verdicts as a side effect of
- * a third rule's corpus. These names stand in for the consumer stylesheet that
- * `settings.tailwindcss.entryPoint` names in production, which is exactly the input this
- * whole file is the load step's stand-in for.
+ * a third rule's corpus. These names stand in for the consumer stylesheets passed to
+ * `designLint()` as `tokenFiles` in production, which is exactly the input this whole file
+ * is the load step's stand-in for.
  */
 const SEMANTIC_PALETTE = [
   "destructive",

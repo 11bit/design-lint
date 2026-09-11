@@ -96,9 +96,10 @@ export async function designLint({
     jsPlugins: ["@evil-martians/design-lint/oxlint"],
     rules: {
       ...severities(ids, { namespace, severity }),
-      // The options a consumer's own layout decides. Everything else a rule needs is in its
-      // `meta.defaultOptions`, which carries the recommended policy — so restating a
-      // severity here, which replaces options wholesale, still lands on the right behaviour.
+      // The options a consumer's own layout decides. Everything else a rule needs it carries
+      // itself — the recommended policy is in `meta.defaultOptions`, or for token-constraints
+      // applied in `create` — so restating a severity here, which replaces options wholesale,
+      // still lands on the right behaviour.
       ...on("no-component-color-override", { componentSources: componentSources ?? [] }),
       ...on("no-raw-color", { tokenFiles }),
       ...on("no-dark-variant", { tokenFiles }),

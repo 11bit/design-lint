@@ -48,8 +48,8 @@ export default {
           designSystem: { type: "object" },
           allowFullOpacity: { type: "boolean" },
           colorPrefixes: { type: "array", items: { type: "string" } },
-          // An input consumed at plugin-module load, where the design system is built.
-          // Accepted here so the preset can carry it, never read by the rule.
+          // `designLint()` builds the design system from its own `tokenFiles`. Accepted here
+          // so the preset can carry it, never read by the rule.
           tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
@@ -72,7 +72,7 @@ export default {
     // be indistinguishable from a clean codebase, so it says so instead.
     if (!designSystem) {
       throw new Error(
-        "no-opacity-modifier: options.designSystem is required — the plugin module builds it once at load from tokenFiles and hands rules the resolved policy view.",
+        "no-opacity-modifier: options.designSystem is required — designLint() builds it once from its tokenFiles, and the plugin binds it around `create`; it cannot be passed as a JSON option.",
       );
     }
 

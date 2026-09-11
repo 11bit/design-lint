@@ -668,19 +668,19 @@ landing on a JSX element, and JSX cannot syntactically exist in `.ts`, so scanni
 here is pure cost — nothing can match. Class strings in `.ts` constants files are the token
 rules' surface, via the broad sweep.
 
-### The options-replace footgun
+### A severity-only override
 
-Oxlint **replaces** rule options rather than merging them. A consumer who writes
+A consumer who writes
 
 ```jsonc
 "design/no-useless-hover": "error"   // just bumping severity
 ```
 
-wipes the preset's options entirely. For this rule that is survivable but not silent:
-`interactiveElements` reverts to `[]` and `<tr className="hover:bg-muted">` starts
-reporting across the codebase. Noisy is the correct failure direction — the rule has **no
-required option**, so there is no configuration under which it silently reports nothing.
-The correct form of a severity bump is to re-pass the options alongside it.
+changes nothing else. Changing only this rule's severity keeps its behaviour: options you
+don't write fall back to the defaults in the table, `interactiveElements: ["tr", "td",
+"th"]` included, so `<tr className="hover:bg-muted">` stays silent. If you have configured
+the rule, re-pass your options alongside the severity. The rule has **no required
+option**, so there is no configuration under which it silently reports nothing.
 
 ## Relationship to other rules
 

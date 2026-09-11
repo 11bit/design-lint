@@ -266,8 +266,8 @@ function matches(pattern, value) {
 /**
  * Read the policy out of options, and refuse a configuration whose meaning is a guess.
  *
- * Both refusals are the config-load validation the contract describes, enforced where the
- * configuration actually arrives. A key in both lists is either redundant or contradictory —
+ * Both refusals throw when the rule is created, which is where the configuration actually
+ * arrives; the contract describes them as such. A key in both lists is either redundant or contradictory —
  * an allow list already denies everything not on it — and silently discarding one of the two,
  * which the proof of concept did, is the worst of the three available answers.
  */

@@ -66,9 +66,9 @@ export default {
         properties: {
           flagNonColorUtilities: { type: "boolean" },
           flagLightDark: { type: "boolean" },
-          // An input consumed at plugin-module load, where the design system is built. The
-          // rule reads it only to name it in a message: where the tokens live is the
-          // consuming project's decision, never a string baked in here.
+          // Named in messages only. The design system is built by `designLint()` from its own
+          // `tokenFiles` argument, which it also passes here; this copy builds nothing. Where
+          // the tokens live is the consuming project's decision, never a string baked in here.
           tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
@@ -108,16 +108,17 @@ export default {
     // reported nothing would be indistinguishable from a clean codebase.
     if (!flagNonColorUtilities && !designSystem?.isColorClass) {
       throw new Error(
-        "no-dark-variant: flagNonColorUtilities: false needs the resolved design system — the plugin module builds it once at load from tokenFiles and binds it around `create`; it cannot be passed as a JSON option.",
+        "no-dark-variant: flagNonColorUtilities: false needs the resolved design system — `designLint()` builds it from its tokenFiles and the plugin binds it around `create` at load; it cannot be passed as a JSON option. Load the plugin through `designLint()`.",
       );
     }
 
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     // Named, never hardcoded: the consuming project decides where its tokens live. The
-    // wholesale exemption `tokenFiles` also carries — `light-dark()` and `.dark &` are
-    // legitimate in the file that gives a `--color-*` property its per-theme value — costs
-    // nothing while `.css` is out of scope, and lands with the CSS surface.
+    // wholesale exemption `tokenFiles` is meant to carry — `light-dark()` and `.dark &` are
+    // legitimate in the file that gives a `--color-*` property its per-theme value — is not
+    // implemented: nothing needs it while `.css` is out of scope, and it lands with the CSS
+    // surface.
     const tokenFile = tokenFiles.join(", ") || "the token files";
 
     /**

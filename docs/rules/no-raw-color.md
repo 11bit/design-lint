@@ -56,10 +56,12 @@ attribute, a `style` prop, or a bare string constant handed to a charting librar
 matcher answers *"is this string a raw color?"*, and the surfaces differ only in how the
 string is reached.
 
-`tokenFiles` remains a **required option** and is unaffected by the scope change. Those
-files are an *input* — the rule reads them to derive the semantic token set that a suggestion
-can point at — not a linted surface. Narrowing the linted file set does not narrow the
-inputs; see [Configuration](#configuration).
+Your token stylesheets — the CSS files that define your `--color-*` tokens, which you name
+once when you [set up the linter](../../README.md) — are unaffected by the scope change. The
+linter reads them once, at startup, with the same Tailwind engine your build uses, and every
+rule works from what it found: which colour tokens you define, and which utilities take a
+colour. They are an input, not a linted surface, so narrowing the linted file set does not
+narrow them; see [Configuration](#configuration).
 
 > Case convention: within each fenced block, blank-line-separated groups are separate
 > cases. `caught` blocks assert the rule reports; `allowed` and `blindspot` blocks assert
@@ -709,11 +711,12 @@ text:      "raw color {{value}} in {{surface}} — colors must resolve through a
 where `surface` is one of `an arbitrary value`, `a style prop`, `an SVG attribute`,
 `a string literal`.
 
-`{{tokenFile}}` is the first entry of the consumer's `tokenFiles`, interpolated at report
-time. No path is hardcoded — a consumer whose tokens live somewhere other than
-`src/styles.css` is told about their file, not ours. If `tokenFiles` is empty the clause
-degrades to "Add one to your token file". This is the second reason `tokenFiles` survives the
-scope change intact: it is where the fix goes, whether or not the file is linted.
+`{{tokenFile}}` is the first entry of the rule's `tokenFiles` option. The recommended setup
+fills it in with your token stylesheets, so a project whose tokens live somewhere other than
+`src/styles.css` is told about its own file. Changing only this rule's severity makes the
+message name `src/styles.css` instead. If `tokenFiles` is empty the clause degrades to "Add
+one to your token file". This is why the option survives the scope change intact: it is
+where the fix goes, whether or not the file is linted.
 
 No autofix. Choosing the replacement token requires intent the rule cannot infer, and
 guessing wrong silently changes a rendered color — the worst possible failure mode for an
@@ -743,27 +746,27 @@ forks a rule.
 
 | Option | Surface | `recommended` default | Overriding it |
 | --- | --- | --- | --- |
-| `tokenFiles` | **input, not a linted surface** | **none — required**, supplied by the consumer (`tokenFiles` on the factory; `["src/styles.css"]` in this project) | The rule loses the token set it matches suggestions against and the path it names in the message. Absent, the rule fails loudly rather than reporting nothing |
+| `tokenFiles` | **message text, not a linted surface** | `["src/styles.css"]`; the recommended setup fills it in with your token stylesheets | Decides which file the message tells you to add a token to; it doesn't change what the rule checks |
 | `namedColors` | both surfaces | `true`, from the generated 148-name CSS set | `false` lets `fill="red"` and `text-[red]` through — the cheapest bypass of the token system |
 | `valueScopedBackstop` | string constants | `true` (both enforcement models run) | `false` leaves only the context-scoped model, so `const SERIES = ["#ff0000"]` — a literal with no attribute and no utility prefix — goes unseen |
 | `ignoreValues` | both surfaces | `["transparent", "currentColor", "inherit", "initial", "unset", "revert", "revert-layer"]` | Removing an entry flags values that are references or cascade operations, which trains developers to suppress the rule |
 | `ignoreGlobs` | both surfaces | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Set it to `[]` to lint stories; add globs to exempt more |
 
-**`tokenFiles` is an input, and the scope change does not touch it.** It is read to derive
-the semantic token set — which token names exist, and what value each resolves to — which is
-what makes an exact-match suggestion possible and what fills `{{tokenFile}}` in the message.
-That the files themselves happen to be `.css`, and that `.css` is not currently linted, are
-independent facts: the rule *reads* those files, it does not *check* them. Removing the
-option because "CSS is out of scope" would be a category error.
+**Your token stylesheets are an input, and the scope change does not touch them.** The
+linter reads them once, at startup, to learn which token names exist. This rule's own
+`tokenFiles` option only decides which file the message tells you to add a token to; it
+doesn't change what the rule checks. That the stylesheets happen to be `.css`, and that
+`.css` is not currently linted, are independent facts: the linter *reads* them, nothing
+*checks* them. Dropping them because "CSS is out of scope" would be a category error.
 
-The option's second job — exempting token files from being linted — is dormant, not gone. It
-had force only over the CSS surface, so today it exempts nothing, because nothing in the
-linted file set is a token file. It resumes when the CSS surface lands, and it resumes
-**definition-scoped** rather than whole-file; see [A11 is moot](#a11-is-moot).
+Token stylesheets are CSS, and CSS files aren't linted yet, so nothing in them is reported.
+An exemption for them is planned with the CSS surface, **definition-scoped** rather than
+whole-file; see [A11 is moot](#a11-is-moot).
 
-It is required rather than defaulted to a path: a default path would be a guess about a
-consumer's layout, and the rule must **fail loudly when it is absent** rather than returning
-early and reporting nothing.
+Without token stylesheets the linter refuses to start, rather than run rules that can't tell
+a token from a typo. There is no default location to fall back on: a default path would be a
+guess about a project's layout. This rule's `tokenFiles` option can have a default, because
+it only names a file in the message.
 
 **Storybook.** The current runner skips stories wholesale via `isStorybookFile`, and nobody
 remembers whether that was intent or convenience. As a configurable glob the question stops
@@ -796,24 +799,19 @@ over.
   here is configured on a foreign rule's behalf, nothing is coupled to a foreign rule's names
   or version ranges, and every diagnostic carries our rule id. The earlier peer-dependency
   caveat is withdrawn along with the dependencies.
-- **No filesystem reads for discovery, and no path derived from the package's own location.**
-  Every path arrives as input: `tokenFiles` and `ignoreGlobs` come from the consumer's config,
-  never from a convention about where the plugin is installed. The 148-name color set and the
-  color-property list are static data compiled into the package, not files read at runtime.
-  Reading the consumer's `tokenFiles` is the one deliberate exception, and it happens once —
-  see the next bullet.
-- **Discovery happens once at plugin-module load**, never inside `create()`, so `RuleTester`
-  stays usable and a 200-file run pays no per-file cost.
-- **Rule options replace, they do not merge — and failure is silent.** A consumer writing
-  `"design/no-raw-color": "error"` to bump a severity **wipes the preset's options**.
-  Every configured value goes at once: `tokenFiles`, `ignoreGlobs`, the enforcement-model
-  switches. Both failure modes are bad and neither announces itself — a rule that returns
-  early on missing required options is enabled and catches nothing, exit 0; a rule that
-  carries on has no token set to match suggestions against and no file to name in its
-  message. This diverges from ESLint flat config, so it will surprise people. The mitigation
-  is the one the plan mandates — **fail loudly** on absent required options rather than
-  returning early, `defaultOptions` carries a usable baseline, and the README documents the
-  footgun. To change severity only, restate the options:
+- **No hidden paths.** Every path comes from your config — your token stylesheets and
+  `ignoreGlobs` — never from where the linter happens to be installed. The 148-name color set
+  and the color-property list ship inside the package; nothing else is read from disk.
+  Reading your token stylesheets is the one deliberate exception, and it happens once — see
+  the next bullet.
+- **Discovery happens once, before any file is linted.** The linter reads your token
+  stylesheets at startup, so a 200-file run pays no per-file cost.
+- **Changing only this rule's severity keeps its behaviour.** Writing
+  `"design/no-raw-color": "error"` drops the options the recommended setup passed, but
+  options you don't write fall back to the defaults in the table, and the tokens read at
+  startup are unaffected — the rule keeps catching exactly what it caught. The one visible
+  difference is that the message names `src/styles.css` instead of your stylesheet; to keep
+  your own, restate the option alongside the severity:
   `["error", { tokenFiles: ["src/styles.css"] }]`.
 
 ## Deferred questions

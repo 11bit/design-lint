@@ -170,58 +170,44 @@ tokens off surfaces and fills, and `text-` is precisely the family where those t
 Without the shield, the single most common correct usage in the codebase would be reported.
 
 **A key may appear in `allowed` or in `denied`, never both.** A configuration carrying the
-same prefix or the same variant family in both is a **validation error**, rejected by
-`colors.schema.json` when the configuration loads — it is not a runtime precedence question.
-An allow list already denies everything not on it, so a deny list beside it is either
-redundant or contradictory; both are bugs in the policy rather than expressions of intent,
-and the designer should hear about it at config-load time. Silently discarding one of the two
-lists, which is what the current implementation does, is the worst of the three available
-options. Intersection semantics — the token must match the allow list *and* miss the deny
+same prefix or the same variant family in both is a **configuration error**: the linter
+reports it, naming the key, rather than choosing one list — it is not a precedence question.
+An allow list already
+denies everything not on it, so a deny list beside it is either redundant or contradictory;
+both are bugs in the policy rather than expressions of intent, and the designer should hear
+about it before a single class is judged. Silently discarding one of the two lists is the
+worst of the three available options. Intersection semantics — the token must match the allow list *and* miss the deny
 list — is more expressive and can be added later without breaking any configuration that
 validates today. The check is textual and per key: `"hover:"` in `allowed` beside
 `"group-hover:"` in `denied` is two distinct keys and validates, and both apply, per
-[Variant families](#variant-families).
+[Variant families](#variant-families). `"*"` in `allowed` is a configuration error the same
+way: it is the fallback for prefixes with no policy of their own, and valid in `denied` only.
 
 Then, independently of the prefix policy, **every variant policy whose family the class joins
 must also be satisfied.** A class may fail the prefix policy, a variant policy, or both.
 
 ## Configuration
 
-Everything this rule reads arrives through `options` and `settings`. **The rule performs no
-filesystem access and resolves no path relative to its own module.** The semantic-token set
-and the colour-prefix set are resolved once by `/policy` — the tokens from the
-consumer-supplied `tokenFiles`, the prefixes from the resolved Tailwind design system — and
-handed to the rule already parsed. Paths are the consumer's, interpreted relative to the
-consumer's project, never to the package.
+This rule has no file options. The tokens it knows are the ones in your token stylesheets —
+the CSS files that define your `--color-*` tokens, which you name once when you
+[set up the linter](../../README.md). The linter reads your token stylesheets once, at
+startup, with the same Tailwind engine your build uses, and every rule works from what it
+found: which colour tokens you define, and which utilities take a colour. Neither list is
+written in this rule's options, and neither is maintained by hand.
 
-**Options reach a rule as JSON.** Oxlint sends every rule's options over from Rust as a JSON
-string — in `RuleTester` exactly as in a real lint run — so a rule can be handed *data* and
-nothing else. Neither resolved input can therefore travel as the object `/policy` builds: the
-token set arrives as `tokens`, a list of `--color-*` names, and the derived colour-prefix set
-as `designSystem.colorPrefixes`, a list of utility roots. Both are still resolved once, before
-any rule runs, and both are still the consumer's `tokenFiles` and Tailwind design system
-rather than a hand-maintained list; only the shape they arrive in is fixed by the linter.
-This rule reads two sets and asks the design system nothing further, so JSON is enough for it;
-a rule that needs to *ask* it a question at lint time cannot be configured this way at all.
-
-**`tokenFiles` is an input, not a linted surface, and it stays required.** The files it names
-are usually CSS, and CSS being out of scope as a *linted* surface changes nothing about them:
-they are read to derive the semantic-token set and, with the resolved Tailwind design system,
-the colour-prefix set. Dropping `*.css` from `files` means this rule does not *report on*
-stylesheets; it does not mean it stops *reading* them. That distinction matters more here than
-for any other rule, because this rule's first gate is "is the colour part a declared token?" —
-with no `tokenFiles` the gate always fails, and the rule reports nothing while appearing
-enabled.
+**Your token stylesheets are read, not linted.** CSS files are not linted yet, so this rule
+never reports on them — but it depends on them more than any other rule, because its first
+gate is "is the colour part a declared token?". Without token stylesheets the linter refuses
+to start, rather than run rules that can't tell a token from a typo.
 
 | Option | Type | `recommended` default |
 | --- | --- | --- |
-| `tokenFiles` | `string[]` | required; supplied by the consumer through the preset factory, no built-in default. An input the rule reads, not a surface it lints |
 | `allowed` | `{ [prefix or variant]: string[] }` | below |
 | `denied` | `{ [prefix or variant]: string[] }` | below |
 | `ignoreGlobs` | `string[]` of globs | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` |
 
-The `recommended` preset ships this policy — a project shaped like the one this linter grew
-in gets value on install:
+The rule ships this `recommended` policy and applies it when no policy is written — a project
+shaped like the one this linter grew in gets value on install:
 
 ```
 allowed: { "text":   ["*foreground*", "*content*", "primary", "link*"],
@@ -235,44 +221,31 @@ replaces them wholesale and gets a correct rule; nobody forks the mechanism to c
 pattern. The semantics of the patterns themselves — contains, endsWith, startsWith, exact —
 and the resolution order are fixed by this contract and are not configurable.
 
-**Overriding replaces; it does not merge.** Supplying `allowed` replaces the preset's
-`allowed` entirely — there is no per-prefix merge, and a prefix the preset constrained is
-unconstrained the moment the replacement omits it. That is the intended behaviour: an allow
-list is only readable if it is complete in one place.
+**Overriding replaces; it does not merge.** Writing either `allowed` or `denied` replaces the
+whole `recommended` policy — both lists, not only the one written, so `allowed` alone leaves
+no deny fallback at all. There is no per-prefix merge either: a prefix the recommended policy
+constrained is unconstrained the moment the replacement omits it. That is the intended
+behaviour: an allow list is only readable if it is complete in one place.
 
-**The options-replace footgun bites this rule hardest.** Under Oxlint, rule options replace
-rather than merge, so a consumer writing
+**Changing only this rule's severity keeps its behaviour.** Writing
 
 ```jsonc
 "design/token-constraints": "error"    // just bumping the severity
 ```
 
-wipes the preset's options and the rule reports **nothing**, at exit 0, while appearing
-enabled. This rule is the most option-dependent of the nine and therefore the most exposed.
-Two mitigations belong to the rule itself:
+leaves `allowed` and `denied` unwritten, and the `recommended` policy applies whenever you
+write neither. That matters more here than anywhere: this is the most policy-dependent rule
+of the nine, and one that read no policy as an empty one would report **nothing**, at exit 0,
+while appearing enabled — which looks identical to a codebase with no violations.
+`ignoreGlobs` is not part of the policy: it says which files to read rather than what to
+allow in them, so it defaults on its own, and writing only `ignoreGlobs: []` leaves the
+recommended policy in force.
 
-- **A default configuration carries the `recommended` policy**, so a severity-only override
-  degrades to that policy rather than to nothing. This covers `allowed` and `denied`, which
-  both have defensible defaults. `ignoreGlobs` is not part of it: it says which files to
-  read rather than what to allow in them, so it defaults on its own, and writing only
-  `ignoreGlobs: []` leaves the recommended policy in force.
-
-  It is applied when the whole options object is absent, and **not** through
-  `meta.defaultOptions`, which is the obvious mechanism and the wrong one: Oxlint merges
-  `defaultOptions` into a consumer's options *deeply*, so `allowed: { text: [] }` beside the
-  preset's `allowed` would come out carrying the preset's `border` and `hover:` keys as well.
-  That per-prefix merge is the one *Overriding replaces* above rules out — an allow list is
-  only readable if it is complete in one place — and a rule cannot tell a merged key from a
-  written one after the fact. So the default is a default for the *configuration*, not for
-  each key inside it, and "overriding replaces" stays true of every key in it.
-- **Fail loudly on `tokenFiles`.** It has no defensible default — it is the one option only
-  the consumer can supply — so its absence raises a configuration error rather than an early
-  return. The rule enforces this on what `tokenFiles` resolves to, since that is what reaches
-  it: a missing `tokens` list, or a missing `designSystem.colorPrefixes`, throws. The CSS scope change does not soften this: the option is an input, and a rule with
-  no token set is a rule with no first gate. Without it there is no semantic-token set, the rule's first gate always fails, and
-  the rule would report nothing while appearing to work. Silence is exactly the failure mode
-  this rule cannot afford, since a rule that finds no violations looks identical to a codebase
-  with none.
+The recommended policy is a default for the whole policy, not for each key inside it: once
+you write `allowed` or `denied`, nothing from the recommended lists is mixed back in.
+Mixed in, `allowed: { text: [] }` would come out carrying the recommended `border` and
+`hover:` keys as well — the per-prefix merge *Overriding replaces* above rules out, since an
+allow list is only readable if it is complete in one place.
 
 **Storybook and other excluded files.** `ignoreGlobs` is a glob list, and like every rule in
 the package this one skips stories by default. This rule has the weakest case of the nine for
@@ -281,10 +254,11 @@ semantic token teaches the wrong token — which is exactly why it is a configur
 rather than a hardcoded `isStorybookFile` check. A project that wants its stories linted
 empties the list.
 
-**The colour-prefix set is derived, not configurable.** It comes from the resolved Tailwind
-design system, so every utility family that takes a colour is covered as the design system
-defines it. A hand-maintained list is a permanent source of silent holes: the current 16-entry
-constant omits every per-side border family, `inset-ring`, `inset-shadow` and `text-shadow`.
+**The colour-prefix set is derived, not configurable.** It comes from what Tailwind reports
+when the linter reads your token stylesheets, so every utility family that takes a colour is
+covered as your Tailwind setup defines it. A hand-maintained list is a permanent source of
+silent holes: a 16-entry list misses every per-side border family, `inset-ring`,
+`inset-shadow` and `text-shadow`.
 
 ## Promises to catch
 
@@ -426,9 +400,9 @@ stripped before the test.
 
 The mechanism is general: any key ending in `:` is a variant policy, and `hover:` is not
 special-cased. The same family test applies, so one `"focus:"` key covers `focus`,
-`group-focus` and `peer-focus` with no new code. The fixture also assumes `primary-focus` in
-the semantic token set, which arrives through `tokenFiles` rather than through `options` — see
-[the harness note on token sets](#configuration).
+`group-focus` and `peer-focus` with no new code. The example also assumes your token
+stylesheets define `--color-primary-focus` — tokens come from there, not from this rule's
+options; see [Configuration](#configuration).
 
 ```json options=focus-policy
 {

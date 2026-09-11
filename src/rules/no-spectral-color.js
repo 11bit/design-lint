@@ -52,10 +52,11 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  *
  * Both halves are read from `context.options[0]`, and they get there by different routes.
  * `replacement`, `flagFixedColors`, `tokenFiles` and `ignoreGlobs` are JSON a consumer
- * writes. `designSystem` and `tokens` are not — they cross a JSON boundary as husks — so
- * the plugin module builds them once at load and binds them around `create` with
- * `bindResolved` in [`src/plugin.js`](../plugin.js). The rule cannot tell the difference,
- * which is the point.
+ * writes; `tokenFiles` only names the file the message points at. `designSystem` and
+ * `tokens` are not JSON — they cross that boundary as husks — so `designLint()` builds them
+ * once from the `tokenFiles` passed to it, and the plugin module binds them around `create`
+ * with `bindResolved` in [`src/plugin.js`](../plugin.js). The rule cannot tell the
+ * difference, which is the point.
  */
 export default {
   meta: {
@@ -190,7 +191,7 @@ export default {
 function requiredSet(value, name) {
   if (!(value instanceof Set)) {
     throw new Error(
-      `no-spectral-color: \`${name}\` is missing or is not a Set — the plugin module resolves it from \`tokenFiles\` at load and binds it around \`create\`; it cannot be passed as a JSON option.`,
+      `no-spectral-color: \`${name}\` is missing or is not a Set — \`designLint()\` resolves it from its \`tokenFiles\` and the plugin module binds it around \`create\`; it cannot be passed as a JSON option.`,
     );
   }
   return value;

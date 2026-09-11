@@ -44,9 +44,9 @@ import { parseClass } from "../policy/variants.js";
  * Its whole output is an absence, and it is the gate for `token-constraints` — an undefined
  * token never reaches a constraint check, so a silent failure here quietly weakens two
  * rules. A missing design system is therefore a thrown error, never an early return: a rule
- * that reports nothing is indistinguishable from a codebase with no violations, and options
- * replace rather than merge, so a consumer restating a severity is a live route to exactly
- * that.
+ * that reports nothing is indistinguishable from a codebase with no violations. It is bound
+ * rather than passed as an option for the same reason — a consumer restating a severity
+ * drops the preset's options, and must not drop the design system with them.
  */
 export default {
   meta: {
@@ -66,9 +66,10 @@ export default {
       useCandidate: "Replace {{className}} with {{candidate}}",
     },
 
-    // The JSON half only. `designSystem` and `tokens` are resolved from `entryPoint` at
-    // plugin-module load and bound around `create`; a consumer cannot write either by hand
-    // and should be told so rather than have one silently ignored.
+    // The JSON half only. `designSystem` and `tokens` are resolved by `designLint()` from its
+    // `tokenFiles` and bound around `create` at plugin-module load; a consumer cannot write
+    // either by hand and should be told so rather than have one silently ignored.
+    // `entryPoint` builds nothing — it is the file the message's hint names.
     schema: [
       {
         type: "object",
@@ -109,7 +110,7 @@ export default {
     const prefixes = new Set([...resolved.colorPrefixes, ...colorPrefixes]);
 
     // Candidates come from the semantic token set the same load step resolves from the
-    // entry point. Deliberately not the design system's full colour namespace: that holds
+    // token files. Deliberately not the design system's full colour namespace: that holds
     // the spectral palette too, and answering a typo with `bg-red-50` would hand the author
     // a class `no-spectral-color` then forbids.
     const candidatesFor = candidateSource(tokens);
@@ -191,9 +192,9 @@ export default {
  * resolver with `.catch(() => null)` and returned early; that is the behaviour this
  * replaces.
  *
- * Distribution adds a second, likelier route to the same place: options replace rather than
- * merge, so a consumer writing `"design/no-undefined-token": "error"` to bump a severity
- * wipes `entryPoint` and every value the preset supplied with it.
+ * Binding closes the likelier route: a consumer writing `"design/no-undefined-token": "error"`
+ * to bump a severity drops every option the preset supplied, but the design system is not
+ * one of them. What reaches this check is a rule run outside the plugin.
  *
  * The shape of what arrives says which mistake it was. A husk — `{ colorPrefixes: {} }`
  * with every method gone — is what a resolved design system looks like after a trip through
@@ -202,7 +203,7 @@ export default {
 function requiredDesignSystem(designSystem) {
   if (typeof designSystem?.resolves !== "function" || !(designSystem.colorPrefixes instanceof Set)) {
     throw new Error(
-      "no-undefined-token: `designSystem` is missing or is not a resolved design system — the plugin module builds it from `entryPoint` at load and binds it around `create`; it cannot be passed as a JSON option. This rule reports an absence, so it refuses to run rather than report nothing.",
+      "no-undefined-token: `designSystem` is missing or is not a resolved design system — `designLint()` builds it from `tokenFiles` and the plugin module binds it around `create`; it cannot be passed as a JSON option. This rule reports an absence, so it refuses to run rather than report nothing.",
     );
   }
   return designSystem;

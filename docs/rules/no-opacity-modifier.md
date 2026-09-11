@@ -317,11 +317,14 @@ different consequences, and banning it belongs to a rule about layering, not tok
 
 ### The token-definition files
 
-A translucent token has to be defined somewhere, and the `tokenFiles` option is where. The
-exemption costs nothing today — those files are `.css` and no `.css` file is linted — and
-becomes load-bearing when the CSS surface lands. `tokenFiles` is otherwise untouched by the
-scope change: the rule reads it to derive the token set and the design system, so it is an
-*input*, not a linted surface.
+A translucent token has to be defined somewhere, and your token stylesheets — the CSS files
+that define your `--color-*` tokens, which you name once when you
+[set up the linter](../../README.md) — are where. Token stylesheets are CSS, and CSS files
+aren't linted yet, so nothing in them is reported; how they are treated once CSS is linted
+is [below](#the-token-definition-files-once-css-is-linted). They are an *input*, not a
+linted surface: the linter reads your token stylesheets once, at startup, with the same
+Tailwind engine your build uses, and every rule works from what it found — which colour
+tokens you define, and which utilities take a colour.
 
 ## Declared blind spots
 
@@ -448,31 +451,19 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `allowFullOpacity` | `false` | `true` stops reporting a full-opacity modifier however it is spelled — `/100`, `/[100%]`, `/[1]`. Every other modifier still reports. Set it only if a codebase uses `/100` deliberately, which is rare enough that the default flags it. |
 | `colorPrefixes` | derived from the Tailwind design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid, not the feature it offers. |
-| `tokenFiles` | `["src/styles.css"]` | The files the colour test and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips, matched against the path Oxlint reports. Storybook is excluded by default, as it is by every rule; a project that treats stories as production code sets this to `[]`. |
 
 ### Distribution
 
-- **The rule reads no files and derives no path from its own location.** `tokenFiles`,
-  `colorPrefixes`, `allowFullOpacity` and `ignoreGlobs` arrive through `options`; the design system is built
-  once at plugin-module load from a path the consumer supplied, never inside `create()`.
-- **The design system itself cannot arrive through `options`.** Oxlint sends rule options to
-  a JS plugin as a JSON string, so a `Set` arrives as `{}` and a method arrives not at all —
-  and `RuleTester` serializes a test case's options the same way. The resolved policy view
-  therefore reaches the rule the only way a live object can: bound by the module that built
-  it, around the rule's `create`. `test/harness/options.js` is the corpus's stand-in for that
-  binding. It is not this rule's decision to make alone and it is not this rule's alone to
-  live with — five contracts name a resolved input.
-- **`tokenFiles` is what makes the colour test available at all**, so a consumer that omits
-  it does not get a quieter rule — it gets a rule that throws. There is no deny-list fallback
-  in `/policy` today; the degraded mode this contract describes is unbuilt, and silence would
-  be indistinguishable from a clean codebase. The path arrives through `options`, not through
-  `settings`, which is why nothing here depends on `settings` being inherited through
-  `extends`.
-- **Rule options replace, they do not merge.** A consumer writing
-  `"…/no-opacity-modifier": "error"` to bump a severity wipes the preset's options,
-  including `tokenFiles` — so the rule throws rather than falling quiet. To change severity
-  alone, restate the options.
+- **The rule reads no files of its own.** Whether a class sets a colour is answered from
+  what the linter found in your token stylesheets at startup, so those stylesheets are what
+  make the colour test available at all. Without token stylesheets the linter refuses to
+  start, rather than run rules that can't tell a token from a typo. There is no fallback
+  that guesses without them: silence would be indistinguishable from a clean codebase.
+- **A severity-only override is safe.** Changing only this rule's severity —
+  `"…/no-opacity-modifier": "error"` — keeps its behaviour: options you don't write fall
+  back to the defaults in the table, and the tokens read at startup are unaffected. Restate
+  an option alongside the severity only to keep a value you changed.
 
 ## Deltas from the current implementation
 

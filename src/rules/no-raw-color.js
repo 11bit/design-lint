@@ -63,10 +63,11 @@ import { parseClass } from "../policy/variants.js";
  * ## Where its inputs come from
  *
  * `tokenFiles`, `namedColors`, `valueScopedBackstop`, `ignoreValues` and `ignoreGlobs` are JSON
- * a consumer writes. `designSystem` and `tokens` are not — they cross a JSON boundary as
- * husks with every method gone — so the plugin module builds them once at load and binds
- * them around `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read
- * from `context.options[0]` and the rule cannot tell the difference.
+ * a consumer writes; `tokenFiles` only names the file in the message. `designSystem` and
+ * `tokens` are not JSON — they cross a JSON boundary as husks with every method gone — so
+ * `designLint()` builds them once from its own `tokenFiles`, and the plugin module binds them
+ * around `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
+ * `context.options[0]` and the rule cannot tell the difference.
  *
  * ## No suggestion yet, and why
  *
@@ -115,10 +116,10 @@ export default {
     // replacement map inside `create` instead would bite an object-valued option, and there
     // is none.
     //
-    // `tokenFiles` appears despite being required, and the two are not in tension: this is
-    // the value a consumer who wipes the preset's options by writing
-    // `"design/no-raw-color": "error"` lands on, and the throw below is what happens when
-    // even that is gone.
+    // `tokenFiles` is the value a consumer who wipes the preset's options by writing
+    // `"design/no-raw-color": "error"` lands on: the message then names `src/styles.css`
+    // rather than their file, and nothing else changes. The throw below is reachable only
+    // where `defaultOptions` is not applied.
     defaultOptions: [
       {
         tokenFiles: ["src/styles.css"],
@@ -149,13 +150,13 @@ export default {
     const colorPrefixes = requiredSet(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
     requiredSet(tokens, "tokens");
 
-    // Oxlint *replaces* rule options rather than merging them, so a consumer bumping a
-    // severity — `"design/no-raw-color": "error"` — wipes the preset's options and leaves
-    // this absent. A rule that returned early there would appear enabled, report nothing
-    // and exit 0: a total, silent loss of coverage that looks exactly like success.
+    // Under Oxlint this is never absent: `defaultOptions` supplies a path, deep-merged under
+    // whatever the consumer wrote. It can be absent where `defaultOptions` is not applied —
+    // `RuleTester`, a direct `create` call — and there the rule refuses rather than guessing
+    // at a file to name.
     if (!Array.isArray(tokenFiles)) {
       throw new Error(
-        'no-raw-color: `tokenFiles` is required and must be an array of paths — e.g. ["src/styles.css"]. It is where a new token goes, which is what the message tells the developer; the files are an input, not a linted surface. Oxlint replaces rule options rather than merging them, so a severity bump written on its own wipes the preset\'s; re-pass the options alongside it.',
+        'no-raw-color: `tokenFiles` is required and must be an array of paths — e.g. ["src/styles.css"]. It names the file the message tells the developer to add a token to; the design system itself comes from designLint()\'s `tokenFiles`. Under Oxlint the rule\'s defaultOptions supply it, so this is a rule created outside the plugin.',
       );
     }
 
@@ -293,7 +294,7 @@ export default {
 function requiredSet(value, name) {
   if (!(value instanceof Set)) {
     throw new Error(
-      `no-raw-color: \`${name}\` is missing or is not a Set — the plugin module resolves it from \`tokenFiles\` at load and binds it around \`create\`; it cannot be passed as a JSON option.`,
+      `no-raw-color: \`${name}\` is missing or is not a Set — designLint() builds it from its \`tokenFiles\` and the plugin module binds it around \`create\`; it cannot be passed as a JSON option.`,
     );
   }
   return value;

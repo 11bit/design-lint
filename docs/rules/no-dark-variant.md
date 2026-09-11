@@ -15,7 +15,8 @@ Concretely: the `dark:` variant must not appear in application code, and neither
 `light-dark()`.
 
 The design system resolves themes in exactly one place: the `--color-*` custom properties in
-the files named by `tokenFiles`. `bg-card` is dark-mode-correct because `--color-card` has a
+your token stylesheets — the CSS files that define your `--color-*` tokens, which you name
+once when you [set up the linter](../../README.md). `bg-card` is dark-mode-correct because `--color-card` has a
 dark value, and every component that uses it becomes correct at the same moment. A `dark:`
 variant opts one element out of that arrangement and re-decides the theme locally.
 
@@ -256,16 +257,17 @@ it, and banning it would ban the design system's own switch.
 
 ### `light-dark()` inside the token-definition files
 
-The ban is on a *second* theming mechanism, and inside `tokenFiles` there is no second one —
-that is the file where a `--color-*` property is given its per-theme value, and
-`light-dark()` is one legitimate way to write that. The same exemption `.dark &` gets in
-those files, for the same reason.
+The ban is on a *second* theming mechanism, and inside your token stylesheets there is no
+second one. That is where a `--color-*`
+property is given its per-theme value, and `light-dark()` is one legitimate way to write
+that. The same exemption `.dark &` gets in those files, for the same reason.
 
-The exemption costs nothing today — those files are `.css` and no `.css` file is linted — and
-becomes load-bearing when the CSS surface lands; the case sits under
-[Deferred: CSS surface](#deferred-css-surface). `tokenFiles` is otherwise untouched by the
-scope change: the rule reads it to derive the semantic token set and the design system, so it
-is an *input*, not a linted surface.
+Nothing is exempt yet, and nothing needs to be: token stylesheets are CSS, and CSS files
+aren't linted yet, so nothing in them is reported. The exemption becomes load-bearing when
+the CSS surface lands; the case sits under [Deferred: CSS surface](#deferred-css-surface).
+Otherwise the linter reads your token stylesheets once, at startup, to learn which colour
+tokens you define and which utilities take a colour. They are an *input*, not a linted
+surface.
 
 ## Declared blind spots
 
@@ -454,7 +456,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `flagNonColorUtilities` | `true` | `false` limits reporting to `dark:` on a class that sets a colour, which buys back the asset-swap idiom at the price of a per-utility boundary. The default is the widest reading, deliberately. |
 | `flagLightDark` | `true` | `false` allows `light-dark()` in an arbitrary value. A project that has genuinely chosen `light-dark()` *as* its theming mechanism sets this and stops using `--color-*` variants — the two are alternatives, not a spectrum. The same switch will govern the deferred CSS-declaration case. |
-| `tokenFiles` | `["src/styles.css"]` | The files the semantic token set and the design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale, which is where `light-dark()` and `.dark &` are legitimate; that exemption costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
+| `tokenFiles` | `["src/styles.css"]` | Decides which file the message points you to; it doesn't change what the rule checks. The recommended setup fills it in with your token stylesheets. Planned: exempt these files wholesale once `.css` is linted, which is where `light-dark()` and `.dark &` are legitimate. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because a story demonstrating both themes is the one place a theme fork is the subject; a project that disagrees sets this to `[]`. |
 
 Whether `dark:` is banned at all is itself policy — a project using Tailwind's `dark:` as
@@ -467,13 +469,18 @@ belongs to the preset.
 - **The rule reads no files and derives no path from its own location.** `tokenFiles` and
   `ignoreGlobs` arrive through `options`; nothing is discovered, and the `.dark` class name
   is never inferred from a Tailwind config on disk.
-- **Everything the rule needs arrives through `options`**, not through `settings`, so nothing
-  here depends on `settings` being inherited through `extends`.
-- **Rule options replace, they do not merge.** A consumer writing
-  `"…/no-dark-variant": "error"` to bump a severity wipes the preset's options, including
-  `tokenFiles`. Today that costs the derived token set; once the CSS surface lands it also
-  means the token file starts reporting its own `light-dark()`. To change severity alone,
-  restate the options.
+- **Everything you configure goes in this rule's options**, not in `settings`, so nothing
+  here depends on `settings` being inherited through `extends`. What
+  `flagNonColorUtilities: false` needs to know — which utilities take a colour — the linter
+  reads from your token stylesheets once, at startup, with the same Tailwind engine your
+  build uses.
+- **Changing only this rule's severity keeps its behaviour.** Options you don't write fall
+  back to the defaults in the table, and the tokens read at startup are unaffected. The
+  visible difference: `"…/no-dark-variant": "error"` on its own makes messages name
+  `src/styles.css` instead of your token stylesheet. Once the CSS surface lands and token
+  stylesheets are exempt, it would also leave your token stylesheet reporting its own
+  `light-dark()`, unless that file is `src/styles.css`. To change severity and keep your
+  stylesheet named, restate the options alongside it.
 
 ## Deltas from the current implementation
 

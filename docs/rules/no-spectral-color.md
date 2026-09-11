@@ -358,12 +358,13 @@ fetch("/assets/blue-500.png");
 
 ### The token-definition files
 
-The files named by the `tokenFiles` option are where the palette is legitimately consumed —
-a semantic token has to be defined as *something*. Those files are exempt. Today the
-exemption costs nothing, because those files are `.css` and no `.css` file is linted at all;
-it becomes load-bearing the moment the CSS surface lands. `tokenFiles` itself is unaffected
-by the scope change — the design system, and by subtraction the semantic token set, are
-built from it, so it is an *input*, not a linted surface.
+Your token stylesheets — the CSS files that define your `--color-*` tokens, which you name
+once when you [set up the linter](../../README.md) — are where the palette is legitimately
+consumed: a semantic token has to be defined as *something*. Token stylesheets are CSS, and
+CSS files aren't linted yet, so nothing in them is reported. They are an *input*, not a
+linted surface: the linter reads your token stylesheets once, at startup, with the same
+Tailwind engine your build uses, and every rule works from what it found — which colour
+tokens you define, and which utilities take a colour.
 
 ## Declared blind spots
 
@@ -428,9 +429,9 @@ covers it, so the mechanism is an open choice; only the promise below is fixed.
 
 ### The token-definition files, once `.css` is linted
 
-The `tokenFiles` exemption exists for exactly this: a semantic token has to be defined as
-*something*, and that something is a palette value. When `.css` becomes a linted surface the
-files named by `tokenFiles` stay exempt wholesale.
+Your token stylesheets are exempt for exactly this reason: a semantic token has to be
+defined as *something*, and that something is a palette value. When `.css` becomes a linted
+surface, your token stylesheets are exempt wholesale.
 
 ```css deferred
 @theme {
@@ -516,7 +517,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 | --- | --- | --- |
 | `flagFixedColors` | `true` | `false` stops reporting `*-black` and `*-white`. Nothing else changes. This is the noisiest line in the rule and the only one with its own switch. |
 | `replacement` | the 27-entry spectral→semantic map | Changes which token the message and the suggestion name. Never changes whether a class is caught — a family with no entry still reports, under `spectralColor`. |
-| `tokenFiles` | `["src/styles.css"]` | The files the semantic token set and the Tailwind design system are derived from — an **input**, read at load, not a linted surface. They are also exempt wholesale from this rule, which costs nothing while `.css` is out of scope and becomes load-bearing when it lands. |
+| `tokenFiles` | `["src/styles.css"]` | Decides which file the `spectralColor` message points you to; it doesn't change what the rule checks. The recommended setup fills it in with your token stylesheets. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default because stories demonstrate colour rather than ship it; a project that treats stories as production code sets this to `[]`. |
 
 The `replacement` map is a plain rule option, read from `options` at load like every other
@@ -526,23 +527,17 @@ policy file and keep in sync.
 
 ### Distribution
 
-- **The rule reads no files and derives no path from its own location.** `tokenFiles`,
-  `replacement` and `ignoreGlobs` all arrive through `options`; nothing is discovered. The
-  design system is built once at plugin-module load from the path the consumer supplied,
-  never inside `create()`.
-- **The two halves of the configuration travel differently.** Rule options cross a JSON
-  boundary — Oxlint hands a JS plugin its options from Rust as JSON, and `RuleTester`
-  round-trips them the same way — so a design system passed that way arrives as
-  `{ colorPrefixes: {} }` with every method gone and a `Set` arrives as `{}`, with no
-  warning. `replacement`, `flagFixedColors`, `tokenFiles` and `ignoreGlobs` are JSON and
-  arrive through `options` as written. `designSystem` and `tokens` cannot be, so they are
-  built once at load and *bound* around `create` by `bindResolved` in `src/plugin.js`. The
-  rule reads both from `context.options[0]` and cannot tell which route either took.
-- **A wiped option falls back to the recommended one, per key.** A consumer writing
-  `"…/no-spectral-color": "error"` to bump a severity keeps the recommended behaviour rather
-  than losing it. (An earlier draft of this section said the opposite; it predates
-  [the conventions](./README.md#writing-a-rule), which make `meta.defaultOptions` the place
-  the recommended policy lives for exactly this reason.)
+- **The rule reads no files of its own.** Everything you configure is in the table above,
+  and nothing is discovered from the project layout. The linter reads your token
+  stylesheets once, at startup, with the same Tailwind engine your build uses, and every
+  rule works from what it found: which colour tokens you define, and which utilities take a
+  colour. Without token stylesheets the linter refuses to start, rather than run rules that
+  can't tell a token from a typo.
+- **Changing only this rule's severity keeps its behaviour.** Writing
+  `"…/no-spectral-color": "error"` drops any options you gave the rule, but options you
+  don't write fall back to the defaults in the table, and the tokens read at startup are
+  unaffected. The one visible change is that the message names `src/styles.css` instead of
+  your token stylesheet.
 - **`replacement` is the one default that cannot live in `meta.defaultOptions`.** Oxlint
   merges those **deeply** for an object-valued option, so a consumer supplying a map with
   `text` deliberately left out would get the default's `text` entries back and never learn

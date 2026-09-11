@@ -41,8 +41,9 @@ classes contributed by a plugin — the rule stays silent.
 
 ## Promises to catch
 
-A class under a colour-carrying prefix that the Tailwind design system built from the
-configured entry point generates no CSS for. Variants, the important modifier and the
+A class under a colour-carrying prefix that the Tailwind design system built from your token
+stylesheets — the CSS files that define your `--color-*` tokens, which you name once when
+you [set up the linter](../../README.md) — generates no CSS for. Variants, the important modifier and the
 opacity modifier are stripped before resolution: they change when a declaration applies, not
 whether one exists. Stripping is **segment-aware** and respects bracket depth, so
 `bg-[image:var(--x)]` is never split at its inner colon and `[@media(hover:hover)]:` is one
@@ -329,33 +330,30 @@ separate diagnostic.
 
 ### Tokens defined outside the resolver's reach
 
-A `--color-*` added by a Tailwind plugin, or in a stylesheet not reachable from the entry
-point's import graph, resolves as undefined and would be a false positive. The rule's
-contract is "no CSS from *this* entry point"; keeping the entry point complete is a
-configuration responsibility, not something the rule can detect.
+A `--color-*` added by a Tailwind plugin, or in a stylesheet that is neither one of your
+token stylesheets nor something they import, resolves as undefined and would be a false
+positive. The rule's contract is "no CSS from *your token stylesheets*"; keeping them
+complete is a configuration responsibility, not something the rule can detect.
 
 ### Failure to build the design system, or to be given one
 
-If the design system cannot be loaded — or if the entry point was never supplied — the rule
-must **error out**, not fall silent. A rule that reports nothing looks identical to a
-codebase with no violations, and this is the one rule in the set whose entire output depends
-on an external resolution step succeeding. It is also the gate for `token-constraints`, so a
-silent failure here quietly weakens two rules rather than one.
+If the design system cannot be loaded — or if the linter was never given your token
+stylesheets — linting must **error out**, not fall silent. A rule that reports nothing
+looks identical to a codebase with no violations, and this is the one rule in the set whose
+entire output depends on an external resolution step succeeding. It is also the gate for
+`token-constraints`, so a silent failure here quietly weakens two rules rather than one.
 
 This is a promise about the failure mode rather than a case, and it is stated here because
-the current implementation does the opposite. Distribution makes it sharper rather than
-softer, because it adds a second, likelier way to arrive at no design system:
+the proof of concept did the opposite.
 
-> **Rule options replace, they do not merge.** A consumer writing
-> `"…/no-undefined-token": "error"` — to bump a severity, nothing more — wipes the preset's
-> options entirely. Under a rule that returns early on absent options, the result is a rule
-> that appears enabled, reports nothing, and exits 0. For a rule whose whole output is an
-> absence, and which gates another rule, that failure is indistinguishable from success.
-
-So: **absent or unresolvable required options are a thrown error at plugin-module load**, not
-an early return, not a warning. `defaultOptions` carries a usable baseline so the common case
-still works, and the error names the missing key. Falling over loudly is the cheapest
-diagnostic this rule can offer, and the only one that cannot be mistaken for a clean run.
+The linter reads your token stylesheets once, at startup, with the same Tailwind engine your
+build uses, and every rule works from what it found: which colour tokens you define, and
+which utilities take a colour. **Without token stylesheets the linter refuses to start**,
+rather than run rules that can't tell a token from a typo, and a stylesheet that does not
+exist stops it too, by name. There is no configuration under which this rule runs without
+them — changing only its severity (`"…/no-undefined-token": "warn"`) leaves the tokens read
+at startup untouched. Falling over loudly is the cheapest diagnostic this rule can offer,
+and the only one that cannot be mistaken for a clean run.
 
 ## Deferred: CSS surface
 
@@ -385,10 +383,9 @@ No entry point in the current package shape covers it, so the mechanism is an op
 }
 ```
 
-**The entry point is not a linted surface.** `entryPoint` names a `.css` file, and the rule
-reads it at load to build the design system every verdict depends on. Nothing about narrowing
-the linted file set touches that: it is an *input*, and it stays required. The same is true of
-`tokenFiles` in the sibling rules.
+**Your token stylesheets are not a linted surface.** The linter reads them at startup to
+learn the tokens every verdict depends on. Nothing about narrowing the linted file set
+touches that: they are an *input*, and they stay required.
 
 ## Relationship to other rules
 
@@ -450,8 +447,9 @@ own punctuation in `data` and reads as a bug the first time someone greps for it
 > intent; a second id selected by whether a candidate exists breaks nothing it was
 > protecting. `no-spectral-color` already carries the same pair for the same reason.
 
-Candidates come from the **semantic token set**, resolved from the same `entryPoint` at the
-same load step as the design system — not from the design system's full colour namespace,
+Candidates come from the **semantic token set** — the colour tokens your token stylesheets
+define, read at the same time as the design system — not from the design system's full
+colour namespace,
 which holds the spectral palette too. Answering `bg-red-40` with `bg-red-400` would hand the
 author a class `no-spectral-color` then forbids, which is the partition between those two
 rules breaking from the inside.
@@ -482,7 +480,7 @@ consuming project overrides in its own config — none is a fact baked into the 
 
 | Option | `recommended` | Overriding it |
 | --- | --- | --- |
-| `entryPoint` | `"src/styles.css"` | The Tailwind entry point the design system is built from — an **input**, read at load, never a linted file. **Required**, and unaffected by the linter's file set narrowing to JS/TS. An absent or unloadable entry point is a thrown error, never a silent no-op — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
+| `entryPoint` | `"src/styles.css"` | Decides which file the hint tells you to add a token to ("add `--color-x` to …"); it doesn't change what the rule checks. The recommended setup fills it in with your first token stylesheet. The tokens themselves come from your token stylesheets, which no option of this rule affects — see [Failure to build the design system](#failure-to-build-the-design-system-or-to-be-given-one). |
 | `colorPrefixes` | derived from the design system | An array *adds* utility prefixes a Tailwind plugin introduces. It does not replace the derived set — hand-maintaining that set is the bug this option exists to avoid. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Storybook is excluded by default; a project that treats stories as production code sets this to `[]`. |
 
@@ -492,20 +490,17 @@ that does not exist. There is no policy position on the other side of it.
 
 ### Distribution
 
-- **The rule reads no files at rule-evaluation time and derives no path from its own
-  location.** The design system is built once at plugin-module load from the `entryPoint`
-  the consumer supplied — never inside `create()`, never from a path relative to the
-  package. This keeps `RuleTester` usable and avoids a per-file filesystem hit.
-- **The entry point arrives through `options`, not `settings`.** Because the rule is ours,
-  the path is a rule option and none of the `settings`-not-inherited-through-`extends`
-  problem applies to it. What does apply is that the preset's default must survive whatever
-  the consumer writes — see the next bullet. This rule is the one that fails hardest without
-  an entry point, which is why the requirement is repeated here rather than left to the
-  README.
-- **Rule options replace, they do not merge — and this rule is the worst place for it.**
-  Bumping a severity wipes `entryPoint`, and a rule whose output is an absence cannot signal
-  that by reporting less. It signals it by refusing to start. To change severity alone,
-  restate the options.
+- **The rule reads no files while linting and derives no path from where it is installed.**
+  The linter reads your token stylesheets once, at startup, with the same Tailwind engine
+  your build uses, and every rule works from what it found: which colour tokens you define,
+  and which utilities take a colour. Linting a file costs no filesystem access.
+- **Your token stylesheets are named once, when you set up the linter** — not per rule.
+  This rule is the one that fails hardest without them, which is why the requirement is
+  repeated here rather than left to the README.
+- **Changing only this rule's severity keeps its behaviour.** Options you don't write fall
+  back to the defaults in the table, and the tokens read at startup are unaffected. The one
+  visible difference: the hint names `src/styles.css` instead of your stylesheet. To keep it
+  naming yours, restate `entryPoint` alongside the severity.
 
 ## Deltas from the current implementation
 
@@ -532,7 +527,7 @@ script locates relative to its own directory.
 | `<Chart palette="text-secondary" />` | caught | caught — the broad sweep is context-free by design |
 | `@apply bg-danger-muted` in a `.css` file | caught — `linter.js` reads `.css` and extracts `@apply` lists | **deferred** — `.css` is not a linted surface for now; the promise is recorded, not the coverage |
 | **Design system fails to load** | **rule silently no-ops; every undefined token passes** | hard error |
-| **Required option absent** | not applicable — config came from a fixed path | hard error at plugin-module load |
+| **Linter set up without token stylesheets** | not applicable — config came from a fixed path | the linter refuses to start |
 
 The silent no-op is the most consequential gap in the current implementation. `index.js`
 builds the resolver with `.catch(() => null)` and the rule returns `null` when
@@ -540,7 +535,9 @@ builds the resolver with `.catch(() => null)` and the rule returns `null` when
 Tailwind upgrade therefore turns the rule off with no output and no exit code — and because
 it is the gate for `token-constraints`, it turns off part of that rule's coverage too.
 
-Distribution adds a second route to the same failure that the proof of concept never had: a
-consumer restating a severity wipes the options. Both routes end in the same place and both
-must end in a thrown error, which is why the failure mode is a promise in this contract
-rather than an implementation detail.
+Distribution could have added a second route to the same failure that the proof of concept
+never had: a consumer changing only a severity and, with it, the rule's view of the tokens.
+It does not — the tokens are read from your token stylesheets at startup, whatever the
+rule's options say — and the route that remains, no token stylesheets at all, stops the
+linter from starting. That is why the failure mode is a promise in this contract rather
+than an implementation detail.

@@ -54,9 +54,8 @@ import { parseClass, splitVariants, stripImportant } from "../policy/variants.js
  * ## Where its inputs come from
  *
  * `componentSources`, `ownedUtilities` and `ignoreGlobs` are JSON a consumer writes.
- * `designSystem` is not — it crosses a JSON boundary as a husk with every method gone — so the
- * plugin module
- * builds it once at load from `settings.tailwindcss.entryPoint` and binds it around
+ * `designSystem` is not — it crosses a JSON boundary as a husk with every method gone — so
+ * `designLint()` builds it once from its `tokenFiles`, and the plugin module binds it around
  * `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
  * `context.options[0]` and the rule cannot tell the difference.
  */
@@ -114,14 +113,14 @@ export default {
     const colorPrefixes = requiredSet(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
     const colorNames = requiredSet(designSystem?.colorNames, "designSystem.colorNames");
 
-    // Oxlint *replaces* rule options rather than merging them, so a consumer bumping a
-    // severity — `"design/no-component-color-override": "error"` — wipes the preset's
-    // options and leaves this absent. A rule that returned early there would appear
+    // A consumer bumping a severity — `"design/no-component-color-override": "error"` —
+    // drops the preset's options, and `componentSources` has no default for Oxlint to merge
+    // back in, so it arrives absent. A rule that returned early there would appear
     // enabled, report nothing and exit 0: a total, silent loss of coverage that looks
     // exactly like success. Failing loudly is the whole mitigation available here.
     if (!Array.isArray(componentSources) || componentSources.length === 0) {
       throw new Error(
-        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. Oxlint replaces rule options rather than merging them, so a severity bump written on its own wipes the preset\'s; re-pass the options alongside it.',
+        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. A severity bump written on its own drops the preset\'s options, and this one has no default to fall back to; re-pass it alongside the severity.',
       );
     }
 
@@ -216,7 +215,7 @@ const COLOR_VALUE =
 function requiredSet(value, name) {
   if (!(value instanceof Set)) {
     throw new Error(
-      `no-component-color-override: \`${name}\` is missing or is not a Set — the plugin module resolves the design system from \`settings.tailwindcss.entryPoint\` at load and binds it around \`create\`; it cannot be passed as a JSON option.`,
+      `no-component-color-override: \`${name}\` is missing or is not a Set — \`designLint()\` resolves the design system from its \`tokenFiles\` and the plugin binds it around \`create\`; it cannot be passed as a JSON option.`,
     );
   }
   return value;

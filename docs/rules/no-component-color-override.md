@@ -53,10 +53,12 @@ import { Chart } from "@/components/chart";
 A class is a color class when its utility prefix is one of the color-valued Tailwind
 prefixes and its value is a color.
 
-**The prefix set is derived, not hand-listed.** `/policy` builds it from the Tailwind
-design system resolved through `settings.tailwindcss.entryPoint`, which is why the
-directional border families, `inset-ring`, `inset-shadow`, and `text-shadow` are all
-present without anyone maintaining a constant. At the time of writing that set is:
+**The prefix set is derived, not hand-listed.** The linter reads your token stylesheets —
+the CSS files that define your `--color-*` tokens, which you name once when you
+[set up the linter](../../README.md) — once, at startup, with the same Tailwind engine your
+build uses, and asks it which utilities take a colour. That is why the directional border
+families, `inset-ring`, `inset-shadow`, and `text-shadow` are all present without anyone
+maintaining a list. At the time of writing that set is:
 
 `bg` · `text` · `border` (including the directional forms `border-t`, `border-r`,
 `border-b`, `border-l`, `border-x`, `border-y`, `border-s`, `border-e`) · `divide` ·
@@ -661,11 +663,11 @@ overrides.
 | `ownedUtilities` | `string[]` (utility prefixes) | `[]` | Adds non-colour prefixes the design system also claims |
 | `ignoreGlobs` | `string[]` (globs) | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips — see [below](#storybook-and-other-excluded-files) |
 
-One further input arrives through `settings`, not options, because it is shared with every
-other rule in the package: `settings.tailwindcss.entryPoint`, from which `/policy` derives
-the colour-prefix set and the semantic token names. **The rule reads no filesystem and
-derives no path from its own location** — every external fact reaches it as configured
-input.
+One further input is not an option at all: which colour tokens you define, and which
+utilities take a colour. The linter reads your token stylesheets once, at startup, with the
+same Tailwind engine your build uses, and every rule works from what it found — so neither
+this rule's options nor its severity can change it. **The rule reads no files of its own**
+— everything it knows about your project comes from your setup.
 
 ### `componentSources`
 
@@ -724,22 +726,24 @@ scanning `.ts` here is pure cost — nothing can match.
 
 ### The options-replace footgun
 
-Oxlint **replaces** rule options rather than merging them. A consumer who writes
+A consumer who writes
 
 ```jsonc
 "design/no-component-color-override": "error"   // just bumping severity
 ```
 
-wipes the preset's options entirely, leaving `componentSources` absent. The naive
-implementation returns early with no watched components, so the rule appears enabled,
-reports nothing, and exits 0 — a silent, total loss of coverage that looks like success.
+changes more than the severity. Options you don't write fall back to the defaults in the
+table, but `componentSources` has none, so it is left unset. A rule watching nothing would
+appear enabled, report nothing, and exit 0 — a silent, total loss of coverage that looks
+like success.
 
-**This rule therefore throws on an absent or empty `componentSources`**, naming the option
-and the factory in the error, rather than returning early. Failing loudly is the entire
-mitigation available at the rule level, and it is why the rule carries no default to fall
-back on: a guessed alias would turn this throw back into silence. The factory requires the
-option as well, and the README says how to spell it. The correct form of a severity bump is
-to re-pass the options alongside it.
+**This rule therefore stops with an error when `componentSources` is absent or empty**,
+naming the option, rather than running with nothing to watch. Failing loudly is the entire
+mitigation available at the rule level, and it is why the option has no default to fall
+back on: a guessed alias would turn this error back into silence. The
+[README](../../README.md) says how to spell it. An empty list in your linter setup is
+different: passing an empty list when you set up the linter turns this rule off. To change
+only the severity, re-pass `componentSources` alongside it.
 
 ## Relationship to other rules
 
