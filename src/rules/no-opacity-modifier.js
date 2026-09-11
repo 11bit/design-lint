@@ -38,6 +38,9 @@ export default {
     messages: {
       opacityModifierOnColor:
         "{{className}} — opacity modifier on a color class; define a token for {{base}} at {{modifier}} instead of deriving it here",
+      // A full-opacity modifier changes nothing, so the fix is to delete it — not to define a
+      // token for a colour at 100%.
+      fullOpacityModifier: "{{className}} — /{{modifier}} changes nothing; delete the modifier",
     },
     schema: [
       {
@@ -108,7 +111,7 @@ export default {
       if (!root || !prefixes.has(root)) return null;
       if (!isColorBody(designSystem, base) && !namesAColor(base, root)) return null;
 
-      return { base, modifier: opacity };
+      return { base, modifier: opacity, full: isFullOpacity(opacity) };
     };
 
     return sweepVisitors((source) => {
@@ -126,7 +129,7 @@ export default {
           // `className` are four separate spans. A token the tokenizer could not place —
           // one written with an escape — has no range, and the literal is the fallback.
           node: token.range ? { range: token.range } : source.node,
-          messageId: "opacityModifierOnColor",
+          messageId: violation.full ? "fullOpacityModifier" : "opacityModifierOnColor",
           data: {
             className: written,
             base: violation.base,

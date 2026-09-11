@@ -108,3 +108,24 @@ new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "
     ],
   },
 );
+
+/**
+ * Which message a report carries.
+ *
+ * The contract's corpus counts reports, not messages, and the fix for a full-opacity modifier
+ * is different from every other one: `/100` changes nothing, so the answer is to delete it,
+ * not to define a token for a colour at 100%.
+ */
+new RuleTester({ eslintCompat: true, languageOptions: { parserOptions: { lang: "tsx" } } }).run(
+  "messages",
+  bindResolved(rule, { designSystem }),
+  {
+    valid: [],
+    invalid: [
+      { code: '<div className="bg-primary/50" />', errors: [{ messageId: "opacityModifierOnColor" }] },
+      { code: '<div className="bg-primary/100" />', errors: [{ messageId: "fullOpacityModifier" }] },
+      { code: '<div className="bg-primary/[100%]" />', errors: [{ messageId: "fullOpacityModifier" }] },
+      { code: '<div className="bg-primary/[1]" />', errors: [{ messageId: "fullOpacityModifier" }] },
+    ],
+  },
+);
