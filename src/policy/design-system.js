@@ -46,6 +46,12 @@ const PROBE_TOKEN = "red-500";
 /** Tailwind's own namespace for theme colours. A value mentioning one names a colour. */
 const THEME_COLOR_VAR = /var\(\s*--color-[\w-]/;
 
+/**
+ * The colour keywords Tailwind accepts under a colour prefix without a theme entry. They set a
+ * colour, so they count — as they do in `no-component-color-override`.
+ */
+const COLOR_KEYWORDS = new Set(["current", "transparent", "inherit"]);
+
 /** Tailwind's theme namespace for colours. Every colour a class can name lives under it. */
 const COLOR_NAMESPACE = "--color";
 
@@ -174,28 +180,39 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
       const declarations = declarationsOf(className);
       if (!declarations) return false;
 
-      // A theme colour, however deeply wrapped. `bg-primary/50` arrives as
-      // `color-mix(in oklab, var(--color-primary) 50%, transparent)`, and the reference
-      // survives every wrapper Tailwind puts around it.
+      // A class whose value is a *name* is a colour exactly when the theme says the name is
+      // one. That is the question `no-spectral-color` and `no-component-color-override` ask,
+      // and it is answered from the `--color` namespace, not from the CSS the class emits.
+      //
+      // The CSS cannot answer it under `@theme inline`, which is what shadcn/ui writes and so
+      // what a large share of Tailwind v4 projects run. Inline substitutes a token's value
+      // instead of referencing it, so `ring-primary` emits `--tw-ring-color: var(--primary)`:
+      // no `--color-` in the value, and a Tailwind-internal custom property rather than a
+      // colour property. Twenty-eight of forty-nine colour prefixes set their colour that way
+      // — `ring-`, `shadow-`, the gradient stops, every `mask-*` family — and every rule gated
+      // on this one was silent on all of them. Inline does not touch the namespace.
+      const [candidate] = designSystem.parseCandidate(className) ?? [];
+      if (candidate?.value?.kind === "named") {
+        if (!colorPrefixes.has(candidate.root)) return false;
+        const name = candidate.value.value;
+        return colorNames.has(name) || COLOR_KEYWORDS.has(name);
+      }
+
+      // Everything else names no theme colour, so the CSS is the only evidence there is.
+      //
+      // A token referenced from inside an arbitrary value, however deeply wrapped:
+      // `bg-[color-mix(in_oklab,var(--color-primary)_50%,transparent)]`.
       if (declarations.some((d) => THEME_COLOR_VAR.test(d.value))) return true;
 
-      // The property itself, which is the answer whenever the value does not name the
-      // namespace. Under `@theme inline` — what shadcn/ui generates, and so what a large
-      // share of Tailwind v4 projects run — a theme colour is substituted rather than
-      // referenced: `border-primary-foreground` emits `border-color: var(--primary-foreground)`
-      // with no `--color-` anywhere in it. Reading the value alone answered `false` for every
-      // colour class in such a project, and every rule gated on this one quietly stopped
-      // reporting. The property cannot be spelled away like that.
-      //
-      // Only the colour-only reading counts: a shorthand is how `bg-[image:var(--x)]`, which
-      // lands in `background-image`, would sneak back in.
+      // The property, where there is no value to look up: `[color:red]` is an arbitrary
+      // property. Only the colour-only reading counts: a shorthand is how
+      // `bg-[image:var(--x)]`, which lands in `background-image`, would sneak back in.
       if (declarations.some((d) => colorProperty(d.property) === "color")) return true;
 
       // An arbitrary value names its colour directly and never touches the namespace:
       // `text-[#fff]` generates `color: #fff`. The root gate matters here — it is what
       // keeps `bg-[image:var(--x)]`, whose type hint sends it to `background-image`, from
       // being read as a colour just because `bg` can carry one.
-      const [candidate] = designSystem.parseCandidate(className) ?? [];
       if (!candidate || candidate.value?.kind !== "arbitrary") return false;
       if (!colorPrefixes.has(candidate.root)) return false;
       return declarations.some((d) => isColorProperty(d.property));

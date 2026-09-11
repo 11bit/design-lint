@@ -199,11 +199,41 @@ describe("@theme inline", () => {
     expect(inline.isColorClass("text-sidebar")).toBe(true);
   });
 
+  it("sees a colour under every colour prefix, not only those that set a colour property", () => {
+    // `ring-`, `shadow-`, the gradient stops and the `mask-*` families set their colour
+    // through a Tailwind-internal custom property, which under inline carries neither a
+    // `--color-` reference nor a colour property. Asked of the namespace, every prefix
+    // answers the same way — and a plain `@theme` has to keep agreeing.
+    for (const [label, p] of [
+      ["inline", inline],
+      ["plain", policy],
+    ]) {
+      const missed = [...p.colorPrefixes].filter((root) => !p.isColorClass(`${root}-primary`));
+      expect(missed, label).toEqual([]);
+    }
+  });
+
   it("still refuses what only looks like one", () => {
-    // The property decides, and only the colour-only reading of it: a width, a size and a
-    // shorthand that lands in `background-image` are all still not colours.
-    expect(inline.isColorClass("border-l")).toBe(false);
-    expect(inline.isColorClass("text-sm")).toBe(false);
-    expect(inline.isColorClass("bg-[image:var(--x)]")).toBe(false);
+    // A size, a width, a number, a keyword that sets no colour: a name under a colour prefix
+    // is a colour only when the namespace has it. An arbitrary value that lands in
+    // `background-image` is still not one either.
+    for (const c of [
+      "border-l",
+      "border-2",
+      "text-sm",
+      "shadow-sm",
+      "ring-2",
+      "from-50%",
+      "outline-hidden",
+      "bg-[image:var(--x)]",
+    ]) {
+      expect(inline.isColorClass(c), c).toBe(false);
+    }
+  });
+
+  it("counts the three colour keywords Tailwind ships outside the namespace", () => {
+    for (const c of ["bg-current", "border-transparent", "text-inherit"]) {
+      expect(inline.isColorClass(c), c).toBe(true);
+    }
   });
 });
