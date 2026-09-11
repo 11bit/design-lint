@@ -1,0 +1,25 @@
+src/preset/index.js
+  s_2a6de6b38ac46a::t_96f0e105b2a7d3 21,61
+src/rules/no-component-color-override.js
+  s_2a6de6b38ac46a::t_8f3a50748e323f 89-91,93-98,117
+README.md
+  s_2a6de6b38ac46a::t_59d1e5223afffd 23,34-43
+docs/rules/no-component-color-override.md
+  s_2a6de6b38ac46a::t_a704e35a39c170 598-614,621-650,660,671-677,680-690,739-742
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4179f2d8e38fd4e004b041584a9c41f5771080fb",
+  "prompts": {},
+  "sessions": {
+    "s_2a6de6b38ac46a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "810cacf9-9db3-417b-bdac-20fc97cfc991",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
