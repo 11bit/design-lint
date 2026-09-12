@@ -1,0 +1,25 @@
+docs/rules/no-raw-color.md
+  s_1ee7ca2b3d2bae::t_f2fe4bd76b41dd 87
+docs/rules/no-component-color-override.md
+  s_1ee7ca2b3d2bae::t_05673c62470410 86
+docs/rules/no-spectral-color.md
+  s_1ee7ca2b3d2bae::t_0d4b1ba30c0565 69,83
+README.md
+  s_1ee7ca2b3d2bae::t_b9833f294334cd 74,99-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "04fa44a4fd8a1eb67fdc2b2f60cdfd1c0a6d4543",
+  "prompts": {},
+  "sessions": {
+    "s_1ee7ca2b3d2bae": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0911f-4c36-7058-a95d-a68f0533651d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
