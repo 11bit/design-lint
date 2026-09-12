@@ -297,7 +297,7 @@ export default {
       group: "`light-dark()` in a class, a style value, or CSS in a string",
       code: `<div style={{ color: "light-dark(#000, #fff)" }} />`,
       reports: [
-        { id: "lightDarkFunction", line: 1, column: 23, endLine: 1, endColumn: 39 },
+        { id: "lightDarkFunction", line: 1, column: 23, endLine: 1, endColumn: 45 },
       ],
     },
     {
@@ -305,7 +305,7 @@ export default {
       group: "`light-dark()` in a class, a style value, or CSS in a string",
       code: `const panel = css\`color: light-dark(#000, #fff);\`;`,
       reports: [
-        { id: "lightDarkFunction", line: 1, column: 26, endLine: 1, endColumn: 42 },
+        { id: "lightDarkFunction", line: 1, column: 26, endLine: 1, endColumn: 48 },
       ],
     },
 
@@ -317,6 +317,40 @@ export default {
       reports: [
         { id: "darkVariant", line: 1, column: 17, endLine: 1, endColumn: 32 },
         { id: "darkVariant", line: 1, column: 33, endLine: 1, endColumn: 48 },
+      ],
+    },
+
+    // The two switches. `flagNonColorUtilities: false` narrows the rule to colour classes, so
+    // the logo swap passes while a colour fork still reports; `flagLightDark: false` stops
+    // `light-dark()` reports and leaves `dark:` alone.
+    {
+      kind: "allowed",
+      group: "Options",
+      code: `<img className="dark:hidden" src="/logo-dark.svg" />`,
+      options: { flagNonColorUtilities: false },
+    },
+    {
+      kind: "caught",
+      group: "Options",
+      code: `<div className="dark:bg-card" />`,
+      options: { flagNonColorUtilities: false },
+      reports: [
+        { id: "darkVariant", line: 1, column: 17, endLine: 1, endColumn: 29 },
+      ],
+    },
+    {
+      kind: "allowed",
+      group: "Options",
+      code: `<div className="bg-[light-dark(#000,#fff)]" />`,
+      options: { flagLightDark: false },
+    },
+    {
+      kind: "caught",
+      group: "Options",
+      code: `<div className="dark:bg-card bg-[light-dark(#000,#fff)]" />`,
+      options: { flagLightDark: false },
+      reports: [
+        { id: "darkVariant", line: 1, column: 17, endLine: 1, endColumn: 29 },
       ],
     },
 

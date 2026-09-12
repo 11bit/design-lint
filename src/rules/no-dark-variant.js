@@ -178,10 +178,13 @@ export default {
         }
 
         if (flagLightDark && className.includes(LIGHT_DARK)) {
+          // A call spread over several tokens is reported where it is written, whole — the
+          // same text the message quotes — rather than at its first token.
+          const call = calls.callFor(className);
           context.report({
-            node,
+            node: call.range ? { range: call.range } : node,
             messageId: "lightDarkFunction",
-            data: { source: calls.sourceOf(className), tokenFile },
+            data: { source: call.source, tokenFile },
           });
         }
       }
@@ -198,29 +201,39 @@ const LIGHT_DARK = "light-dark(";
  *
  * A class token stops at whitespace, and a call in a `style` value or a CSS string does not:
  * `"light-dark(#000, #fff)"` is the tokens `light-dark(#000,` and `#fff)`, so quoting the
- * token would print half a call. `sourceOf` answers with the class itself when the call
- * closes inside it — `bg-[light-dark(var(--a),var(--b))]` is the thing to edit — and
- * otherwise with the whole call, recovered from the text around it. Calls are consumed in
- * the order tokens meet them, so two different calls in one string are each quoted as
- * written. A call never spans a hole: the static text on each side of one is scanned alone.
+ * token would print half a call, and point at half of one. `callFor` answers with the class
+ * itself when the call closes inside it — `bg-[light-dark(var(--a),var(--b))]` is the thing
+ * to edit, so its `range` is left to the caller — and otherwise with the whole call and its
+ * span, recovered from the text around it. Calls are consumed in the order tokens meet them,
+ * so two different calls in one string are each quoted as written. A call never spans a
+ * hole: the static text on each side of one is scanned alone.
  */
 function lightDarkCalls(source) {
   const found = [];
-  for (const { text } of source.segments) {
+  for (const segment of source.segments) {
+    const { text } = segment;
     let at = text.indexOf(LIGHT_DARK);
     while (at !== -1) {
-      found.push(balancedCall(text, at).text);
+      const call = balancedCall(text, at).text;
+      // An escape makes the segment's offsets untrustworthy, as it does a token's.
+      const trusted = segment.exact && segment.start !== undefined;
+      found.push({
+        text: call,
+        range: trusted ? [segment.start + at, segment.start + at + call.length] : null,
+      });
       at = text.indexOf(LIGHT_DARK, at + LIGHT_DARK.length);
     }
   }
 
   let next = 0;
   return {
-    sourceOf(className) {
+    callFor(className) {
       const first = found[next] ?? null;
       next += className.split(LIGHT_DARK).length - 1;
       const { closed } = balancedCall(className, className.indexOf(LIGHT_DARK));
-      return closed || first === null ? className : first;
+      return closed || first === null
+        ? { source: className, range: null }
+        : { source: first.text, range: first.range };
     },
   };
 }
