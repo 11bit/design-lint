@@ -6,8 +6,8 @@ import { parseClass } from "../policy/variants.js";
 /**
  * no-spectral-color — Tailwind's built-in palette must not colour anything.
  *
- * The specification is `docs/rules/no-spectral-color.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-spectral-color.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-spectral-color.md` is the guide for the people using it.
  *
  * The rule is **context-free**: it asks "is this string a forbidden class?" and never needs
  * to know which element the string reaches. So it runs over `sweepVisitors` — every string

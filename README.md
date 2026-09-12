@@ -38,8 +38,8 @@ points at the same folder. A shadcn project records this as `aliases.ui` in
 `components.json`. A pattern that matches none of your imports makes the rule watch
 nothing, and it cannot tell you: it reports nothing, which looks exactly like a clean
 codebase. Relative imports into the folder (`../components/ui/sonner`) are not matched
-either — see the rule's
-[declared blind spots](./docs/rules/no-component-color-override.md#imports-spelled-differently-from-the-pattern).
+either — see the
+[rule guide](./docs/rules/no-component-color-override.md).
 
 ```
 src/App.tsx:5:46: error design(no-spectral-color): bg-red-500 — spectral color class; use bg-danger instead
@@ -60,11 +60,11 @@ src/App.tsx:8:21: error design(no-undefined-token): text-nonesuch generates no C
 | [`no-useless-hover`](./docs/rules/no-useless-hover.md) | `hover:` styling on an element the user cannot interact with |
 | [`no-component-color-override`](./docs/rules/no-component-color-override.md) | colour classes passed to a design-system component through `className` |
 
-**Every rule ships its contract.** [`docs/rules/`](./docs/rules/) holds one document per
-rule saying what it promises to catch, what it deliberately allows, and — the part worth
-reading — what it **cannot** see. Those documents are not prose about the rules: their
-examples are executed as the rule's test suite, so a promise and a declared blind spot are
-both assertions. If a rule misses something, the contract either already says so or the
+**Every rule has a guide and a contract.** [`docs/rules/`](./docs/rules/) holds one guide
+per rule: what it reports, what it allows, and how to fix a report.
+[`test/contracts/`](./test/contracts/) holds its contract — every case it promises to
+catch, every case it deliberately allows, and every case it **cannot** see, each one an
+executed test. If a rule misses something, the contract either already says so or the
 contract is wrong.
 
 ## Mechanism ships, policy is supplied
@@ -108,7 +108,8 @@ Stated plainly, because a linter's gaps matter more than its catches:
 
 - **`.css` files are not linted.** `@apply` lists and CSS declarations carry colour too, and
   today nothing checks them. This is deferred work with written contracts, not a decision
-  that it does not matter — each affected rule has a `Deferred: CSS surface` section.
+  that it does not matter — each affected rule's contract records its CSS cases as
+  `deferred`.
 - **Nothing is type-aware, and nothing follows a value across statements.** A class string
   is caught where it is written. `const s = { color: "red" }; <div style={s} />` is not
   caught, and the contracts declare it.

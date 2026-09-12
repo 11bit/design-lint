@@ -7,8 +7,8 @@ import { splitVariants, stripGroupName } from "../policy/variants.js";
  * no-useless-hover — `hover:` styling must not be applied to an element the user cannot
  * interact with.
  *
- * The specification is `docs/rules/no-useless-hover.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-useless-hover.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-useless-hover.md` is the guide for the people using it.
  *
  * A `hover:` variant is an affordance: it says "this responds to you" before the click.
  * Spending it on a `<div>` that does nothing is a promise the design system cannot see at

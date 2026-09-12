@@ -2,7 +2,8 @@ import { RuleTester } from "oxlint/plugins-dev";
 import { describe, expect, it } from "vitest";
 
 import { rules } from "../../src/rules/index.js";
-import { executable, loadContracts } from "../harness/contracts.js";
+import { optionsOf } from "../contracts/oxlint.js";
+import { contracts, runnable, sourceOf } from "../contracts/index.js";
 import { ruleFor } from "../harness/options.js";
 
 /**
@@ -29,8 +30,13 @@ describe("one option, under one name", () => {
   });
 });
 
-for (const contract of loadContracts()) {
-  const probe = executable(contract).find((c) => c.tag === "caught");
+for (const contract of contracts) {
+  const found = runnable(contract).find((c) => c.kind === "caught");
+  const probe = {
+    source: sourceOf(contract, found),
+    resolved: optionsOf(contract, found),
+    count: found.reports.length,
+  };
 
   // Written on top of whatever the corpus already runs the probe under, so the only thing
   // that differs between the cases below is the glob list and the filename.

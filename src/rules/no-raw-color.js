@@ -8,8 +8,8 @@ import { parseClass } from "../policy/variants.js";
 /**
  * no-raw-color — a colour must never be written as a literal value.
  *
- * The specification is `docs/rules/no-raw-color.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-raw-color.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-raw-color.md` is the guide for the people using it.
  *
  * The rule's subject is the **value**, wherever it is written, which is the mirror image of
  * `no-style-color`: that rule flags `color:` appearing in a `style` prop whatever it is set

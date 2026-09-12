@@ -6,8 +6,8 @@ import { parseClass, stripGroupName } from "../policy/variants.js";
 /**
  * no-dark-variant — theming happens in the token file, and nowhere else.
  *
- * The specification is `docs/rules/no-dark-variant.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-dark-variant.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-dark-variant.md` is the guide for the people using it.
  *
  * Two forms of the same defect, a second theming mechanism:
  *

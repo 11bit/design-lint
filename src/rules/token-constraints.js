@@ -7,8 +7,8 @@ import { familyOfKey, inFamily, parseClass } from "../policy/variants.js";
 /**
  * token-constraints — a semantic colour token may only be used where the design system says.
  *
- * The specification is `docs/rules/token-constraints.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/token-constraints.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/token-constraints.md` is the guide for the people using it.
  *
  * Every other colour rule asks *is this a token at all?*; this one asks *is it the right
  * token here?* — which is the only question in the plugin whose answer is written by

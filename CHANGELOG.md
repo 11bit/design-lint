@@ -2,8 +2,8 @@
 
 ## 0.1.0
 
-First release. Nine rules, each with a contract in `docs/rules/` whose examples are executed
-as its test suite.
+First release. Nine rules, each with a guide in `docs/rules/` and a contract in
+`test/contracts/` whose cases are executed as its test suite.
 
 - `no-raw-color`, `no-spectral-color`, `no-undefined-token`, `token-constraints`,
   `no-style-color`, `no-opacity-modifier`, `no-dark-variant`, `no-useless-hover`,
@@ -24,5 +24,5 @@ as its test suite.
   never a patch.
 - **A rule catching less**, a renamed rule or option, or a changed default is a **major**.
 - Changes to a rule's *message text* are a patch. Nothing should parse them.
-- Every one of these shows up as a change to a contract in `docs/rules/`, which is the
+- Every one of these shows up as a change to a contract in `test/contracts/`, which is the
   diff worth reading in a release.

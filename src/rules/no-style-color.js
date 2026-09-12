@@ -5,8 +5,8 @@ import { colorProperty } from "../policy/properties.js";
 /**
  * no-style-color — colour must not be applied through the React `style` prop.
  *
- * The specification is `docs/rules/no-style-color.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-style-color.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-style-color.md` is the guide for the people using it.
  *
  * The rule's subject is the **property**, never the value: `color: "red"` and
  * `color: computeColor()` are the same violation, because it is the inline channel that

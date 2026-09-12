@@ -10,8 +10,8 @@ import tokenConstraints from "./token-constraints.js";
 
 /**
  * Every rule, keyed by the id that appears in a diagnostic and in an
- * `oxlint-disable` comment. The key must match the `rule:` field of the contract in
- * `docs/rules/`, and the harness fails if the two sets ever diverge.
+ * `oxlint-disable` comment. The key must match the `rule` of a contract in
+ * `test/contracts/`, and the contract tests fail if the two sets ever diverge.
  */
 export const rules = {
   "no-component-color-override": noComponentColorOverride,

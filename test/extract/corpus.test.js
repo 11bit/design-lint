@@ -3,10 +3,10 @@ import { RuleTester } from "oxlint/plugins-dev";
 
 import { classSourcesOfElement, sweepVisitors } from "../../src/extract/index.js";
 import { classTokens } from "../../src/policy/tokenize.js";
-import { executable, label, loadContracts } from "../harness/contracts.js";
+import { contracts, runnable, sourceOf } from "../contracts/index.js";
 
 /**
- * The extraction-shaped subset of the Phase 2 corpus.
+ * The extraction-shaped subset of the contracts in `test/contracts/`.
  *
  * `test/extract/sweep.test.js` and `element.test.js` assert exactly which tokens come out
  * of a given shape. This file asserts something coarser and, for the migration, more
@@ -78,7 +78,7 @@ const tester = new RuleTester({
   languageOptions: { parserOptions: { lang: "tsx" } },
 });
 
-for (const contract of loadContracts()) {
+for (const contract of contracts) {
   const probe = SWEEP_RULES.has(contract.rule)
     ? sweepReach
     : ELEMENT_RULES.has(contract.rule)
@@ -89,12 +89,13 @@ for (const contract of loadContracts()) {
   // Extraction does not read options, so two cases that differ only in the policy they
   // assume are one case here — and `RuleTester` rejects the repeat outright.
   const byCode = new Map();
-  for (const c of executable(contract).filter((c) => c.tag === "caught")) {
-    if (!byCode.has(c.source)) byCode.set(c.source, c);
+  for (const c of runnable(contract).filter((c) => c.kind === "caught")) {
+    const code = sourceOf(contract, c);
+    if (!byCode.has(code)) byCode.set(code, `${c.group} — ${c.code.trim().split("\n")[0]}`);
   }
 
   tester.run(`${contract.rule} — every promise reaches extraction`, probe, {
-    valid: [...byCode.values()].map((c) => ({ name: label(contract, c), code: c.source })),
+    valid: [...byCode].map(([code, name]) => ({ name, code })),
     invalid: [],
   });
 }

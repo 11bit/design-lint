@@ -7,8 +7,8 @@ import { parseClass } from "../policy/variants.js";
 /**
  * no-undefined-token — a colour class must resolve to CSS.
  *
- * The specification is `docs/rules/no-undefined-token.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-undefined-token.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-undefined-token.md` is the guide for the people using it.
  *
  * This is the only rule in the set that reports the **absence** of styling rather than the
  * wrong kind of it. `text-warning-foreground` is spelled like a token, reads like one in

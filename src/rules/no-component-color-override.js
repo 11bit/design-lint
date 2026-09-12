@@ -6,8 +6,8 @@ import { parseClass } from "../policy/variants.js";
 /**
  * no-component-color-override — design-system components own their colour.
  *
- * The specification is `docs/rules/no-component-color-override.md`, whose `caught` /
- * `allowed` / `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-component-color-override.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-component-color-override.md` is the guide for the people using it.
  *
  * The rule is the most **context-dependent** of the nine. `bg-primary` is a perfectly good
  * class; it is only a defect because of *where* it lands — on the `className` of a

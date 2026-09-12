@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RuleTester } from "oxlint/plugins-dev";
 
-import { loadContracts } from "./contracts.js";
+import { contracts } from "../contracts/index.js";
 import { optionsFor, ruleFor } from "./options.js";
 
 /**
@@ -361,9 +361,8 @@ for (const [ruleName, fixtures] of Object.entries(FIXTURES)) {
 }
 
 describe("the location fixtures", () => {
-  it("exists for every rule whose contract says it is implemented", () => {
-    const missing = loadContracts()
-      .filter((c) => c.status === "implemented")
+  it("exists for every rule", () => {
+    const missing = contracts
       .filter((c) => !FIXTURES[c.rule]?.length)
       .map((c) => c.rule);
     expect(missing).toEqual([]);

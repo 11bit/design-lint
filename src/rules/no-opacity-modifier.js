@@ -6,8 +6,8 @@ import { parseClass } from "../policy/variants.js";
 /**
  * no-opacity-modifier — a colour class must not carry an opacity modifier.
  *
- * The specification is `docs/rules/no-opacity-modifier.md`, whose `caught` / `allowed` /
- * `blindspot` blocks the harness executes against this object.
+ * The specification is `test/contracts/no-opacity-modifier.js`, whose cases the Oxlint adapter runs
+ * against this object; `docs/rules/no-opacity-modifier.md` is the guide for the people using it.
  *
  * The rule is **context-free**: `bg-primary/50` is derived at the call site wherever it is
  * written, so which element the string reaches is not a question it has to ask. That is why
