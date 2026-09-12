@@ -64,11 +64,28 @@ Elements and components that are not part of the configured design-system compon
 <Chart className="bg-primary" />
 ```
 
-## Configuration
+## Options
 
 Projects configure which imports represent design-system components. Only those components are protected by this rule.
 
 A project may also choose to treat additional non-color utilities, such as `rounded` or `shadow`, as component-owned styling. By default, the rule focuses on color.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `componentSources` | none — required | Import patterns your design-system components come from, matched against each import exactly as written. `*` matches within one path segment, `**` across segments. |
+| `ownedUtilities` | `[]` | Non-color utility prefixes the components also own, such as `rounded` or `shadow`. The message still says "overrides color". |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
+
+```ts
+"design/no-component-color-override": ["error", {
+  componentSources: ["@/components/ui/*"],
+  ownedUtilities: ["rounded", "shadow"],
+}]
+```
+
+If your code imports `#/components/ui/button`, the pattern is `#/components/ui/*`, even when another alias points at the same folder. Passing an empty list when you set up the linter turns this rule off.
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied). Changing only the severity drops `componentSources`, so pass it again.
 
 ## Common fixes
 

@@ -62,6 +62,22 @@ Capitalized components are not reported by default, because the rule cannot know
 <Card className="hover:bg-muted" />
 ```
 
+## Options
+
+Every option has a default, so the rule works without any.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `interactiveElements` | `["tr", "td", "th"]` | Tags removed from the list of elements the rule treats as non-interactive. Table rows and cells are removed by default, because a row hover highlight is a deliberate, common pattern in data tables. |
+| `nonInteractiveComponents` | `[]` | Components (or any tag names) to report on as well, such as `Card` or `Dialog.Content`. Components are not reported otherwise, because the rule can't see whether they handle the pointer. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
+
+```ts
+"design/no-useless-hover": ["error", { nonInteractiveComponents: ["Card", "Badge"] }]
+```
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
+
 ## Common fixes
 
 - Move the `hover:` class to the clickable element.

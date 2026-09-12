@@ -57,6 +57,18 @@ Arbitrary values are not the subject of this rule.
 <div className="text-[14px]" />
 ```
 
+## Options
+
+Every option has a default, so the rule works without any.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `entryPoint` | `"src/styles.css"` | The file the message suggests adding a missing token to. It doesn't change what the rule checks; the recommended setup fills it in with your first token stylesheet. |
+| `colorPrefixes` | `[]` | Extra utility prefixes to check, added to the ones Tailwind reports — for example a utility from a Tailwind plugin. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
+
 ## Common fixes
 
 - Correct the spelling of the token.

@@ -51,6 +51,23 @@ CSS custom properties are allowed, because they can be consumed by token-aware C
 <div style={{ "--chart-color": value }} className="text-[var(--chart-color)]" />
 ```
 
+## Options
+
+Every option has a default, so the rule works without any.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `allowTokenValues` | `false` | `true` allows a property whose value contains any `var(--…)` reference, such as `color: "var(--color-primary)"`. |
+| `shorthandProperties` | `"key"` | `"key"` reports a color-capable shorthand (`border`, `background`, `boxShadow`, …) whatever its value. `"value"` reports it only when its value contains a color; `var()`, `currentColor`, `transparent` and keywords like `inherit` don't count. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
+
+```ts
+"design/no-style-color": ["error", { shorthandProperties: "value" }]
+// boxShadow: "none" and border: "1px solid currentColor" now pass.
+```
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
+
 ## Common fixes
 
 - Replace `style={{ color: ... }}` with a semantic text color class.

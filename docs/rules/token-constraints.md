@@ -54,7 +54,7 @@ Non-token color values are handled by other rules.
 <div className="bg-nonexistent" />
 ```
 
-## Configuration
+## Options
 
 This rule is intentionally policy-driven. Your configuration defines allowed and denied token patterns for utilities and variants.
 
@@ -64,6 +64,47 @@ Typical policy examples:
 - Background utilities may not use foreground tokens.
 - Border utilities may use border-like tokens.
 - Hover variants may require tokens ending in `-hover`.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `allowed` | the recommended policy below | For each key, the only token patterns that may be used there |
+| `denied` | the recommended policy below | For each key, token patterns that must not be used there |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. `[]` lints stories too |
+
+**Keys** are either a utility prefix — `text`, `bg`, `border`, `ring-offset`, … — or a variant
+family ending in `:` — `hover:`, `focus:`. `border` also covers every side of a border
+(`border-t`, `border-x`, `border-s`, …) unless that side has a key of its own. A variant
+family covers its related variants too: `hover:` also applies to `group-hover:` and
+`peer-hover:`.
+
+**Patterns** match the token name: `primary` exactly, `link*` starts with, `*-foreground`
+ends with, `*foreground*` contains, and `*` matches every token.
+
+**How a class is judged.** For its utility prefix, the rule uses `allowed[prefix]` if that
+key exists, otherwise `denied[prefix]`, otherwise `denied["*"]` — the fallback for prefixes
+with no policy of their own. An allow list therefore also shields its prefix from the
+fallback. If the class has a variant with a policy, that policy must be satisfied as well.
+An empty list still counts: `allowed: { text: [] }` bans every token after `text-`, and
+`denied: { bg: [] }` exempts `bg-` from the fallback.
+
+Writing either `allowed` or `denied` replaces the whole recommended policy, both lists —
+nothing from it is mixed back in. Setting only `ignoreGlobs` keeps it. A key in both lists,
+or `"*"` in `allowed`, is a configuration error.
+
+The recommended policy, written out:
+
+```ts
+"design/token-constraints": ["error", {
+  allowed: {
+    text: ["*foreground*", "*content*", "primary", "link*"],
+    border: ["border*", "input", "ring"],
+    "hover:": ["*-hover"],
+  },
+  denied: { "*": ["*-foreground", "*-content"] },
+}]
+```
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
 
 ## Common fixes
 

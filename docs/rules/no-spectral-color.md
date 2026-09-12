@@ -58,6 +58,33 @@ Color keywords handled by separate rules or policies are not the subject of this
 <div className="text-current" />
 ```
 
+## Options
+
+Every option has a default, so the rule works without any of them.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `replacement` | a built-in map (see below) | Maps palette colors to the semantic token a report should suggest, per utility prefix. |
+| `flagFixedColors` | `true` | Also reports the unscaled palette colors `white` and `black` (`text-white`, `bg-black`). Set `false` to allow them. |
+| `tokenFiles` | `["src/styles.css"]` | The file the message tells you to take a token from. The recommended setup fills it in with your token stylesheets; it doesn't change what the rule checks. |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Set `[]` to lint Storybook stories too. |
+
+A `replacement` map lists, for each utility prefix, palette ranges and the token to suggest for them:
+
+```ts
+replacement: {
+  bg: [{ "red-400...500": "danger" }, { "red-100...200": "danger-weak" }],
+  text: [{ "green-400...600": "success-content" }],
+}
+```
+
+- A map you supply replaces the default whole; a prefix you leave out gets no suggestion.
+- A token is only suggested when your token stylesheets define it; otherwise the report still fires, without a suggestion.
+- A map of the wrong shape is a configuration error.
+- The default map assumes a `success` / `info` / `warning` / `danger` vocabulary with `-weak` and `-content` variants, for `bg-` and `text-`.
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
+
 ## Common fixes
 
 - Replace the palette class with the semantic token that describes the intended role.

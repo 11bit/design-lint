@@ -62,6 +62,22 @@ Element opacity is a different effect and is allowed by this rule.
 <div className="opacity-50" />
 ```
 
+## Options
+
+Every option has a default, so the rule works without any.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `allowFullOpacity` | `false` | `true` stops reporting `/100`, which changes nothing about the color. |
+| `colorPrefixes` | `[]` | Extra utility prefixes to treat as colors — for example a utility added by a Tailwind plugin (`glow-primary/50`). |
+| `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
+
+```ts
+"design/no-opacity-modifier": ["error", { colorPrefixes: ["glow"] }]
+```
+
+Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).
+
 ## Common fixes
 
 - Replace `bg-primary/50` with a named token for that translucent color.
