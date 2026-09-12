@@ -1,0 +1,42 @@
+docs/rules/no-style-color.md
+  s_7854930eea3f9d::t_d567a5d7e2de9e 54-65,67-70
+  s_7854930eea3f9d::t_a020995052607a 66
+docs/rules/no-raw-color.md
+  s_7854930eea3f9d::t_9d4f83f3e80fcf 86
+  s_7854930eea3f9d::t_22b01ea0a5819d 78-85,87-91
+docs/rules/no-opacity-modifier.md
+  s_7854930eea3f9d::t_d567a5d7e2de9e 65-80
+docs/rules/no-dark-variant.md
+  s_7854930eea3f9d::t_3ab434efa87225 57-69
+docs/rules/token-constraints.md
+  s_7854930eea3f9d::t_d3dba08e511eed 57,68-71,73-107
+  s_7854930eea3f9d::t_ebc39a19cf707c 72
+  s_7854930eea3f9d::t_6f904ddfd3cf33 108
+docs/rules/no-spectral-color.md
+  s_7854930eea3f9d::t_7792d0d851a572 70
+  s_7854930eea3f9d::t_e2d6a6caf47731 61-69,71-87
+docs/rules/no-useless-hover.md
+  s_7854930eea3f9d::t_2baaea91191033 71
+  s_7854930eea3f9d::t_d567a5d7e2de9e 65-70,72-80
+docs/rules/no-component-color-override.md
+  s_7854930eea3f9d::t_d567a5d7e2de9e 67,73-88
+  s_7854930eea3f9d::t_03b57680d1e86f 89
+docs/rules/no-undefined-token.md
+  s_7854930eea3f9d::t_d567a5d7e2de9e 60-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3273c0cdddc563c9e70fef18c6116526c479d5e6",
+  "prompts": {},
+  "sessions": {
+    "s_7854930eea3f9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a520c5f-8138-49b0-a2d6-863e2962d681",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
