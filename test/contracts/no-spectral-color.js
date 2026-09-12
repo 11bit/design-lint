@@ -342,6 +342,33 @@ export default {
       ],
     },
 
+    // `flagFixedColors: false` lets the unscaled pair through; every scaled palette class still
+    // reports.
+    {
+      kind: "allowed",
+      group: "flagFixedColors: false",
+      code: `<div className="text-white" />`,
+      options: { flagFixedColors: false },
+    },
+    {
+      kind: "allowed",
+      group: "flagFixedColors: false",
+      code: `<div className="bg-black" />`,
+      options: { flagFixedColors: false },
+    },
+
+    // A supplied `replacement` map names the token for the palette colours it covers — here a
+    // token the stylesheet defines, so the report carries it and a suggestion.
+    {
+      kind: "caught",
+      group: "A replacement map you supply",
+      code: `<div className="bg-red-500" />`,
+      options: { replacement: { bg: [{ "red-400...600": "danger-muted" }] } },
+      reports: [
+        { id: "spectralColorWithReplacement", line: 1, column: 17, endLine: 1, endColumn: 27 },
+      ],
+    },
+
     // Context-free: every string literal and the static text of every template literal,
     // whatever surrounds it — `cn()` arguments, `cva()` maps, `.ts` constants, a spread props
     // object. The accepted cost is a palette class that never reaches a `className`, which

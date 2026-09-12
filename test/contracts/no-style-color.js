@@ -260,6 +260,22 @@ export default {
     },
     {
       kind: "caught",
+      group: "Shorthands, reported on the key",
+      code: `<div style={{ filter: "blur(4px)" }} />`,
+      reports: [
+        { id: "colorInStyleProp", line: 1, column: 15, endLine: 1, endColumn: 34 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Shorthands, reported on the key",
+      code: `<div style={{ boxShadow: "none" }} />`,
+      reports: [
+        { id: "colorInStyleProp", line: 1, column: 15, endLine: 1, endColumn: 32 },
+      ],
+    },
+    {
+      kind: "caught",
       group: "Colour-capable shorthands",
       code: `<div style={{ WebkitTextStroke: "1px red" }} />`,
       reports: [

@@ -35,6 +35,8 @@ const options = {
   "bg-opt-out": { denied: {"*":["*-foreground"],"bg":[]} },
   // One side of a border with a list of its own; the other sides keep `border`'s.
   "border-top-own-list": { allowed: {"border":["border*"],"border-t":["primary"]} },
+  // `"*"` in an allow list permits every declared token for its prefix.
+  "allow-all-text": { allowed: {"text":["*"]} },
 };
 
 export default {
@@ -854,6 +856,21 @@ export default {
       group: "The allow-list shield",
       code: `<div className="text-warning-foreground" />`,
       options: options.baseline,
+    },
+
+    // An allow list of `"*"` permits every token for its prefix — `text-muted` and
+    // `text-warning`, which the baseline's text list rejects, pass.
+    {
+      kind: "allowed",
+      group: "An allow list of \"*\"",
+      code: `<div className="text-muted" />`,
+      options: options["allow-all-text"],
+    },
+    {
+      kind: "allowed",
+      group: "An allow list of \"*\"",
+      code: `<div className="text-warning" />`,
+      options: options["allow-all-text"],
     },
 
     // A `*-hover` token under a hover-family segment, and any variant with no key of its own —

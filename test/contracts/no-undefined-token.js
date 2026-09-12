@@ -50,6 +50,14 @@ export default {
         { id: "undefinedColorToken", line: 1, column: 17, endLine: 1, endColumn: 31 },
       ],
     },
+    {
+      kind: "caught",
+      group: "Token names that were never defined",
+      code: `<div className="inset-ring-nonesuch" />`,
+      reports: [
+        { id: "undefinedColorToken", line: 1, column: 17, endLine: 1, endColumn: 36 },
+      ],
+    },
 
     // The most dangerous shape: a real stem makes the whole class look real.
     {

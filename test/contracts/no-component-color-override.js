@@ -701,6 +701,33 @@ import { Chart } from "@/components/chart";`,
       group: "Non-color utilities on a watched component",
       code: `<Card className="from-0% to-100%" />`,
     },
+    {
+      kind: "allowed",
+      group: "Non-color utilities on a watched component",
+      code: `<Button className="rounded-full" />`,
+    },
+
+    // Owned utilities
+    // `ownedUtilities` hands a non-colour prefix to the component: with `rounded` owned, a
+    // radius on a watched component reports like a colour does.
+    {
+      kind: "caught",
+      group: "Owned utilities",
+      code: `<Button className="rounded-full" />`,
+      options: { ownedUtilities: ["rounded"] },
+      reports: [
+        { id: "colorOnComponent", line: 1, column: 20, endLine: 1, endColumn: 32 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Owned utilities",
+      code: `<Button className="rounded" />`,
+      options: { ownedUtilities: ["rounded"] },
+      reports: [
+        { id: "colorOnComponent", line: 1, column: 20, endLine: 1, endColumn: 27 },
+      ],
+    },
 
     // Arbitrary values that are not colors
     // Allowed. A named colour in brackets is no-raw-color's to report; a variable outside
