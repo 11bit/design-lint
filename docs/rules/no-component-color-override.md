@@ -83,7 +83,7 @@ A project may also choose to treat additional non-color utilities, such as `roun
 }]
 ```
 
-If your code imports `#/components/ui/button`, the pattern is `#/components/ui/*`, even when another alias points at the same folder. Passing an empty list when you set up the linter turns this rule off.
+If your code imports `#/components/ui/button`, the pattern is `#/components/ui/*`, even when another alias points at the same folder. Relative imports such as `./button` or `../components/ui/button` are not matched by an alias pattern like `@/components/ui/*`; add a matching pattern if you want those imports covered. Passing an empty list when you set up the linter turns this rule off.
 
 Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied). Changing only the severity drops `componentSources`, so pass it again.
 

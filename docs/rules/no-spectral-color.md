@@ -66,7 +66,7 @@ Every option has a default, so the rule works without any of them.
 | --- | --- | --- |
 | `replacement` | a built-in map (see below) | Maps palette colors to the semantic token a report should suggest, per utility prefix. |
 | `flagFixedColors` | `true` | Also reports the unscaled palette colors `white` and `black` (`text-white`, `bg-black`). Set `false` to allow them. |
-| `tokenFiles` | `["src/styles.css"]` | The file the message tells you to take a token from. The recommended setup fills it in with your token stylesheets; it doesn't change what the rule checks. |
+| `tokenFiles` | `["src/styles.css"]` | The token stylesheet names shown in messages. The recommended setup fills this in with your token stylesheets; it doesn't change what the rule checks. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Set `[]` to lint Storybook stories too. |
 
 A `replacement` map lists, for each utility prefix, palette ranges and the token to suggest for them:
@@ -80,7 +80,7 @@ replacement: {
 
 - A map you supply replaces the default whole; a prefix you leave out gets no suggestion.
 - A token is only suggested when your token stylesheets define it; otherwise the report still fires, without a suggestion.
-- A map of the wrong shape is a configuration error.
+- A map with the wrong value shape is a configuration error. Unknown prefix keys are accepted, but they match no classes and produce no suggestions.
 - The default map assumes a `success` / `info` / `warning` / `danger` vocabulary with `-weak` and `-content` variants, for `bg-` and `text-`.
 
 Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).

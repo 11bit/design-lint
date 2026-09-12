@@ -71,7 +71,7 @@ contract is wrong.
 
 The package knows *how* to find a colour that bypasses the token system. It does not know
 which tokens your project has, which components own their own colour, or which palette
-families map to which semantic names. The first two you supply — `tokenFiles` and
+families map to which semantic names. The first two come from `tokenFiles` and
 `componentSources` above. Everything else, from the palette-to-token map to which tokens
 may go on which utilities, is a rule option with a recommended default, so a project that
 disagrees configures a rule rather than forking one.
@@ -96,11 +96,11 @@ export default defineConfig({
 
 > **Restating a rule replaces the options the preset gave it.** Writing
 > `"design/no-raw-color": "warn"` drops what `designLint()` passed that rule. Every rule
-> falls back to its recommended policy, so the checks do not change, with two exceptions:
-> messages name `src/styles.css` rather than your first token file, and
-> `no-component-color-override` throws, because `componentSources` has no default. The
-> token set and design system are not options, so an override never touches them. If you
-> configured a rule, restate its options alongside the severity.
+> falls back to its recommended policy, so the checks do not change, with two common
+> exceptions: messages may name `src/styles.css` rather than your first token file, and
+> `no-component-color-override` throws, because `componentSources` has no default. Treat
+> the resolved token set and design-system data as factory-managed inputs, not rule options
+> to write by hand. If you configured a rule, restate its options alongside the severity.
 
 ## What it does not do
 
