@@ -50,6 +50,12 @@ Non-color layout and spacing classes are allowed by default.
 <Card className="w-full max-w-sm" />
 ```
 
+A class is allowed when it does not set color, even if its name overlaps with a color token. For example, if your theme has both a `card` shadow and a `card` color, `shadow-card` is still a shadow utility, so this rule leaves it alone.
+
+```tsx
+<Card className="shadow-card" />
+```
+
 Variants and other component props are allowed.
 
 ```tsx

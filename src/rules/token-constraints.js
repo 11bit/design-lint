@@ -137,7 +137,7 @@ export default {
         // rule's second gate can never be reached. The declared blind spot.
         if (token.dynamic) continue;
 
-        const violation = judge(token.text, { policy, prefixes, tokens });
+        const violation = judge(token.text, { policy, prefixes, tokens, designSystem });
         if (violation) report(context, violation, token.range, source.node, tokens);
       }
     });
@@ -155,11 +155,17 @@ export default {
  * policy, then the variant policies left to right. Fixing it surfaces the second, which is
  * the behaviour the proof of concept had by accident and this contract keeps deliberately.
  */
-function judge(className, { policy, prefixes, tokens }) {
+function judge(className, { policy, prefixes, tokens, designSystem }) {
   const { variants, base, important, opacity } = parseClass(className);
 
   const split = splitColorClass(base, prefixes, tokens);
   if (!split) return null;
+
+  // A token name is not a colour here when Tailwind turned the class into something else:
+  // `shadow-card` is a box shadow in a theme that defines `--shadow-card` beside
+  // `--color-card`. A class that resolves to nothing is still judged — an undefined token is
+  // no evidence against a colour.
+  if (designSystem.resolves(base) && !designSystem.isColorClass(base)) return null;
 
   const { prefix, colorPart } = split;
   const where = { className, prefix, colorPart, variants, important, opacity };

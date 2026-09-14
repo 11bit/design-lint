@@ -131,7 +131,7 @@ export default {
         // A class with an interpolation in it is never judged: nothing says what it becomes.
         if (token.dynamic) continue;
 
-        const found = spectralIn(token.text, colorPrefixes, colorNames, semantic, flagFixedColors);
+        const found = spectralIn(token.text, designSystem, colorPrefixes, colorNames, semantic, flagFixedColors);
         if (!found) continue;
 
         const { prefix, color, family, scale } = found;
@@ -255,7 +255,7 @@ const PALETTE_STEP = /^(.+)-(\d+)$/;
  *   that is the text the message asks them to change. `scale` is `null` for a colour the
  *   palette spells without one, which today means `black` and `white`.
  */
-function spectralIn(className, colorPrefixes, colorNames, semantic, flagFixedColors) {
+function spectralIn(className, designSystem, colorPrefixes, colorNames, semantic, flagFixedColors) {
   const { base } = parseClass(className);
 
   // An arbitrary value is `no-raw-color`'s surface, and flagging it here would double-report
@@ -274,6 +274,10 @@ function spectralIn(className, colorPrefixes, colorNames, semantic, flagFixedCol
     if (!colorNames.has(color)) continue;
     const prefix = segments.slice(0, k).join("-");
     if (!startsWithColorPrefix(prefix, colorPrefixes)) continue;
+
+    // A palette name is not a colour here when Tailwind turned the class into something
+    // else — a theme defining `--shadow-red-500` makes `shadow-red-500` a box shadow.
+    if (designSystem.resolves(base) && !designSystem.isColorClass(base)) return null;
 
     // A colour this project defined is a semantic token by construction, whatever it is
     // spelled like. The palette is what Tailwind brings, not what the token file declares.

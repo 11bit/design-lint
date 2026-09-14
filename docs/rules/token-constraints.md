@@ -46,6 +46,12 @@ A token is allowed when it matches the policy for the utility and state.
 <button className="hover:bg-primary-hover" />
 ```
 
+A token policy applies only to classes that set color. If your theme has both a `card` shadow and a `card` color, `shadow-card` is still a shadow utility, not a use of the `card` color token.
+
+```tsx
+<div className="hover:shadow-card" />
+```
+
 Non-token color values are handled by other rules.
 
 ```tsx

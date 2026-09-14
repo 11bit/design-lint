@@ -156,7 +156,7 @@ export default {
 
             if (token.dynamic) continue;
 
-            if (!appliesColor(token.text, colorPrefixes, colorNames, owned)) continue;
+            if (!appliesColor(token.text, designSystem, colorPrefixes, colorNames, owned)) continue;
             context.report({
               ...at,
               messageId: "colorOnComponent",
@@ -239,7 +239,7 @@ function componentName(name) {
  *
  * @returns {boolean}
  */
-function appliesColor(className, colorPrefixes, colorNames, owned) {
+function appliesColor(className, designSystem, colorPrefixes, colorNames, owned) {
   const { base } = parseClass(className);
   if (!base) return false;
 
@@ -258,12 +258,15 @@ function appliesColor(className, colorPrefixes, colorNames, owned) {
   // Longest colour name first, so `border-t-primary` splits as `primary` under `border-t`
   // rather than as nothing at all. Both halves have to hold at the same split point — a
   // name the theme knows, and a colour-carrying utility standing in front of it — which is
-  // why this is a scan and not a parse of a fixed prefix.
+  // why this is a scan and not a parse of a fixed prefix. A split that holds is still not a
+  // colour when Tailwind turned the class into something else: `shadow-card` is a box
+  // shadow in a theme that defines `--shadow-card` beside `--color-card`.
   const segments = base.split("-");
   for (let k = 1; k < segments.length; k++) {
     const value = segments.slice(k).join("-");
     if (!colorNames.has(value) && !COLOR_KEYWORDS.has(value)) continue;
-    if (startsWithPrefix(segments.slice(0, k).join("-"), colorPrefixes)) return true;
+    if (!startsWithPrefix(segments.slice(0, k).join("-"), colorPrefixes)) continue;
+    return !designSystem.resolves(base) || designSystem.isColorClass(base);
   }
 
   return false;

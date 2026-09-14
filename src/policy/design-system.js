@@ -166,6 +166,24 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
     return declarations.length > 0 ? declarations : null;
   };
 
+  /**
+   * The properties a root sets when it is handed a colour, as one comparable string, or
+   * `null` where Tailwind will not say — a plugin prefix may take no arbitrary value.
+   *
+   * Asked with an arbitrary value under a `color:` hint, because nothing in a theme can
+   * intercept one: `shadow-red-500` would do in a stock theme, but a theme defining
+   * `--shadow-red-500` turns it into the very box shadow this is meant to tell apart.
+   * Memoised: a root is asked about once per class, and its answer never changes.
+   */
+  const colorShapes = new Map();
+  const colorShapeOf = (root) => {
+    if (!colorShapes.has(root)) {
+      const declarations = declarationsOf(`${root}-[color:#000]`);
+      colorShapes.set(root, declarations ? shapeOf(declarations) : null);
+    }
+    return colorShapes.get(root);
+  };
+
   return {
     colorPrefixes,
     colorNames,
@@ -214,11 +232,22 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
       // colour property. Twenty-eight of forty-nine colour prefixes set their colour that way
       // — `ring-`, `shadow-`, the gradient stops, every `mask-*` family — and every rule gated
       // on this one was silent on all of them. Inline does not touch the namespace.
+      //
+      // A name in the namespace is necessary but not enough. A theme may define the same name
+      // in a second namespace the root also reads, and Tailwind then picks one: with
+      // `--color-card` and `--shadow-card` both defined, `shadow-card` is a box shadow, while
+      // `text-card` stays a colour beside `--text-card`. Which one it picked shows in the
+      // properties it set, and those do not depend on how the theme was written, so the
+      // class is compared with the root given a colour outright: `shadow-[color:#000]` sets
+      // `--tw-shadow-color`, `shadow-card` sets `--tw-shadow` and `box-shadow`. For every
+      // root, a real colour name and the keywords set exactly those properties.
       const [candidate] = designSystem.parseCandidate(className) ?? [];
       if (candidate?.value?.kind === "named") {
         if (!colorPrefixes.has(candidate.root)) return false;
         const name = candidate.value.value;
-        return colorNames.has(name) || COLOR_KEYWORDS.has(name);
+        if (!colorNames.has(name) && !COLOR_KEYWORDS.has(name)) return false;
+        const shape = colorShapeOf(candidate.root);
+        return shape === null || shape === shapeOf(declarations);
       }
 
       // Everything else names no theme colour, so the CSS is the only evidence there is.
@@ -241,6 +270,11 @@ export function designSystemPolicy(designSystem, { extraPrefixes = [] } = {}) {
       return declarations.some((d) => isColorProperty(d.property));
     },
   };
+}
+
+/** The distinct properties a list of declarations sets, in a stable order. */
+function shapeOf(declarations) {
+  return [...new Set(declarations.map((d) => d.property))].sort().join(",");
 }
 
 /**
