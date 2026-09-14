@@ -109,10 +109,6 @@ export async function designLint({
       // applied in `create` — so restating a severity here, which replaces options wholesale,
       // still lands on the right behaviour.
       ...on("no-component-color-override", { componentSources: componentSources ?? [] }),
-      ...on("no-raw-color", { tokenFiles }),
-      ...on("no-dark-variant", { tokenFiles }),
-      ...on("no-spectral-color", { tokenFiles }),
-      ...on("no-opacity-modifier", { tokenFiles }),
       ...on("no-undefined-token", { entryPoint: tokenFiles[0] }),
     },
   };

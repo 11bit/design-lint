@@ -53,13 +53,13 @@ export default {
     },
     messages: {
       darkVariant:
-        "{{className}} — dark: variant not allowed; theming is resolved by the --color-* tokens in {{tokenFile}}, so use a semantic token for {{utility}}",
+        "{{className}} — dark: variant not allowed; theming is resolved by your --color-* tokens, so use a semantic token for {{utility}}",
       // A token is no answer for a utility that is not a colour: `dark:hidden` is a theme
       // branch with nothing for a token to resolve, so the advice has to be different.
       darkVariantNonColor:
-        "{{className}} — dark: variant not allowed; theming is resolved by the --color-* tokens in {{tokenFile}}, and {{utility}} is not a colour, so no token replaces it — drop the theme branch, or for a light/dark asset pair use one component that picks the file",
+        "{{className}} — dark: variant not allowed; theming is resolved by your --color-* tokens, and {{utility}} is not a colour, so no token replaces it — drop the theme branch, or for a light/dark asset pair use one component that picks the file",
       lightDarkFunction:
-        "{{source}} — light-dark() is a second theming mechanism; a --color-* token already resolves per theme, so give the property both values in {{tokenFile}} and reference the token here",
+        "{{source}} — light-dark() is a second theming mechanism; a --color-* token already resolves per theme, so give the property both values in your token stylesheet and reference the token here",
     },
     // The JSON half only. `designSystem` is bound around `create` rather than written in a
     // config, so it never reaches the validator — and a consumer who tries to write one by
@@ -70,10 +70,6 @@ export default {
         properties: {
           flagNonColorUtilities: { type: "boolean" },
           flagLightDark: { type: "boolean" },
-          // Named in messages only. The design system is built by `designLint()` from its own
-          // `tokenFiles` argument, which it also passes here; this copy builds nothing. Where
-          // the tokens live is the consuming project's decision, never a string baked in here.
-          tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
@@ -90,7 +86,6 @@ export default {
       {
         flagNonColorUtilities: true,
         flagLightDark: true,
-        tokenFiles: ["src/styles.css"],
         ignoreGlobs: [...STORY_GLOBS],
       },
     ],
@@ -101,7 +96,6 @@ export default {
       designSystem,
       flagNonColorUtilities = true,
       flagLightDark = true,
-      tokenFiles = ["src/styles.css"],
       ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
@@ -118,12 +112,9 @@ export default {
 
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
-    // Named, never hardcoded: the consuming project decides where its tokens live. The
-    // wholesale exemption `tokenFiles` is meant to carry — `light-dark()` and `.dark &` are
-    // legitimate in the file that gives a `--color-*` property its per-theme value — is not
-    // implemented: nothing needs it while `.css` is out of scope, and it lands with the CSS
-    // surface.
-    const tokenFile = tokenFiles.join(", ") || "the token files";
+    // The token stylesheets' exemption — `light-dark()` and `.dark &` are legitimate in the
+    // file that gives a `--color-*` property its per-theme value — is not implemented:
+    // nothing needs it while `.css` is out of scope, and it lands with the CSS surface.
 
     /**
      * Is there a defect here to point at?
@@ -173,7 +164,7 @@ export default {
           context.report({
             node,
             messageId: nonColorUtility(base) ? "darkVariantNonColor" : "darkVariant",
-            data: { className, utility: base, tokenFile },
+            data: { className, utility: base },
           });
         }
 
@@ -184,7 +175,7 @@ export default {
           context.report({
             node: call.range ? { range: call.range } : node,
             messageId: "lightDarkFunction",
-            data: { source: call.source, tokenFile },
+            data: { source: call.source },
           });
         }
       }

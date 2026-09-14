@@ -51,9 +51,6 @@ export default {
           designSystem: { type: "object" },
           allowFullOpacity: { type: "boolean" },
           colorPrefixes: { type: "array", items: { type: "string" } },
-          // `designLint()` builds the design system from its own `tokenFiles`. Accepted here
-          // so the preset can carry it, never read by the rule.
-          tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,

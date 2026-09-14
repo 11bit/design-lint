@@ -66,7 +66,6 @@ Every option has a default, so the rule works without any of them.
 | --- | --- | --- |
 | `replacement` | a built-in map (see below) | Maps palette colors to the semantic token a report should suggest, per utility prefix. |
 | `flagFixedColors` | `true` | Also reports the unscaled palette colors `white` and `black` (`text-white`, `bg-black`). Set `false` to allow them. |
-| `tokenFiles` | `["src/styles.css"]` | The token stylesheet names shown in messages. The recommended setup fills this in with your token stylesheets; it doesn't change what the rule checks. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Set `[]` to lint Storybook stories too. |
 
 A `replacement` map lists, for each utility prefix, palette ranges and the token to suggest for them:

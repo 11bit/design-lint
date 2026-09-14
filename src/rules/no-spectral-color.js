@@ -44,10 +44,9 @@ import { parseClass } from "../policy/variants.js";
  * ## Where its inputs come from
  *
  * Both halves are read from `context.options[0]`, and they get there by different routes.
- * `replacement`, `flagFixedColors`, `tokenFiles` and `ignoreGlobs` are JSON a consumer
- * writes; `tokenFiles` only names the file the message points at. `designSystem` and
- * `tokens` are not JSON — they cross that boundary as husks — so `designLint()` builds them
- * once from the `tokenFiles` passed to it, and the plugin module binds them around `create`
+ * `replacement`, `flagFixedColors` and `ignoreGlobs` are JSON a consumer writes.
+ * `designSystem` and `tokens` are not JSON — they cross that boundary as husks — so
+ * `designLint()` builds them once from the `tokenFiles` passed to it, and the plugin module binds them around `create`
  * with `bindResolved` in [`src/plugin.js`](../plugin.js). The rule cannot tell the
  * difference, which is the point.
  */
@@ -62,7 +61,7 @@ export default {
       spectralColorWithReplacement:
         "{{className}} — spectral color class; use {{prefix}}-{{replacement}} instead",
       spectralColor:
-        "{{className}} — spectral color class; use a semantic token from {{tokenFile}} instead of {{palette}}",
+        "{{className}} — spectral color class; use a semantic token instead of {{palette}}",
       useReplacement: "Replace {{className}} with {{prefix}}-{{replacement}}",
     },
     // The JSON half only. `designSystem` and `tokens` are bound around `create` rather than
@@ -82,7 +81,6 @@ export default {
               items: { type: "object", additionalProperties: { type: "string" } },
             },
           },
-          tokenFiles: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
@@ -97,7 +95,6 @@ export default {
     defaultOptions: [
       {
         flagFixedColors: true,
-        tokenFiles: ["src/styles.css"],
         ignoreGlobs: [...STORY_GLOBS],
       },
     ],
@@ -109,7 +106,6 @@ export default {
       tokens,
       flagFixedColors = true,
       replacement = recommendedReplacement(),
-      tokenFiles = ["src/styles.css"],
       ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
@@ -123,8 +119,6 @@ export default {
     const semantic = requiredSet(tokens, "tokens");
 
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
-
-    const tokenFile = tokenFiles.join(", ") || "the token files";
 
     return sweepVisitors((source) => {
 
@@ -152,7 +146,7 @@ export default {
         const data = { className: token.text, prefix, family, scale: scale ?? "", palette };
 
         if (!replacementToken) {
-          context.report({ ...at, messageId: "spectralColor", data: { ...data, tokenFile } });
+          context.report({ ...at, messageId: "spectralColor", data });
           continue;
         }
 

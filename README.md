@@ -97,8 +97,9 @@ export default defineConfig({
 > **Restating a rule replaces the options the preset gave it.** Writing
 > `"design/no-raw-color": "warn"` drops what `designLint()` passed that rule. Every rule
 > falls back to its recommended policy, so the checks do not change, with two common
-> exceptions: messages may name `src/styles.css` rather than your first token file, and
-> `no-component-color-override` throws, because `componentSources` has no default. Treat
+> exceptions: `no-undefined-token`'s message may name `src/styles.css` rather than your first
+> token file, and `no-component-color-override` throws, because `componentSources` has no
+> default. Treat
 > the resolved token set and design-system data as factory-managed inputs, not rule options
 > to write by hand. If you configured a rule, restate its options alongside the severity.
 

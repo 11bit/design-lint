@@ -60,9 +60,8 @@ import { parseClass } from "../policy/variants.js";
  *
  * ## Where its inputs come from
  *
- * `tokenFiles`, `namedColors`, `valueScopedBackstop`, `ignoreValues` and `ignoreGlobs` are JSON
- * a consumer writes; `tokenFiles` only names the file in the message. `designSystem` and
- * `tokens` are not JSON — they cross a JSON boundary as husks with every method gone — so
+ * `namedColors`, `valueScopedBackstop`, `ignoreValues` and `ignoreGlobs` are JSON a consumer
+ * writes. `designSystem` and `tokens` are not JSON — they cross a JSON boundary as husks with every method gone — so
  * `designLint()` builds them once from its own `tokenFiles`, and the plugin module binds them
  * around `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
  * `context.options[0]` and the rule cannot tell the difference.
@@ -89,7 +88,7 @@ export default {
     },
     messages: {
       rawColorValue:
-        "raw color {{value}} in {{surface}} — colors must resolve through a var(--color-*) token. Add one to {{tokenFile}} if none fits.",
+        "raw color {{value}} in {{surface}} — colors must resolve through a var(--color-*) token. Add one to your token stylesheet if none fits.",
     },
 
     // The JSON half only. `designSystem` and `tokens` are bound around `create` rather than
@@ -99,7 +98,6 @@ export default {
       {
         type: "object",
         properties: {
-          tokenFiles: { type: "array", items: { type: "string" } },
           namedColors: { type: "boolean" },
           valueScopedBackstop: { type: "boolean" },
           ignoreValues: { type: "array", items: { type: "string" } },
@@ -113,14 +111,8 @@ export default {
     // Oxlint replaces whole — the deep merge that forces `no-spectral-color` to apply its
     // replacement map inside `create` instead would bite an object-valued option, and there
     // is none.
-    //
-    // `tokenFiles` is the value a consumer who wipes the preset's options by writing
-    // `"design/no-raw-color": "error"` lands on: the message then names `src/styles.css`
-    // rather than their file, and nothing else changes. The throw below is reachable only
-    // where `defaultOptions` is not applied.
     defaultOptions: [
       {
-        tokenFiles: ["src/styles.css"],
         namedColors: true,
         valueScopedBackstop: true,
         ignoreValues: [...DEFAULT_IGNORED_VALUES],
@@ -133,7 +125,6 @@ export default {
     const {
       designSystem,
       tokens,
-      tokenFiles,
       namedColors = true,
       valueScopedBackstop = true,
       ignoreValues = DEFAULT_IGNORED_VALUES,
@@ -148,25 +139,12 @@ export default {
     const colorPrefixes = requiredSet(designSystem?.colorPrefixes, "designSystem.colorPrefixes");
     requiredSet(tokens, "tokens");
 
-    // Under Oxlint this is never absent: `defaultOptions` supplies a path, deep-merged under
-    // whatever the consumer wrote. It can be absent where `defaultOptions` is not applied —
-    // `RuleTester`, a direct `create` call — and there the rule refuses rather than guessing
-    // at a file to name.
-    if (!Array.isArray(tokenFiles)) {
-      throw new Error(
-        'no-raw-color: `tokenFiles` is required and must be an array of paths — e.g. ["src/styles.css"]. It names the file the message tells the developer to add a token to; the design system itself comes from designLint()\'s `tokenFiles`. Under Oxlint the rule\'s defaultOptions supply it, so this is a rule created outside the plugin.',
-      );
-    }
-
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
-    // An empty list is a consumer who has tokens but no file to name — the message degrades
-    // rather than pointing at a path this package invented.
-    const tokenFile = tokenFiles[0] ?? "your token file";
     const matching = { namedColors, ignoreValues };
 
     const report = (at, value, surface) =>
-      context.report({ ...at, messageId: "rawColorValue", data: { value, surface, tokenFile } });
+      context.report({ ...at, messageId: "rawColorValue", data: { value, surface } });
 
     /**
      * Style-property values this rule has already judged.

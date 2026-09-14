@@ -62,7 +62,6 @@ Every option has a default, so the rule works without any.
 | --- | --- | --- |
 | `flagNonColorUtilities` | `true` | `false` reports `dark:` only on classes that set a color, which allows the light/dark asset swap (`dark:hidden`, `dark:block`). |
 | `flagLightDark` | `true` | `false` stops reporting `light-dark()`, for a project that has chosen it as its theming mechanism instead of `--color-*` tokens. |
-| `tokenFiles` | `["src/styles.css"]` | The file messages point you to. It doesn't change what the rule checks; the recommended setup fills it in with your token stylesheets. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
 
 Setting options replaces the ones the recommended setup passed to this rule — see [Configuring rules](../../README.md#mechanism-ships-policy-is-supplied).

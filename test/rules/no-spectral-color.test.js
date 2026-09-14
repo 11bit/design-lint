@@ -57,7 +57,7 @@ new RuleTester(config).run("no-spectral-color — message", ruleFor("no-spectral
       errors: [
         {
           message:
-            "text-slate-500 — spectral color class; use a semantic token from src/styles.css instead of the slate palette",
+            "text-slate-500 — spectral color class; use a semantic token instead of the slate palette",
         },
       ],
     },
@@ -67,7 +67,7 @@ new RuleTester(config).run("no-spectral-color — message", ruleFor("no-spectral
       errors: [
         {
           message:
-            "text-white — spectral color class; use a semantic token from src/styles.css instead of the stock white",
+            "text-white — spectral color class; use a semantic token instead of the stock white",
         },
       ],
     },
