@@ -82,7 +82,7 @@ Every option has a default, so you only set the ones you want to change.
 | Option | Default | What it does |
 | --- | --- | --- |
 | `namedColors` | `true` | Reports named and system colors (`fill="red"`, `text-[red]`, `bg-[ButtonText]`). `false` lets them through. |
-| `valueScopedBackstop` | `true` | Reports a string that is entirely a hex or color-function literal wherever a value is written down, such as `const SERIES = ["#ff0000"]`. `false` checks only color attributes, `style` values and class strings. |
+| `checkStandaloneColorLiterals` | `true` | Reports a string that is entirely a hex or color-function literal wherever a value is written down, such as `const SERIES = ["#ff0000"]`. `false` checks only color attributes, `style` values and class strings. |
 | `ignoreValues` | `["transparent", "currentColor", "inherit", "initial", "unset", "revert", "revert-layer"]` | Extra values to suppress, matched case-insensitively. It can suppress an exact whole value, and named/system colors such as `red` when they appear in a color context. It does not suppress hex or color-function literals embedded inside a longer value, such as `0 0 4px #fff`. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Set it to `[]` to lint stories too. |
 

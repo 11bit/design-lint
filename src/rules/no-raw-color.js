@@ -60,7 +60,7 @@ import { parseClass } from "../policy/variants.js";
  *
  * ## Where its inputs come from
  *
- * `namedColors`, `valueScopedBackstop`, `ignoreValues` and `ignoreGlobs` are JSON a consumer
+ * `namedColors`, `checkStandaloneColorLiterals`, `ignoreValues` and `ignoreGlobs` are JSON a consumer
  * writes. `designSystem` and `tokens` are not JSON — they cross a JSON boundary as husks with every method gone — so
  * `designLint()` builds them once from its own `tokenFiles`, and the plugin module binds them
  * around `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
@@ -99,7 +99,7 @@ export default {
         type: "object",
         properties: {
           namedColors: { type: "boolean" },
-          valueScopedBackstop: { type: "boolean" },
+          checkStandaloneColorLiterals: { type: "boolean" },
           ignoreValues: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
@@ -114,7 +114,7 @@ export default {
     defaultOptions: [
       {
         namedColors: true,
-        valueScopedBackstop: true,
+        checkStandaloneColorLiterals: true,
         ignoreValues: [...DEFAULT_IGNORED_VALUES],
         ignoreGlobs: [...STORY_GLOBS],
       },
@@ -126,7 +126,7 @@ export default {
       designSystem,
       tokens,
       namedColors = true,
-      valueScopedBackstop = true,
+      checkStandaloneColorLiterals = true,
       ignoreValues = DEFAULT_IGNORED_VALUES,
       ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
@@ -162,7 +162,7 @@ export default {
 
     /** The value-scoped backstop, applied to one expression in a constant position. */
     const backstop = (node) => {
-      if (!valueScopedBackstop) return;
+      if (!checkStandaloneColorLiterals) return;
       for (const leaf of writtenLiterals(node)) {
         const value = staticString(leaf);
         if (value === null) continue;

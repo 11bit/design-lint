@@ -41,7 +41,7 @@ describe("refusing to run", () => {
       create({
         ...resolved,
         namedColors: false,
-        valueScopedBackstop: false,
+        checkStandaloneColorLiterals: false,
         ignoreValues: ["transparent"],
         ignoreGlobs: [],
       }),

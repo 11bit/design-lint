@@ -708,6 +708,24 @@ export default {
       code: `<div className="animate-[fadeToRed_2s]" />`,
     },
 
+    // Option: standalone color literal checking. Turning it off leaves color contexts intact:
+    // constants stop reporting, but attributes still do.
+    {
+      kind: "allowed",
+      group: "Options",
+      code: `const SERIES = ["#ff0000"];`,
+      options: { checkStandaloneColorLiterals: false },
+    },
+    {
+      kind: "caught",
+      group: "Options",
+      code: `<path fill="#ff0000" />`,
+      options: { checkStandaloneColorLiterals: false },
+      reports: [
+        { id: "rawColorValue", line: 1, column: 7, endLine: 1, endColumn: 21 },
+      ],
+    },
+
     // Non-color strings. Anchors, ids, selectors and prose with `#` are not whole-string
     // colour literals. The last two are the point of the context-scoped model: `red` and
     // `tomato` are named colours, but neither sits in a colour-carrying context.
