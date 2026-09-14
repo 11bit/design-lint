@@ -245,7 +245,9 @@ function pushCall(hits, name, args, whole, state) {
 
   if (OPAQUE_FUNCTIONS.has(lower)) return;
   if (COLOR_FUNCTIONS.has(lower)) {
-    hits.push(whole);
+    // A zero alpha is `transparent` spelled another way: nothing is painted, and no token
+    // could replace it, which is why `transparent` itself is allowed.
+    if (!ZERO.test(alphaOf(args) ?? "")) hits.push(whole);
     return;
   }
 
@@ -282,7 +284,36 @@ function keywordColor(word, { namedColors, ignored }) {
 function hexColor(word) {
   const digits = word.slice(1);
   if (!HEX_DIGITS.test(digits) || !HEX_LENGTHS.has(digits.length)) return null;
+  // A zero alpha — `#0000`, `#ff000000` — is `transparent` spelled another way.
+  if (digits.length === 4 && digits[3] === "0") return null;
+  if (digits.length === 8 && digits.endsWith("00")) return null;
   return word;
+}
+
+/** An alpha of zero, written any way CSS allows: `0`, `0.0`, `.0`, `0%`. */
+const ZERO = /^[+-]?(?:0+\.?0*|\.0+)%?$/;
+
+/**
+ * The alpha a colour function's arguments give, or `null` when they give none.
+ *
+ * Two syntaxes: the modern one puts it after a `/` (`rgb(0 0 0 / 0.5)`, `oklch(… / 0)`), the
+ * legacy one as a fourth comma-separated argument (`rgba(0, 0, 0, 0.5)`). Both are read at
+ * the top level only, so a `/` inside `calc()` is arithmetic rather than an alpha.
+ */
+function alphaOf(args) {
+  let depth = 0;
+  let slash = -1;
+  const commas = [];
+  for (let i = 0; i < args.length; i++) {
+    const char = args[i];
+    if (char === "(") depth++;
+    else if (char === ")") depth--;
+    else if (depth === 0 && char === "/") slash = i;
+    else if (depth === 0 && char === ",") commas.push(i);
+  }
+  if (slash !== -1) return args.slice(slash + 1).trim();
+  if (commas.length === 3) return args.slice(commas[2] + 1).trim();
+  return null;
 }
 
 /** The index just past a quoted span, or the end of the string if it never closes. */

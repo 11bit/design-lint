@@ -60,12 +60,18 @@ Token references are allowed.
 <path fill="var(--color-primary)" />
 ```
 
-The values `currentColor`, `transparent`, and CSS-wide cascade keywords such as `inherit` are allowed.
+The values `currentColor`, `transparent`, and CSS-wide cascade keywords such as `inherit` are allowed. So is any color with a zero alpha, such as `#0000` or `rgba(0, 0, 0, 0)`, which is `transparent` written another way.
 
 ```tsx
 <path fill="currentColor" />
 <div className="border-[transparent]" />
 <div style={{ color: "inherit" }} />
+```
+
+Colors inside an SVG `<mask>` are allowed. In a mask, white and black decide what shows through; nothing is painted in them.
+
+```tsx
+<mask id="fade"><rect fill="white" /></mask>
 ```
 
 Non-color strings are allowed.

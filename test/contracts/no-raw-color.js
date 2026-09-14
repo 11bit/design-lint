@@ -607,6 +607,78 @@ export default {
       code: `<div className="bg-[color-mix(in_oklch,var(--color-primary)_50%,transparent)]" />`,
     },
 
+    // Fully transparent literals. A colour with a zero alpha is `transparent` spelled another
+    // way: it paints nothing, and no token could replace it. Any alpha above zero is a colour.
+    {
+      kind: "allowed",
+      group: "Fully transparent literals",
+      code: `<div style={{ backgroundColor: "rgba(0, 0, 0, 0)" }} />`,
+    },
+    {
+      kind: "allowed",
+      group: "Fully transparent literals",
+      code: `const TRANSPARENT = "#00000000";`,
+    },
+    {
+      kind: "allowed",
+      group: "Fully transparent literals",
+      code: `<div className="bg-[#0000]" />`,
+    },
+    {
+      kind: "allowed",
+      group: "Fully transparent literals",
+      code: `<rect fill="hsl(0 0% 0% / 0%)" />`,
+    },
+    {
+      kind: "allowed",
+      group: "Fully transparent literals",
+      code: `<div className="bg-[oklch(0.5_0.1_20/0)]" />`,
+    },
+    {
+      kind: "caught",
+      group: "Fully transparent literals",
+      code: `const faint = "#00000001";`,
+      reports: [
+        { id: "rawColorValue", line: 1, column: 15, endLine: 1, endColumn: 26 },
+      ],
+    },
+
+    // Inside an SVG `<mask>`. A mask's colours decide how much of what it masks shows through
+    // — white shows, black hides — and nothing inside one is painted. A gradient the mask only
+    // references through `url(#…)` sits outside it and is still reported: the accepted cost of
+    // not following references.
+    {
+      kind: "allowed",
+      group: "Inside an SVG mask",
+      code: `<mask id="m"><rect fill="white" /><rect fill="black" /></mask>`,
+    },
+    {
+      kind: "allowed",
+      group: "Inside an SVG mask",
+      code: `<mask id="m"><rect style={{ fill: "#fff" }} /></mask>`,
+    },
+    {
+      kind: "allowed",
+      group: "Inside an SVG mask",
+      code: `<mask id="m"><rect className="fill-[#fff]" /></mask>`,
+    },
+    {
+      kind: "caught",
+      group: "Inside an SVG mask",
+      code: `<g mask="url(#m)"><rect fill="white" /></g>`,
+      reports: [
+        { id: "rawColorValue", line: 1, column: 25, endLine: 1, endColumn: 37 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Inside an SVG mask",
+      code: `<linearGradient id="g"><stop stopColor="black" /></linearGradient>`,
+      reports: [
+        { id: "rawColorValue", line: 1, column: 30, endLine: 1, endColumn: 47 },
+      ],
+    },
+
     // Token references.
     {
       kind: "allowed",

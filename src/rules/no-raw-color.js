@@ -143,8 +143,10 @@ export default {
 
     const matching = { namedColors, ignoreValues };
 
-    const report = (at, value, surface) =>
+    const report = (node, at, value, surface) => {
+      if (insideSvgMask(node)) return;
       context.report({ ...at, messageId: "rawColorValue", data: { value, surface } });
+    };
 
     /**
      * Style-property values this rule has already judged.
@@ -168,7 +170,7 @@ export default {
         if (value === null) continue;
 
         const found = wholeValueColor(value, { ignoreValues });
-        if (found) report({ node: leaf }, found, "a string literal");
+        if (found) report(leaf, { node: leaf }, found, "a string literal");
       }
     };
 
@@ -193,7 +195,7 @@ export default {
           const value = staticString(leaf);
           if (value === null) continue;
           const found = firstRawColor(value, matching);
-          if (found) report({ node: leaves.length === 1 ? property : leaf }, found, "a style prop");
+          if (found) report(property, { node: leaves.length === 1 ? property : leaf }, found, "a style prop");
         }
       }
     };
@@ -219,7 +221,7 @@ export default {
           if (!found) continue;
 
           const at = range ? { loc: spanOf(context, range) } : { node: source.node };
-          report(at, found, "an arbitrary value");
+          report(source.node, at, found, "an arbitrary value");
         }
       }),
 
@@ -248,7 +250,7 @@ export default {
           const value = staticString(leaf);
           if (value === null) continue;
           const found = firstRawColor(value, matching);
-          if (found) report(leaves.length === 1 ? { node } : { node: leaf }, found, "a color attribute");
+          if (found) report(node, leaves.length === 1 ? { node } : { node: leaf }, found, "a color attribute");
         }
       },
 
@@ -296,6 +298,23 @@ function requiredSet(value, name) {
     );
   }
   return value;
+}
+
+/**
+ * Is this node inside an SVG `<mask>` element, its own attributes included?
+ *
+ * A mask's colours decide how much of what it masks shows through — white shows, black
+ * hides — and nothing inside one is ever painted. Lowercase `mask` is SVG's own element; a
+ * component named `Mask` is a component. A gradient that a mask only reaches through
+ * `url(#…)` sits outside it and is still judged: following the reference is dataflow, which
+ * no rule here does.
+ */
+function insideSvgMask(node) {
+  for (let parent = node?.parent; parent; parent = parent.parent) {
+    const name = parent.type === "JSXElement" ? parent.openingElement?.name : null;
+    if (name?.type === "JSXIdentifier" && name.name === "mask") return true;
+  }
+  return false;
 }
 
 /**

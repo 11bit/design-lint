@@ -180,6 +180,31 @@ describe("rawColorsIn — a value known to carry a colour", () => {
     });
   });
 
+  describe("a zero alpha, which is transparent spelled another way", () => {
+    it("drops a hex whose alpha digits are zero", () => {
+      expect(rawColorsIn("#0000")).toEqual([]);
+      expect(rawColorsIn("#00000000")).toEqual([]);
+      expect(rawColorsIn("#ff000000")).toEqual([]);
+    });
+
+    it("drops a colour function whose alpha is zero, in either syntax", () => {
+      expect(rawColorsIn("rgba(0, 0, 0, 0)")).toEqual([]);
+      expect(rawColorsIn("rgb(0 0 0 / 0%)")).toEqual([]);
+      expect(rawColorsIn("oklch(0.5 0.1 20 / .0)")).toEqual([]);
+    });
+
+    it("keeps any alpha above zero, and a colour with no alpha", () => {
+      expect(rawColorsIn("#00000001")).toEqual(["#00000001"]);
+      expect(rawColorsIn("#0001")).toEqual(["#0001"]);
+      expect(rawColorsIn("rgba(0, 0, 0, 0.05)")).toEqual(["rgba(0, 0, 0, 0.05)"]);
+      expect(rawColorsIn("rgb(0 0 0)")).toEqual(["rgb(0 0 0)"]);
+    });
+
+    it("reads the alpha at the top level only", () => {
+      expect(rawColorsIn("oklch(calc(0.5 / 1) 0 0)")).toEqual(["oklch(calc(0.5 / 1) 0 0)"]);
+    });
+  });
+
   it("has nothing to say about a non-string", () => {
     expect(rawColorsIn(undefined)).toEqual([]);
     expect(rawColorsIn("")).toEqual([]);
