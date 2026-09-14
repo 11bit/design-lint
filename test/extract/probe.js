@@ -1,4 +1,4 @@
-import { classSourcesOfElement, sweepVisitors } from "../../src/extract/index.js";
+import { classSourcesOfElement, inClassPosition, sweepVisitors } from "../../src/extract/index.js";
 import { classTokens } from "../../src/policy/tokenize.js";
 
 /**
@@ -29,6 +29,19 @@ export const sweepProbe = {
   meta,
   create(context) {
     return sweepVisitors((source) => {
+      for (const token of classTokens(source)) {
+        context.report({ node: source.node, messageId: "token", data: { token: render(token) } });
+      }
+    });
+  },
+};
+
+/** Reports every token the broad sweep finds in a string written where a class list goes. */
+export const positionProbe = {
+  meta,
+  create(context) {
+    return sweepVisitors((source) => {
+      if (!inClassPosition(source.node)) return;
       for (const token of classTokens(source)) {
         context.report({ node: source.node, messageId: "token", data: { token: render(token) } });
       }

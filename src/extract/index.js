@@ -22,5 +22,6 @@
  */
 
 export { classSourcesOfElement, DEFAULT_HELPERS } from "./element.js";
+export { CLASS_POSITION_HELPERS, inClassPosition } from "./position.js";
 export { sweepVisitors } from "./sweep.js";
 export { sourceOf } from "./sources.js";

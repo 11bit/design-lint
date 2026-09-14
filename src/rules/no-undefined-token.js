@@ -1,4 +1,4 @@
-import { sweepVisitors } from "../extract/index.js";
+import { inClassPosition, sweepVisitors } from "../extract/index.js";
 import { colorPrefixOf } from "../policy/class-list.js";
 import { IGNORE_GLOBS_SCHEMA, ignoredFile, STORY_GLOBS } from "../policy/ignore.js";
 import { classTokens } from "../policy/tokenize.js";
@@ -35,11 +35,18 @@ import { parseClass } from "../policy/variants.js";
  * here says "this class is forbidden", which a reader can verify by looking at it. This one
  * says "this class does nothing", which a reader cannot verify without running Tailwind, so
  * a false positive is not noise — it is the rule confidently asserting something false
- * about working code. Hence the arbitrary-value skip and the dynamic-token skip. Each word is
- * judged on its own, though, rather than only strings made entirely of classes: that test
- * kept prose out, but it also switched the rule off for every class string holding `group`
- * or a project's own class, which is most of them. A colour-prefixed word in a sentence is
- * the accepted cost.
+ * about working code. Hence the arbitrary-value skip, the dynamic-token skip, and the one
+ * way this rule reads less than the other token rules: only strings written where a class
+ * list goes — a `className`, a class helper's arguments, `cva()` and `tv()` included. A
+ * colour prefix is weak evidence on its own. `attributeName="stroke-opacity"`, a
+ * `"shadow-color"` key and a test title mentioning `text-mono` all carry one, and in a real
+ * codebase strings like these outnumbered real typos three to one. The cost is a class
+ * string written anywhere else — a constant, an object map — which the contract declares
+ * blind.
+ *
+ * Within a class position each word is judged on its own, rather than only strings made
+ * entirely of classes: that test would switch the rule off for every class string holding
+ * `group` or a project's own class, which is most of them.
  *
  * ## Silence is the one thing it must never do by accident
  *
@@ -115,10 +122,12 @@ export default {
     if (ignoredFile(context.filename, ignoreGlobs)) return {};
 
     return sweepVisitors((source) => {
+      // Where the string sits decides whether it is a class list; its words never do.
+      if (!inClassPosition(source.node)) return;
+
       // Each word is judged on its own, whatever else the string holds. A class string that
       // mixes in `group` or a project's own `card` is still a class string, and the typo
-      // beside them is still a typo. The cost is a colour-prefixed word in prose —
-      // "a text-heavy layout" — which the contract accepts by name.
+      // beside them is still a typo.
       for (const token of classTokens(source)) {
         // Every token advances the cursor, reported or not, so a class written twice in one
         // string is located twice rather than resolving to its first occurrence both times.

@@ -5,8 +5,10 @@
  * if `--color-warning-foreground` was never defined Tailwind discards it silently. Its bias
  * is false negatives, because the claim "this class does nothing" is one a reader cannot
  * check by eye, so a false positive asserts something false about working code. Hence the
- * silence on arbitrary values and on classes built by interpolation. Each word of a string
- * is judged on its own, and with no token stylesheets the linter refuses to start rather
+ * silence on arbitrary values and on classes built by interpolation, and why it reads only
+ * strings written where a class list goes — a `className`, a class helper's arguments,
+ * `cva()` and `tv()` included. Each word of such a string is judged on its own, and with no
+ * token stylesheets the linter refuses to start rather
  * than let this rule fall silent — a promise about failure, so it is not a case here.
  *
  * The harness runs this corpus against a sparse palette — `primary`, `foreground`,
@@ -139,14 +141,13 @@ export default {
       ],
     },
 
-    // The rule reads every string literal and the static text of every template, wherever
-    // it sits. `ok: "bg-success-muted"` is the control in the object map: same shape as
-    // `danger-muted`, but defined, so only the stylesheet tells them apart. `<Chart
-    // palette=…>` is the accepted cost of reading every string — it may never reach a
-    // `className` — and is what keeps `.ts` constants files covered.
+    // The rule reads strings written where a class list goes: a `className` or `class`
+    // attribute, the value of a `className` property, and the arguments of a class helper —
+    // `cn`, `clsx`, `classNames`, `cx`, `twMerge`, `twJoin`, `tw`, `cva`, `tv` — to any
+    // depth, object keys and variant values included.
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `<div className={cn("text-secondary", className)} />`,
       reports: [
         { id: "undefinedColorToken", line: 1, column: 21, endLine: 1, endColumn: 35 },
@@ -154,7 +155,7 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `const alert = cva("p-2", {
   variants: { tone: { warn: "bg-warning-subtle", bad: "bg-danger-muted" } },
 });`,
@@ -165,15 +166,15 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
-      code: `const badgeColor = { danger: "bg-danger-muted", ok: "bg-success-muted" };`,
+      group: "Class positions",
+      code: `<div className={clsx({ "bg-nonesuch": on })} />`,
       reports: [
-        { id: "undefinedColorToken", line: 1, column: 31, endLine: 1, endColumn: 46 },
+        { id: "undefinedColorToken", line: 1, column: 25, endLine: 1, endColumn: 36 },
       ],
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `<div className={\`text-secondary \${extra}\`} />`,
       reports: [
         { id: "undefinedColorToken", line: 1, column: 18, endLine: 1, endColumn: 32 },
@@ -181,23 +182,7 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
-      code: `const tone = "text-secondary";`,
-      reports: [
-        { id: "undefinedColorToken", line: 1, column: 15, endLine: 1, endColumn: 29 },
-      ],
-    },
-    {
-      kind: "caught",
-      group: "Wherever class strings are authored",
-      code: `<Chart palette="text-secondary" />`,
-      reports: [
-        { id: "undefinedColorToken", line: 1, column: 17, endLine: 1, endColumn: 31 },
-      ],
-    },
-    {
-      kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `<div className={\`text-secondary\`} />`,
       reports: [
         { id: "undefinedColorToken", line: 1, column: 18, endLine: 1, endColumn: 32 },
@@ -205,7 +190,7 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `<div className={twMerge("p-2", "text-secondary")} />`,
       reports: [
         { id: "undefinedColorToken", line: 1, column: 33, endLine: 1, endColumn: 47 },
@@ -213,7 +198,7 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `<div className={tv({ base: "text-secondary" })} />`,
       reports: [
         { id: "undefinedColorToken", line: 1, column: 29, endLine: 1, endColumn: 43 },
@@ -221,15 +206,7 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
-      code: `const joined = ["text-secondary", "p-2"].join(" ");`,
-      reports: [
-        { id: "undefinedColorToken", line: 1, column: 18, endLine: 1, endColumn: 32 },
-      ],
-    },
-    {
-      kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
       code: `const spreadProps = { className: "text-secondary" };
 <div {...spreadProps} />;`,
       reports: [
@@ -238,13 +215,48 @@ export default {
     },
     {
       kind: "caught",
-      group: "Wherever class strings are authored",
+      group: "Class positions",
+      code: `<div class="bg-nonesuch" />`,
+      reports: [
+        { id: "undefinedColorToken", line: 1, column: 13, endLine: 1, endColumn: 24 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Class positions",
       code: `<div
   className="text-secondary"
 />`,
       reports: [
         { id: "undefinedColorToken", line: 2, column: 14, endLine: 2, endColumn: 28 },
       ],
+    },
+
+    // A class string written anywhere else is not read: a constant, an object map, a prop
+    // the rule cannot know takes classes, an array joined at runtime. Nothing in the syntax
+    // says these are class lists, and a colour prefix is too weak to say it for them — in a
+    // real codebase, the strings it matched outside class positions were SVG attribute
+    // names, object keys and prose, three to every real typo. To have such a class checked,
+    // write it in a class position; for a set of variants, `cva()` is one.
+    {
+      kind: "blindspot",
+      group: "Class strings outside a class position",
+      code: `const badgeColor = { danger: "bg-danger-muted", ok: "bg-success-muted" };`,
+    },
+    {
+      kind: "blindspot",
+      group: "Class strings outside a class position",
+      code: `const tone = "text-secondary";`,
+    },
+    {
+      kind: "blindspot",
+      group: "Class strings outside a class position",
+      code: `<Chart palette="text-secondary" />`,
+    },
+    {
+      kind: "blindspot",
+      group: "Class strings outside a class position",
+      code: `const joined = ["text-secondary", "p-2"].join(" ");`,
     },
 
     // One report per offending class, each at its own span.
@@ -339,10 +351,9 @@ export default {
       code: `fetch("/api/border-radius");`,
     },
 
-    // Each word is judged on its own. Checking a string only when every word is a Tailwind
-    // class kept prose out, but switched the rule off beside `group`, `peer` or a project's
-    // own `card` — most class strings. The cost is prose: `"text-heavy layouts"` reports,
-    // rarely, and `oxlint-disable-next-line` is the answer.
+    // Within a class position each word is judged on its own. Checking a string only when
+    // every word is a Tailwind class would switch the rule off beside `group`, `peer` or a
+    // project's own `card` — most class strings.
     {
       kind: "caught",
       group: "Each word judged on its own",
@@ -359,13 +370,34 @@ export default {
         { id: "undefinedColorToken", line: 1, column: 22, endLine: 1, endColumn: 33 },
       ],
     },
+
+    // Colour-prefixed words turn up in strings that are no class list at all: an SVG
+    // attribute naming a property, an object key, a test title, a label, a sentence. Outside
+    // a class position none of them is read.
     {
-      kind: "caught",
-      group: "Each word judged on its own",
+      kind: "allowed",
+      group: "Strings that are not class lists",
+      code: `<animate attributeName="stroke-opacity" values="1;0" />`,
+    },
+    {
+      kind: "allowed",
+      group: "Strings that are not class lists",
+      code: `const theme = { "shadow-color": shadow };`,
+    },
+    {
+      kind: "allowed",
+      group: "Strings that are not class lists",
+      code: `it("keeps a text-mono size", () => {});`,
+    },
+    {
+      kind: "allowed",
+      group: "Strings that are not class lists",
+      code: `<Frame label="from-client and from-analyst entries" />`,
+    },
+    {
+      kind: "allowed",
+      group: "Strings that are not class lists",
       code: `const copy = "text-heavy layouts";`,
-      reports: [
-        { id: "undefinedColorToken", line: 1, column: 15, endLine: 1, endColumn: 25 },
-      ],
     },
 
     // A class with an interpolation in it is not checked — the rule cannot know what it

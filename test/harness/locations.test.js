@@ -201,11 +201,11 @@ export const FIXTURES = {
     {
       name: "each undefined class, at the class and not at the string that carries it",
       code: [
-        'const base = "rounded-md p-2";',
-        "const badge = {",
+        'const base = cn("rounded-md p-2");',
+        'const badge = cva("", { variants: { tone: {',
         '  danger: "bg-danger-muted text-secondary",',
         '  ok: "bg-success-muted",',
-        "};",
+        "} } });",
         "<div",
         '  className={cn("p-2", "hover:text-warning-foreground")}',
         "/>;",
@@ -236,11 +236,11 @@ export const FIXTURES = {
             {
               messageId: "useCandidate",
               output: [
-                'const base = "rounded-md p-2";',
-                "const badge = {",
+                'const base = cn("rounded-md p-2");',
+                'const badge = cva("", { variants: { tone: {',
                 '  danger: "bg-danger-muted text-secondary",',
                 '  ok: "bg-success-muted",',
-                "};",
+                "} } });",
                 "<div",
                 '  className={cn("p-2", "hover:text-warning-foreground")}',
                 "/>;",

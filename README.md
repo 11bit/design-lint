@@ -116,6 +116,11 @@ Stated plainly, because a linter's gaps matter more than its catches:
   anything, so no rule guesses. Complete classes in the same template still are —
   `` `bg-red-500 ${extra}` `` is caught. To have a dynamic choice checked, choose between
   complete class names: `{ danger: "bg-danger", ok: "bg-success" }[tone]`.
+- **`no-undefined-token` reads only class positions** — `className`, class-helper arguments,
+  `cva()` and `tv()`. Its claim is "this class generates no CSS", and a colour-prefixed word
+  in an SVG attribute, an object key or a test title would get that claim falsely. So a
+  typo in an object map or a constant outside those positions is not reported; the other
+  rules still read those strings.
 - **Suggestions do not appear in CLI output**, and Oxlint does not surface `meta.docs.url`.
   So every rule puts what you need — the offending class, the token to use instead — in the
   message text itself. The editor quick-fix is an addition to that, never a substitute.
