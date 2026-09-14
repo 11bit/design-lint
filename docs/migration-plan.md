@@ -67,8 +67,8 @@ What we gain: every diagnostic under our own namespace rather than a foreign rul
 coupling to another package's rule names or version range, no meta-package indirection,
 and no build step regenerating config from policy.
 
-**The deliverable is a published package**, not configuration embedded in one
-application — see [Distribution](#distribution). `lint-color/` is deleted at the end of
+**The deliverable is a package**, not configuration embedded in one application — see
+[Distribution](#distribution). Publishing it to a registry is not part of this migration. `lint-color/` is deleted at the end of
 the migration.
 
 `design-system/lint/colors.json` keeps its role as the designer-owned policy file, but
@@ -471,7 +471,7 @@ three independent ways. The corrected config, and the design it forces, are in
 Method note: verified with `npm pack` + tarball install, and that mattered — a `file:`
 symlink install breaks the factory's `import.meta.resolve`, because the package then
 resolves through a real path with no `node_modules`. A local-development caveat only;
-registry installs are unaffected. Phase 5 must adopt via a real install, not a link.
+registry installs are unaffected. Phase 5 must adopt via a tarball install, not a link.
 
 **Open risks carried forward:** editor/LSP not yet exercised with this package's rules —
 though the changelog shows the language server has run JS plugins since 1.44.0, so this is
@@ -873,7 +873,7 @@ defines "done" is already written and already failing.
    console output. The upgrade is the editor quick-fix on top of the message, not instead
    of it. The map is a rule option read at load — `no-spectral-color` is ours, so there is
    no generated-config step and no question of whether it survives.
-6. Package and publish: the `exports` map, the `recommended` and `minimal` presets built
+6. Package: the `exports` map, the `recommended` and `minimal` presets built
    from today's `colors.json` contents, and the versioning policy that new rules ship
    disabled and join `recommended` only on a major. No lint dependencies — `oxlint` is the
    only peer.
@@ -906,24 +906,35 @@ defines "done" is already written and already failing.
    the rule's own JSON-options reasoning made look right. The rule now accepts either, and
    the harness binds what production binds so the two paths cannot diverge unnoticed again.
    This is the entire argument for step 7 in one bug.
-7. Adopt it in one real application via `npm install` — not a path reference — and
-   confirm green. Installing it the way a consumer would is the only test that the
-   packaging works; a `file:` link would hide exactly the resolution problems Phase 0b
-   exists to find.
+7. Adopt it in one real application from a local tarball: `npm pack --pack-destination
+   .pack` here, then `npm install --save-dev` of that `.tgz` there. **No publish step.** The package is not going to a registry during this
+   migration; a tarball install is the same install a registry performs, minus the network.
 
-   **Owner's step.** Publishing is deliberately not automated here. The package is prepared
-   and verified from a local tarball; what remains is `npm publish` and pointing one real
-   application at the published version.
+   A tarball, not a directory reference. `npm install ../design-lint` creates a symlink, and
+   a symlink is exactly what Phase 0b found hides resolution problems: the package then
+   resolves `@tailwindcss/node` from its own `node_modules` rather than the consumer's, and
+   the factory and the plugin can load as two module instances, one through the link and
+   one through its real path, so the resolved design system never reaches the rules.
+
+   Run it across the application and triage every report against the contracts: a true
+   violation, or a false positive that is a bug in a rule or a contract. The application is
+   not expected to be clean — it has never run these rules — so "green" is not the bar.
+
+   **The application is a test bed, not a patient.** Nothing in it is fixed: its only
+   changes are the install and an `oxlint.config.ts` that runs design-lint's rules with
+   Oxlint's built-in checks switched off. A false positive is fixed here, in a rule or a
+   contract; a true violation is recorded and left where it is.
 8. Removal of the old system happens in Phase 6, not here — keep `lint-color/` on disk
    until the new rules have run against a real codebase at least once.
 
 No parallel-run period is needed — nothing depends on the old output.
 
-**Exit:** the package is published, installed from the registry by one real application,
-and CI is green there. Contracts and corpus ship inside the package.
+**Exit:** the package is installed from a local tarball into one real application, runs to
+completion across it, and every report it produces is triaged as a true violation (left in
+the application) or a false positive (fixed in this package). Contracts and corpus ship inside the package.
 
-Everything up to that exit is done. Nine rules, 2276 assertions, zero pending cases, a
-package that installs and runs. Steps 1–6 are complete; step 7 is the owner's.
+Steps 1–6 are complete: nine rules, 2276 assertions, zero pending cases, a package that
+installs and runs. Step 7 is in progress.
 
 ### Phase 6 — Extract and delete
 
