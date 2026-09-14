@@ -17,7 +17,7 @@ import { rules } from "../../src/rules/index.js";
  * ## Resolved inputs, not paths
  *
  * Five of the nine rules need a design system or a semantic token set. Their contracts
- * configure that as `tokenFiles` or `entryPoint` — *paths*, because that is what a consumer
+ * configure that as `tokenFiles` — *paths*, because that is what a consumer
  * has — but no rule may read a file: paths are resolved once at plugin-module load and the
  * rules are handed the result. The corpus is that load step's stand-in, so it supplies the
  * resolved forms under the two keys a rule actually reads:

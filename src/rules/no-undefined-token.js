@@ -59,24 +59,22 @@ export default {
     },
     messages: {
       undefinedColorToken:
-        "{{className}} generates no CSS — {{token}} is not defined; check the spelling, or add --color-{{token}} to {{tokenFile}}",
+        "{{className}} generates no CSS — {{token}} is not defined; check the spelling, or add --color-{{token}} to your token stylesheet",
       // The candidate has to be in the *text*: suggestions do not render in any CLI output
       // format and `meta.docs.url` is dead under Oxlint, so a hint that lives only in a
       // suggestion payload reaches nobody running the linter from a terminal.
       undefinedColorTokenWithCandidate:
-        "{{className}} generates no CSS — {{token}} is not defined; check the spelling — did you mean {{candidates}}? — or add --color-{{token}} to {{tokenFile}}",
+        "{{className}} generates no CSS — {{token}} is not defined; check the spelling — did you mean {{candidates}}? — or add --color-{{token}} to your token stylesheet",
       useCandidate: "Replace {{className}} with {{candidate}}",
     },
 
     // The JSON half only. `designSystem` and `tokens` are resolved by `designLint()` from its
     // `tokenFiles` and bound around `create` at plugin-module load; a consumer cannot write
     // either by hand and should be told so rather than have one silently ignored.
-    // `entryPoint` builds nothing — it is the file the message's hint names.
     schema: [
       {
         type: "object",
         properties: {
-          entryPoint: { type: "string" },
           colorPrefixes: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
@@ -84,12 +82,10 @@ export default {
       },
     ],
 
-    // The recommended policy. Every value is a string or an array, which Oxlint replaces
-    // whole — the deep merge that makes an object-valued default dangerous has nothing to
-    // reach into here.
+    // The recommended policy. Every value is an array, which Oxlint replaces whole — the
+    // deep merge that makes an object-valued default dangerous has nothing to reach into here.
     defaultOptions: [
       {
-        entryPoint: "src/styles.css",
         ignoreGlobs: [...STORY_GLOBS],
       },
     ],
@@ -99,7 +95,6 @@ export default {
     const {
       designSystem,
       tokens,
-      entryPoint = "src/styles.css",
       colorPrefixes = [],
       ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
@@ -146,7 +141,7 @@ export default {
 
         const { prefix, token: name } = colorClass;
         const near = candidatesFor(name);
-        const data = { className: token.text, token: name, tokenFile: entryPoint };
+        const data = { className: token.text, token: name };
         const at = range ? { loc: spanOf(context, range) } : { node: source.node };
 
         if (near.length === 0) {

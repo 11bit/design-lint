@@ -29,13 +29,10 @@ describe("refusing to run", () => {
    *
    * The design system is bound rather than passed as an option, so a severity-only
    * override cannot remove it; what reaches this check is the rule run outside the plugin.
-   * `entryPoint` names a file in the message and builds nothing, so supplying it alone
-   * changes nothing here.
    */
   it("throws without a resolved design system, rather than reporting nothing", () => {
     expect(() => rule.create({ options: [] })).toThrow(/designSystem/);
     expect(() => create({})).toThrow(/designSystem/);
-    expect(() => create({ entryPoint: "src/styles.css" })).toThrow(/designSystem/);
   });
 
   /**
@@ -74,12 +71,12 @@ new RuleTester({
   valid: [],
   invalid: [
     {
-      name: "names the candidate, the token and the file to add it to",
+      name: "names the candidate and the token to add",
       code: '<div className="bg-primry" />;',
       errors: [
         {
           message:
-            "bg-primry generates no CSS — primry is not defined; check the spelling — did you mean bg-primary? — or add --color-primry to src/styles.css",
+            "bg-primry generates no CSS — primry is not defined; check the spelling — did you mean bg-primary? — or add --color-primry to your token stylesheet",
         },
       ],
     },
@@ -89,7 +86,7 @@ new RuleTester({
       errors: [
         {
           message:
-            "text-secondary generates no CSS — secondary is not defined; check the spelling, or add --color-secondary to src/styles.css",
+            "text-secondary generates no CSS — secondary is not defined; check the spelling, or add --color-secondary to your token stylesheet",
         },
       ],
     },

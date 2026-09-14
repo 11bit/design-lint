@@ -43,7 +43,7 @@ either — see the
 
 ```
 src/App.tsx:5:46: error design(no-spectral-color): bg-red-500 — spectral color class; use bg-danger instead
-src/App.tsx:8:21: error design(no-undefined-token): text-nonesuch generates no CSS — nonesuch is not defined; check the spelling, or add --color-nonesuch to src/styles.css
+src/App.tsx:8:21: error design(no-undefined-token): text-nonesuch generates no CSS — nonesuch is not defined; check the spelling, or add --color-nonesuch to your token stylesheet
 ```
 
 ## The rules
@@ -96,10 +96,8 @@ export default defineConfig({
 
 > **Restating a rule replaces the options the preset gave it.** Writing
 > `"design/no-raw-color": "warn"` drops what `designLint()` passed that rule. Every rule
-> falls back to its recommended policy, so the checks do not change, with two common
-> exceptions: `no-undefined-token`'s message may name `src/styles.css` rather than your first
-> token file, and `no-component-color-override` throws, because `componentSources` has no
-> default. Treat
+> falls back to its recommended policy, so the checks do not change, with one exception:
+> `no-component-color-override` throws, because `componentSources` has no default. Treat
 > the resolved token set and design-system data as factory-managed inputs, not rule options
 > to write by hand. If you configured a rule, restate its options alongside the severity.
 
