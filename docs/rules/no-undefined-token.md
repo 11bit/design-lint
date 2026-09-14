@@ -38,27 +38,33 @@ Variants and modifiers do not hide the problem.
 
 ## Where it looks
 
-This rule reads strings written where a class list goes:
+This rule checks strings that are clearly meant to be Tailwind class lists:
 
-- a `className` or `class` attribute, including everything inside its expression;
-- the value of a `className` property, such as a props object spread onto an element;
-- the arguments of `cn`, `clsx`, `classNames`, `cx`, `twMerge`, `twJoin`, `tw`, `cva` and `tv`, at any depth, including object keys and variant values.
+- `className` and `class` attributes;
+- `className` values inside props objects;
+- calls to common class helpers, including `cn`, `clsx`, `classNames`, `cx`, `twMerge`, `twJoin` and `tw`;
+- variant definitions in `cva` and `tv`.
+
+It follows nested helper calls and checks strings in arrays, objects, conditions and variant maps.
 
 ```tsx
 <div className={cn("p-2", isOpen && "bg-primry")} />
-const alert = cva("p-2", { variants: { tone: { danger: "bg-danger-muted" } } });
+
+const alert = cva("p-2", {
+  variants: { tone: { danger: "bg-danger-muted" } },
+});
 ```
 
-Strings anywhere else are not read, even when they contain classes. This keeps the rule from treating ordinary text as broken Tailwind. Many non-class strings look like color classes: `attributeName="stroke-opacity"` on an SVG element, an object key such as `"shadow-color"`, or a test title that mentions `text-mono`. Reporting those as "generates no CSS" would say something false about working code.
+It does not check every string in a file. That is intentional: ordinary text can look like a class without being one. For example, `attributeName="stroke-opacity"`, an object key such as `"shadow-color"`, or a test title mentioning `text-mono` should not be reported as broken Tailwind.
 
-That also means a class typo outside the positions above is not reported by this rule:
+Because of that, class-like strings outside the places above are not checked by this rule:
 
 ```tsx
 const tone = { danger: "bg-danger-muted", ok: "bg-success" }; // not checked
 const base = "flex text-primry";                              // not checked
 ```
 
-The other rules in this set still read those strings. To have a class checked by this rule, write it in one of the positions above. For a set of variants, use `cva()`.
+If you want this rule to validate a reusable set of classes, put them in a class helper call or a variant helper such as `cva()`.
 
 ## Allows
 
