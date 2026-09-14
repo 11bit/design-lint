@@ -906,7 +906,7 @@ defines "done" is already written and already failing.
    the rule's own JSON-options reasoning made look right. The rule now accepts either, and
    the harness binds what production binds so the two paths cannot diverge unnoticed again.
    This is the entire argument for step 7 in one bug.
-7. Adopt it in one real application from a local tarball: `npm pack --pack-destination
+7. ✅ Adopt it in one real application from a local tarball: `npm pack --pack-destination
    .pack` here, then `npm install --save-dev` of that `.tgz` there. **No publish step.** The package is not going to a registry during this
    migration; a tarball install is the same install a registry performs, minus the network.
 
@@ -933,8 +933,8 @@ No parallel-run period is needed — nothing depends on the old output.
 completion across it, and every report it produces is triaged as a true violation (left in
 the application) or a false positive (fixed in this package). Contracts and corpus ship inside the package.
 
-Steps 1–6 are complete: nine rules, 2276 assertions, zero pending cases, a package that
-installs and runs. Step 7 is in progress.
+Steps 1–7 are complete: nine rules, 2276 assertions, zero pending cases, a package that
+installs and runs. The exit is met.
 
 ### Phase 6 — Extract and delete
 
