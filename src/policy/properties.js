@@ -55,6 +55,10 @@ const BORDER_SIDES = [
  * Properties that may carry a colour among other values. A colour is optional in every one
  * of them, which is why `no-style-color` flags them on the key alone by default and offers
  * value inspection as an option rather than the other way round.
+ *
+ * Masks are absent on purpose. A colour written in `mask-image` decides only how much of
+ * the element shows through — by its alpha, or its luminance — and never paints: `white` in
+ * a mask gradient means "opaque", not white.
  */
 const SHORTHANDS = new Set([
   ...BORDER_SIDES.map((side) => `border${side}`),
@@ -70,7 +74,6 @@ const SHORTHANDS = new Set([
   "textShadow",
   "filter",
   "backdropFilter",
-  "maskImage",
   "listStyle",
   "listStyleImage",
   "WebkitTextStroke",

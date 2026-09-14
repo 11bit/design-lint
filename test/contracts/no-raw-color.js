@@ -889,10 +889,12 @@ export default {
 /* would be caught: shorthands, gradients and shadows, via the backstop */
 .h { background: linear-gradient(#fff, #000); }
 .i { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
-.j { mask-image: linear-gradient(#fff, transparent); }
 
 /* would be caught: a custom property defined outside the token files */
-.k { --brand: #ff0000; }`,
+.k { --brand: #ff0000; }
+
+/* would not be caught: a mask's colours set how much shows through and never paint */
+.j { mask-image: linear-gradient(#fff, transparent); }`,
     },
     {
       kind: "deferred",

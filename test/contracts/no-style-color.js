@@ -317,14 +317,6 @@ export default {
     {
       kind: "caught",
       group: "Colour-capable shorthands",
-      code: `<div style={{ maskImage: "url(/mask.png)" }} />`,
-      reports: [
-        { id: "colorInStyleProp", line: 1, column: 15, endLine: 1, endColumn: 42 },
-      ],
-    },
-    {
-      kind: "caught",
-      group: "Colour-capable shorthands",
       code: `<div style={{ backdropFilter: "blur(4px)" }} />`,
       reports: [
         { id: "colorInStyleProp", line: 1, column: 15, endLine: 1, endColumn: 42 },
@@ -617,6 +609,21 @@ export default {
       kind: "allowed",
       group: "Non-colour properties",
       code: `<div style={{ transform: active ? { scale: 1 } : {} }} />`,
+      options: options.baseline,
+    },
+
+    // Masks: a colour in `maskImage` decides only how much of the element shows through, by
+    // its alpha or luminance, and never paints — `white` in a mask gradient means "opaque".
+    {
+      kind: "allowed",
+      group: "Masks",
+      code: `<div style={{ maskImage: "url(/mask.png)" }} />`,
+      options: options.baseline,
+    },
+    {
+      kind: "allowed",
+      group: "Masks",
+      code: `<div style={{ maskImage: "radial-gradient(circle, transparent 99%, white 100%)" }} />`,
       options: options.baseline,
     },
 
