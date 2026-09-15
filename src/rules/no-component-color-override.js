@@ -38,6 +38,17 @@ import { parseClass } from "../policy/variants.js";
  * `from-0%` all sit under a colour prefix and are none of the rule's business, which is why
  * the value half cannot be skipped.
  *
+ * ## Ignored components are named, by their export
+ *
+ * The one place a name does count. An `<Icon>` drawn in `currentColor`, or a
+ * `<CollapsibleTrigger>` that only adds `group`, paints no colour of its own, so a colour on
+ * its `className` repaints nothing — and on a real component library they are the bulk of
+ * what this rule reports. `ignore` lists them, and the name matched is the one the module
+ * exports: `import { Icon as Glyph }` is still exempt, `import { Button as Icon }` does not
+ * become exempt, and `<UI.Icon>` through a namespace import is `Icon`. A member is its own
+ * component — listing `Card` does not exempt `<Card.Header>`. A default import has no
+ * exported name to go by, so its local name stands in for one.
+ *
  * Variants are stripped and then ignored. Unlike `token-constraints` and
  * `no-useless-hover`, this rule never asks *which* variant: a colour reaching a watched
  * component's `className` is the defect regardless of the condition attached to it.
@@ -51,7 +62,7 @@ import { parseClass } from "../policy/variants.js";
  *
  * ## Where its inputs come from
  *
- * `componentSources`, `ownedUtilities` and `ignoreGlobs` are JSON a consumer writes.
+ * `componentSources`, `ownedUtilities`, `ignore` and `ignoreGlobs` are JSON a consumer writes.
  * `designSystem` is not — it crosses a JSON boundary as a husk with every method gone — so
  * `designLint()` builds it once from its `tokenFiles`, and the plugin module binds it around
  * `create` with `bindResolved` in [`src/plugin.js`](../plugin.js). Both are read from
@@ -77,13 +88,14 @@ export default {
         properties: {
           componentSources: { type: "array", items: { type: "string" } },
           ownedUtilities: { type: "array", items: { type: "string" } },
+          ignore: { type: "array", items: { type: "string" } },
           ignoreGlobs: IGNORE_GLOBS_SCHEMA,
         },
         additionalProperties: false,
       },
     ],
 
-    // The recommended policy. Both options here are arrays, which Oxlint replaces whole
+    // The recommended policy. Every option here is an array, which Oxlint replaces whole
     // rather than merging into — the deep merge that forces `no-spectral-color` to apply its
     // map inside `create` does not bite here.
     //
@@ -92,7 +104,11 @@ export default {
     // the same `./src/*`. A consumer who wiped the factory's options by restating a severity
     // would land on the guess, and in a project importing through the other alias the rule
     // would watch nothing and report nothing — the silence the throw below exists to prevent.
-    defaultOptions: [{ ownedUtilities: [], ignoreGlobs: [...STORY_GLOBS] }],
+    //
+    // `ignore` defaults to nothing for the same reason in reverse: which of a library's
+    // components paint no colour is a fact about that library, and a guessed `Icon` would
+    // exempt a component that does.
+    defaultOptions: [{ ownedUtilities: [], ignore: [], ignoreGlobs: [...STORY_GLOBS] }],
   },
 
   create(context) {
@@ -100,6 +116,7 @@ export default {
       designSystem,
       componentSources,
       ownedUtilities = [],
+      ignore = [],
       ignoreGlobs = STORY_GLOBS,
     } = context.options[0] ?? {};
 
@@ -124,9 +141,14 @@ export default {
 
     const sourcePatterns = componentSources.map((pattern) => globToRegExp(pattern));
     const owned = new Set(ownedUtilities);
+    const ignored = new Set(ignore);
 
-    /** Local bindings introduced by an import this configuration watches. */
-    const watched = new Set();
+    /**
+     * Local bindings introduced by an import this configuration watches, each mapped to the
+     * name its module exports it under — `null` for a namespace import, whose members are
+     * the exports.
+     */
+    const watched = new Map();
 
     return {
       ImportDeclaration(node) {
@@ -138,13 +160,15 @@ export default {
         // member-expression tag then reaches through, which is the same shape as `Card` and
         // `<Card.Header>` and is resolved the same way below.
         for (const specifier of node.specifiers ?? []) {
-          if (specifier.local?.name) watched.add(specifier.local.name);
+          if (specifier.local?.name) watched.set(specifier.local.name, exportedName(specifier));
         }
       },
 
       JSXOpeningElement(node) {
         const component = componentName(node.name);
-        if (!component || !watched.has(rootIdentifier(node.name))) return;
+        const root = rootIdentifier(node.name);
+        if (!component || !watched.has(root)) return;
+        if (ignored.size > 0 && ignored.has(exportName(component, root, watched.get(root)))) return;
 
         for (const source of classSourcesOfElement(node)) {
 
@@ -214,6 +238,29 @@ function rootIdentifier(name) {
   if (name.type === "JSXMemberExpression") return rootIdentifier(name.object);
   // `<svg:rect>` — a namespaced tag is never a component.
   return null;
+}
+
+/**
+ * The name an import specifier's module exports the binding under: `Icon` for
+ * `import { Icon as Glyph }`, the local name for a default import, which has none of its
+ * own, and `null` for a namespace import.
+ */
+function exportedName(specifier) {
+  if (specifier.type === "ImportNamespaceSpecifier") return null;
+  if (specifier.type === "ImportSpecifier") {
+    return specifier.imported?.name ?? specifier.imported?.value ?? specifier.local.name;
+  }
+  return specifier.local.name;
+}
+
+/**
+ * The tag as its module exports it, which is what `ignore` lists: the root
+ * swapped for its exported name — `<Glyph>` is `Icon`, `<Card.Header>` stays `Card.Header` —
+ * and a namespace root dropped, so `<UI.Icon>` is `Icon`.
+ */
+function exportName(component, root, exported) {
+  const members = component.slice(root.length);
+  return exported === null ? members.slice(1) : exported + members;
 }
 
 /** The tag as the author wrote it, which is what the message names. */

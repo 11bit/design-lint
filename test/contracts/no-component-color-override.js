@@ -4,9 +4,10 @@
  * A colour class that statically reaches the `className` of a design-system component is
  * reported: the component owns its colour through variants, so the fix is an existing variant
  * or a new one. A component is watched when its identifier was imported from a path matching
- * a `componentSources` pattern, matched against the specifier as written. There is no library
- * exemption. Every case runs with the preamble below prepended and with
- * `componentSources: ["@/components/ui/*"]` (test/harness/options.js). One report per class.
+ * a `componentSources` pattern, matched against the specifier as written, unless its exported
+ * name is listed in `ignore`. There is no library exemption. Every case runs with the
+ * preamble below prepended and with `componentSources: ["@/components/ui/*"]`
+ * (test/harness/options.js). One report per class.
  */
 export default {
   rule: "no-component-color-override",
@@ -726,6 +727,86 @@ import { Chart } from "@/components/chart";`,
       options: { ownedUtilities: ["rounded"] },
       reports: [
         { id: "colorOnComponent", line: 1, column: 20, endLine: 1, endColumn: 27 },
+      ],
+    },
+
+    // Ignored components
+    // `ignore` names components the rule skips, meant for ones that paint no colour of their own — an icon
+    // drawn in `currentColor`, a layout wrapper — and a colour on their `className` is allowed.
+    // The name is the one the module exports: a renamed import stays exempt, a component
+    // renamed *to* a listed name does not become exempt, and a namespace member is its export.
+    // A member is its own component, so listing `Card` leaves `<Card.Header>` watched. A
+    // default import goes by its local name. Everything else on the page is still watched.
+    {
+      kind: "allowed",
+      group: "Ignored components",
+      code: `import { Icon } from "@/components/ui/icon";
+<Icon className="text-primary" />;`,
+      options: { ignore: ["Icon"] },
+    },
+    {
+      kind: "allowed",
+      group: "Ignored components",
+      code: `import { Icon as Glyph } from "@/components/ui/icon";
+<Glyph className="text-primary" />;`,
+      options: { ignore: ["Icon"] },
+    },
+    {
+      kind: "allowed",
+      group: "Ignored components",
+      code: `import * as UI from "@/components/ui/icon";
+<UI.Icon className="text-primary" />;`,
+      options: { ignore: ["Icon"] },
+    },
+    {
+      kind: "allowed",
+      group: "Ignored components",
+      code: `import Icon from "@/components/ui/icon";
+<Icon className="text-primary" />;`,
+      options: { ignore: ["Icon"] },
+    },
+    {
+      kind: "allowed",
+      group: "Ignored components",
+      code: `<Card.Header className="bg-primary" />`,
+      options: { ignore: ["Card.Header"] },
+    },
+    {
+      kind: "caught",
+      group: "Ignored components",
+      code: `import { Icon } from "@/components/ui/icon";
+<Icon className="text-primary" />;`,
+      reports: [
+        { id: "colorOnComponent", line: 2, column: 18, endLine: 2, endColumn: 30 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Ignored components",
+      code: `import { Button as Icon } from "@/components/ui/button";
+<Icon className="bg-primary" />;`,
+      options: { ignore: ["Icon"] },
+      reports: [
+        { id: "colorOnComponent", line: 2, column: 18, endLine: 2, endColumn: 28 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Ignored components",
+      code: `<Card.Header className="bg-primary" />`,
+      options: { ignore: ["Card"] },
+      reports: [
+        { id: "colorOnComponent", line: 1, column: 25, endLine: 1, endColumn: 35 },
+      ],
+    },
+    {
+      kind: "caught",
+      group: "Ignored components",
+      code: `import { Icon } from "@/components/ui/icon";
+<Button className="bg-primary"><Icon className="text-primary" /></Button>;`,
+      options: { ignore: ["Icon"] },
+      reports: [
+        { id: "colorOnComponent", line: 2, column: 20, endLine: 2, endColumn: 30 },
       ],
     },
 

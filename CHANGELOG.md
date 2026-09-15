@@ -11,6 +11,9 @@ First release. Nine rules, each with a guide in `docs/rules/` and a contract in
 - `designLint()` factory for `oxlint.config.ts`, which turns on every rule.
 - Every rule skips Storybook files through one option, `ignoreGlobs`, defaulting to
   `["**/*.stories.@(js|jsx|ts|tsx)"]`. Set it to `[]` to lint stories.
+- `no-component-color-override` takes `ignore`: components the rule skips, meant for ones with no colour
+  of their own, such as an icon drawn in the current text colour, listed by exported name.
+  Colour classes on them are allowed. Defaults to `[]`.
 - JavaScript and TypeScript only. The CSS surface is deferred, with contracts written.
 
 ### Versioning policy

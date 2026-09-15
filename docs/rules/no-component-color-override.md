@@ -61,6 +61,14 @@ Variants and other component props are allowed.
 <Badge tone="success" />
 ```
 
+Components listed in `ignore` are allowed. Use this for components that do not define their own color, such as icons that inherit `currentColor` or wrappers that only arrange their children. In those cases, a color class does not override a component appearance; it supplies the color the component is meant to inherit.
+
+```tsx
+// with ignore: ["Icon", "CollapsibleTrigger"]
+<Icon name="Check" className="text-success" />
+<CollapsibleTrigger className="text-muted-foreground" />
+```
+
 Elements and components that are not part of the configured design-system component set are not covered by this rule.
 
 ```tsx
@@ -78,14 +86,20 @@ A project may also choose to treat additional non-color utilities, such as `roun
 | --- | --- | --- |
 | `componentSources` | none — required | Import patterns your design-system components come from, matched against each import exactly as written. `*` matches within one path segment, `**` across segments. |
 | `ownedUtilities` | `[]` | Non-color utility prefixes the components also own, such as `rounded` or `shadow`. The message still says "overrides color". |
+| `ignore` | `[]` | Components the rule skips. Use it for components that do not define their own color. |
 | `ignoreGlobs` | `["**/*.stories.@(js\|jsx\|ts\|tsx)"]` | Files the rule skips. Stories are skipped by default; set `[]` to lint them. |
 
 ```ts
 "design/no-component-color-override": ["error", {
   componentSources: ["@/components/ui/*"],
   ownedUtilities: ["rounded", "shadow"],
+  ignore: ["Icon", "CollapsibleTrigger", "TableCell"],
 }]
 ```
+
+List ignored components by their exported name. Aliases do not change that name: `import { Icon as Glyph }` still matches `"Icon"`, while `import { Button as Icon }` does not. Namespace members use the member name, so `<UI.Icon>` matches `"Icon"`. Compound members are separate: `"Card"` does not cover `<Card.Header>`, but `"Card.Header"` does. Default imports use the local import name.
+
+Keep this list narrow. If a component paints its own background, text, border, or icon color, it should still be recolored through a variant rather than ignored.
 
 If your code imports `#/components/ui/button`, the pattern is `#/components/ui/*`, even when another alias points at the same folder. Relative imports such as `./button` or `../components/ui/button` are not matched by an alias pattern like `@/components/ui/*`; add a matching pattern if you want those imports covered. Passing an empty list when you set up the linter turns this rule off.
 
