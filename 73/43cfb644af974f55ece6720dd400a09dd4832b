@@ -1,0 +1,30 @@
+docs/rules/no-component-color-override.md
+  s_4a4538a63d82e3::t_78853317500a9b 67,96
+  s_1ee7ca2b3d2bae::t_bf5722fabc345c 64,89,100-102
+  s_4a4538a63d82e3::t_52e839d92f886c 65-66,68-71
+  s_1ee7ca2b3d2bae::t_0462687d7d4f74 103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7343cfb644af974f55ece6720dd400a09dd4832b",
+  "prompts": {},
+  "sessions": {
+    "s_1ee7ca2b3d2bae": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0911f-4c36-7058-a95d-a68f0533651d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    },
+    "s_4a4538a63d82e3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "214f4a95-971d-4db1-bc38-33caff47f027",
+        "model": "unknown"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
