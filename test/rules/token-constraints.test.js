@@ -7,7 +7,7 @@ import { ruleFor } from "../harness/options.js";
  * The path a real install takes, which no contract case does.
  *
  * Every block in the contract names a policy fixture, so the corpus always hands this rule
- * a policy. A consumer using the preset hands it none: the factory sets a severity and
+ * a policy. A consumer using `designLint()` hands it none: the factory sets a severity and
  * nothing else, and the rule is meant to fall back to its recommended policy. Once the
  * plugin module bound `designSystem` and `tokens` into `options[0]`, that fallback — keyed
  * on `options[0]` being absent — stopped happening, and the rule enforced nothing while the
@@ -31,7 +31,7 @@ tester.run("token-constraints — the recommended policy", ruleFor("token-constr
     { code: '<div className="bg-primary-foreground" />;', options: [{ denied: { "*": ["*-content"] } }] },
   ],
   invalid: [
-    // No options at all: what the preset produces.
+    // No options at all: what the factory produces.
     { code: '<div className="bg-primary-foreground" />;', errors: [{ messageId: "prefixDenied" }] },
     // An empty object is a consumer writing nothing, not a consumer writing an empty policy.
     { code: '<div className="bg-muted-foreground" />;', options: [{}], errors: [{ messageId: "prefixDenied" }] },

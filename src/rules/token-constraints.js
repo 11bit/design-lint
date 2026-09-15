@@ -32,8 +32,8 @@ import { familyOfKey, inFamily, parseClass } from "../policy/variants.js";
  */
 
 /**
- * The `recommended` preset's policy, the fallback for a consumer who writes
- * `"design/token-constraints": "error"` to bump a severity and wipes the preset's options
+ * The recommended policy, the fallback for a consumer who writes
+ * `"design/token-constraints": "error"` to bump a severity and wipes the factory's options
  * doing it. Landing here beats landing on nothing, which is what that override otherwise
  * costs: a rule with no policy reports nothing, at exit 0, while appearing enabled.
  *
@@ -41,7 +41,7 @@ import { familyOfKey, inFamily, parseClass } from "../policy/variants.js";
  * `meta.defaultOptions`. Oxlint merges `defaultOptions` into a consumer's options *deeply* —
  * `allowed: { text: [] }` beside this default would come out as `{ text: [], border: [...],
  * "hover:": [...] }` — and that per-prefix merge is exactly what the contract forbids: an
- * allow list is only readable if it is complete in one place, and a prefix the preset
+ * allow list is only readable if it is complete in one place, and a prefix the default
  * constrained must be unconstrained the moment the replacement omits it. So the default is a
  * default for the *configuration*, not for each key inside it.
  *

@@ -152,7 +152,7 @@ export const FIXTURES = {
         // Through a `cn()` argument and in the arbitrary spelling, each still located in the
         // source text the author wrote rather than at the attribute.
         { messageId: "hoverOnNonInteractive", line: 7, column: 36, endLine: 7, endColumn: 55 },
-        // Line 8 is silent too — `tr` is on the `recommended` preset's `interactiveElements`.
+        // Line 8 is silent too — `tr` is on the recommended `interactiveElements`.
       ],
     },
   ],

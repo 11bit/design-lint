@@ -10,7 +10,7 @@ import { rules } from "../../src/rules/index.js";
 /**
  * Rule options the contracts are written against.
  *
- * These are fixtures, not the `recommended` preset. A rule's recommended policy is its own
+ * These are fixtures, not the recommended policy. A rule's recommended policy is its own
  * default; this file supplies only what a consumer's config would, and the inputs the
  * factory would resolve from it.
  *

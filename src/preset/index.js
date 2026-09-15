@@ -4,8 +4,33 @@ import { isAbsolute, join } from "node:path";
 import { designSystemPolicy } from "../policy/design-system.js";
 import { loadDesignSystem, loadPalette } from "../policy/load.js";
 import { projectTokens } from "../policy/tokens.js";
-import { MINIMAL_RULE_IDS, RULE_IDS, severities } from "../presets/recommended.js";
 import { publish } from "./resolved.js";
+
+/**
+ * The rules the factory turns on: every rule, at the consumer's `severity`.
+ *
+ * These are severities, not semantics. What each rule *means* lives in its contract and in
+ * the rule itself, which carries the recommended policy — in `meta.defaultOptions`, or for
+ * `token-constraints` in `create`, when neither `allowed` nor `denied` is written — so that
+ * a consumer who wipes a rule's options by restating its severity lands on the right
+ * behaviour rather than on nothing. This list only says which rules run.
+ *
+ * **Versioning.** A new rule ships **disabled** and joins this list only in a major
+ * release. Adding one here turns a patch upgrade into a failing build for every consumer,
+ * which teaches people to pin — and a linter nobody upgrades is a linter that stops
+ * matching the design system it was written for.
+ */
+const RULE_IDS = [
+  "no-component-color-override",
+  "no-dark-variant",
+  "no-opacity-modifier",
+  "no-raw-color",
+  "no-spectral-color",
+  "no-style-color",
+  "no-undefined-token",
+  "no-useless-hover",
+  "token-constraints",
+];
 
 /**
  * The factory a consumer imports.
@@ -39,7 +64,6 @@ import { publish } from "./resolved.js";
 export async function designLint({
   tokenFiles,
   componentSources,
-  preset = "recommended",
   namespace = "design",
   severity = "error",
   base = process.cwd(),
@@ -55,10 +79,9 @@ export async function designLint({
   // a list turns the rule on, `[]` says this project has no design-system component library
   // and turns it off, and leaving it out at all is not a decision — it throws rather than
   // enabling a rule that fails on the first file, or quietly dropping one that was asked for.
-  const wantsComponents = componentSources !== undefined;
-  if (!wantsComponents && preset !== "minimal") {
+  if (componentSources === undefined) {
     throw new Error(
-      'design-lint: `componentSources` is required — the import globs your design-system components come from, matched against each import exactly as written — if your code imports "#/components/ui/button", pass ["#/components/ui/*"], even when another alias points at the same folder (a shadcn project records it as `aliases.ui` in components.json). It is how no-component-color-override knows which elements own their own colour. Pass `[]` if this project has no such library, or `preset: "minimal"` to run only the rules that need no project vocabulary.',
+      'design-lint: `componentSources` is required — the import globs your design-system components come from, matched against each import exactly as written — if your code imports "#/components/ui/button", pass ["#/components/ui/*"], even when another alias points at the same folder (a shadcn project records it as `aliases.ui` in components.json). It is how no-component-color-override knows which elements own their own colour. Pass `[]` if this project has no such library.',
     );
   }
 
@@ -94,21 +117,20 @@ export async function designLint({
 
   publish({ designSystem, tokens });
 
-  const watching = wantsComponents && componentSources.length > 0;
-  const ids = (preset === "minimal" ? MINIMAL_RULE_IDS : RULE_IDS).filter(
-    (id) => id !== "no-component-color-override" || watching,
-  );
-  const on = (id, options) => (ids.includes(id) ? { [`${namespace}/${id}`]: [severity, options] } : {});
+  const watching = componentSources.length > 0;
+  const ids = RULE_IDS.filter((id) => id !== "no-component-color-override" || watching);
 
   return {
     jsPlugins: ["@evil-martians/design-lint/oxlint"],
     rules: {
-      ...severities(ids, { namespace, severity }),
+      ...Object.fromEntries(ids.map((id) => [`${namespace}/${id}`, severity])),
       // The options a consumer's own layout decides. Everything else a rule needs it carries
       // itself — the recommended policy is in `meta.defaultOptions`, or for token-constraints
       // applied in `create` — so restating a severity here, which replaces options wholesale,
       // still lands on the right behaviour.
-      ...on("no-component-color-override", { componentSources: componentSources ?? [] }),
+      ...(watching && {
+        [`${namespace}/no-component-color-override`]: [severity, { componentSources }],
+      }),
     },
   };
 }

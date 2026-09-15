@@ -55,7 +55,7 @@ import { parseClass } from "../policy/variants.js";
  * rules. A missing design system is therefore a thrown error, never an early return: a rule
  * that reports nothing is indistinguishable from a codebase with no violations. It is bound
  * rather than passed as an option for the same reason — a consumer restating a severity
- * drops the preset's options, and must not drop the design system with them.
+ * drops the factory's options, and must not drop the design system with them.
  */
 export default {
   meta: {
@@ -192,7 +192,7 @@ export default {
  * throws instead.
  *
  * Binding closes the likelier route: a consumer writing `"design/no-undefined-token": "error"`
- * to bump a severity drops every option the preset supplied, but the design system is not
+ * to bump a severity drops every option the factory supplied, but the design system is not
  * one of them. What reaches this check is a rule run outside the plugin.
  *
  * The shape of what arrives says which mistake it was. A husk — `{ colorPrefixes: {} }`

@@ -77,7 +77,7 @@ export default {
 
     // The recommended policy. Every value is a boolean or a list, which Oxlint's deep
     // `defaultOptions` merge replaces whole rather than unioning — so carrying them here is
-    // safe, and a consumer who wipes the preset's options by writing
+    // safe, and a consumer who wipes the factory's options by writing
     // `"design/no-dark-variant": "error"` lands on the recommended behaviour rather than on
     // nothing. The same values are the destructuring defaults in `create`, because
     // `RuleTester` does not apply `defaultOptions`.

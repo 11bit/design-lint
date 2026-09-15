@@ -51,7 +51,7 @@ export { NAMED_COLORS, SYSTEM_COLORS };
 
 /**
  * Values that are not colours in the sense any of this cares about, and the
- * `recommended` default for the `ignoreValues` option.
+ * recommended default for the `ignoreValues` option.
  *
  * `currentColor` *is* a reference — it resolves to whatever the cascade produced, which
  * under these rules is always a token. `transparent` names the absence of a colour, and no

@@ -69,7 +69,7 @@ export default {
 
     // Every option is a list, which Oxlint's deep `defaultOptions` merge replaces whole
     // rather than unioning — so the recommended policy is safe to carry here, and a consumer
-    // who wipes the preset's options by writing `"design/no-useless-hover": "error"` lands
+    // who wipes the factory's options by writing `"design/no-useless-hover": "error"` lands
     // on it rather than on nothing. The same values are the destructuring defaults in
     // `create`, because `RuleTester` does not apply `defaultOptions`.
     defaultOptions: [

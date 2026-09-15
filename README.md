@@ -76,13 +76,6 @@ families map to which semantic names. The first two come from `tokenFiles` and
 may go on which utilities, is a rule option with a recommended default, so a project that
 disagrees configures a rule rather than forking one.
 
-```ts
-await designLint({
-  tokenFiles: ["src/styles.css"],
-  preset: "minimal",   // the five rules that need no settled token vocabulary
-});
-```
-
 Individual rules are configured the ordinary way, after the factory's config is spread:
 
 ```ts
@@ -94,8 +87,8 @@ export default defineConfig({
 });
 ```
 
-> **Restating a rule replaces the options the preset gave it.** Writing
-> `"design/no-raw-color": "warn"` drops what `designLint()` passed that rule. Every rule
+> **Restating a rule replaces the options `designLint()` gave it.** Writing
+> `"design/no-raw-color": "warn"` drops what the factory passed that rule. Every rule
 > falls back to its recommended policy, so the checks do not change, with one exception:
 > `no-component-color-override` throws, because `componentSources` has no default. Treat
 > the resolved token set and design-system data as factory-managed inputs, not rule options

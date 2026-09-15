@@ -195,7 +195,7 @@ function requiredSet(value, name) {
 }
 
 /**
- * The `recommended` preset's spectral→semantic map: keyed by utility prefix, then a list of
+ * The recommended spectral→semantic map: keyed by utility prefix, then a list of
  * `{ "<family>-<lo>...<hi>": "<token>" }` entries.
  *
  * The list-of-single-key-objects shape is not one anybody would choose from scratch — a

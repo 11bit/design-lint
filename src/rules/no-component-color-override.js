@@ -89,7 +89,7 @@ export default {
     //
     // `componentSources` has no default, deliberately. Any default is a guess at an alias,
     // and one folder can be reached through several: a tsconfig may map `@/*` and `#/*` to
-    // the same `./src/*`. A consumer who wiped the preset's options by restating a severity
+    // the same `./src/*`. A consumer who wiped the factory's options by restating a severity
     // would land on the guess, and in a project importing through the other alias the rule
     // would watch nothing and report nothing — the silence the throw below exists to prevent.
     defaultOptions: [{ ownedUtilities: [], ignoreGlobs: [...STORY_GLOBS] }],
@@ -110,13 +110,13 @@ export default {
     const colorNames = requiredSet(designSystem?.colorNames, "designSystem.colorNames");
 
     // A consumer bumping a severity — `"design/no-component-color-override": "error"` —
-    // drops the preset's options, and `componentSources` has no default for Oxlint to merge
+    // drops the factory's options, and `componentSources` has no default for Oxlint to merge
     // back in, so it arrives absent. A rule that returned early there would appear
     // enabled, report nothing and exit 0: a total, silent loss of coverage that looks
     // exactly like success. Failing loudly is the whole mitigation available here.
     if (!Array.isArray(componentSources) || componentSources.length === 0) {
       throw new Error(
-        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. A severity bump written on its own drops the preset\'s options, and this one has no default to fall back to; re-pass it alongside the severity.',
+        'no-component-color-override: `componentSources` is required and must be a non-empty array of glob patterns matched against each import source exactly as written — if your code imports "#/components/ui/button", that is ["#/components/ui/*"], even when another alias points at the same folder; a shadcn project records it as `aliases.ui` in components.json. A severity bump written on its own drops the options `designLint()` passed, and this one has no default to fall back to; re-pass it alongside the severity.',
       );
     }
 

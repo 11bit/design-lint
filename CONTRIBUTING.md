@@ -14,7 +14,6 @@ npm test
 | `src/rules/` | The nine rules. |
 | `src/extract/` | Class-string extraction. A broad sweep of every string in the file for the token rules; a precise walk of one element's `className` for the JSX rules. |
 | `src/policy/` | What several rules share: variant parsing, the class tokenizer, colour matching, and the questions asked of the design system and the token set. Exported as `/policy`. |
-| `src/presets/` | Which rules each preset turns on. Severities only — each rule carries its own recommended policy. |
 | `docs/rules/` | One guide per rule, written for the people whose code it reports. Shipped. |
 | `test/contracts/` | One contract per rule: every case it catches, allows, or cannot see, run as its test suite. See its [README](./test/contracts/README.md). |
 | `test/harness/` | What the tests supply in place of the factory, and the location fixtures. See its [README](./test/harness/README.md). |
