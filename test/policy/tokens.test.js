@@ -46,8 +46,8 @@ describe("projectTokens", () => {
 });
 
 describe("resolveTokenSet", () => {
-  // Phase 2's interface requirement: a corpus case that varies the token set must be able to
-  // hand one over without inventing a stylesheet for it.
+  // A contract case that varies the token set must be able to hand one over without
+  // inventing a stylesheet for it.
   it("takes a list a fixture wrote", () => {
     expect(resolveTokenSet({ tokens: ["primary", "card"] })).toEqual(new Set(["primary", "card"]));
   });

@@ -5,8 +5,8 @@
  * A string literal has one segment. A template literal has one segment per quasi, and a
  * segment records whether an interpolation follows it — which is the whole reason this
  * type exists. `` `bg-${tone}-500` `` is not a class name and not nothing: it is the prefix
- * `bg-` against a hole, and decision A7b makes that a violation. A rule can only say so if
- * extraction hands it the hole along with the text.
+ * `bg-` against a hole, and no rule may judge it as though it were `bg-` or `-500`. A rule
+ * can only hold back if extraction hands it the hole along with the text.
  *
  * A segment also carries where its text sits in the file, so that a rule can report at the
  * class rather than at the string holding it. `start` is the absolute offset of the first

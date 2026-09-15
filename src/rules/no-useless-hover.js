@@ -148,8 +148,8 @@ const NON_INTERACTIVE_TAGS = new Set([
 /**
  * A React event handler, matched by shape rather than by name. `on[A-Z]…` covers pointer,
  * keyboard, focus and drag handlers alike, so a handler nobody thought of when this list
- * was written still counts — which is precisely the hole the proof of concept's four-name
- * list left open for `onMouseEnter` and `onFocus`.
+ * was written still counts. A list of names is a list of holes: four names that seem
+ * enough leave `onMouseEnter` and `onFocus` out.
  */
 const EVENT_HANDLER = /^on[A-Z]/;
 
@@ -264,9 +264,9 @@ function firstSelfHoverClass(context, opening) {
  * The variant segment that makes this class depend on hovering the element itself, or
  * `null`.
  *
- * Matched **per segment**, never as a substring — the single most productive bug in the
- * proof of concept, where `hover:` also matched `group-hover:`, `peer-hover:` and
- * `[@media(hover:hover)]:`. A stack is tested segment by segment, so a `hover` anywhere in
+ * Matched **per segment**, never as a substring: a substring match finds `hover:` inside
+ * `group-hover:`, `peer-hover:` and `[@media(hover:hover)]:` too. A stack is tested segment
+ * by segment, so a `hover` anywhere in
  * `dark:md:hover:` reports and `supports-[hover:hover]:` does not.
  */
 function selfHoverVariant(className) {

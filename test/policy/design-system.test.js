@@ -20,8 +20,8 @@ beforeAll(async () => {
 });
 
 describe("colorPrefixes", () => {
-  it("derives the prefixes the proof of concept hardcoded", () => {
-    // The seventeen names in `lint-color/shared.js`. Deriving must not lose any of them.
+  it("derives the prefixes a hand-written list would carry", () => {
+    // The seventeen everyone thinks of first. Deriving must not lose any of them.
     for (const prefix of [
       "bg", "text", "border", "ring-offset", "ring", "fill", "stroke",
       "from", "to", "via", "divide", "placeholder",

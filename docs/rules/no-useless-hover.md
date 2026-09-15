@@ -1,8 +1,6 @@
 ---
 rule: no-useless-hover
-legacy-id: 10
 status: implemented
-disposition: custom
 bias: false-negatives
 files: ["*.tsx", "*.jsx"]
 ---

@@ -4,10 +4,9 @@
  * One question, asked by more than one rule. `no-raw-color` asks it of a Tailwind arbitrary
  * value, an SVG presentation attribute, a `style` property and a bare string constant;
  * `no-style-color`'s `shorthandProperties: "value"` mode asks it of a shorthand's value to
- * decide whether `border: "1px solid red"` is worth a diagnostic. The proof of concept
- * answered it with one regex — `/#[0-9a-fA-F]{3,8}\b|(?:rgb|rgba|…)\s*\(/` — which could
- * neither see `red` nor tell `fill="url(#gradient)"` from a colour, and those two failures
- * are most of the delta table at the bottom of the `no-raw-color` contract.
+ * decide whether `border: "1px solid red"` is worth a diagnostic. One regex —
+ * `/#[0-9a-fA-F]{3,8}\b|(?:rgb|rgba|…)\s*\(/` — is the obvious answer and a wrong one: it
+ * can neither see `red` nor tell `fill="url(#gradient)"` from a colour.
  *
  * So the answer is a small scanner rather than a pattern, and it lives here rather than in
  * a rule, because a second copy of a 148-name list is a second thing to be wrong.
@@ -33,11 +32,12 @@
  * ## What the scanner knows that a pattern cannot
  *
  * - **`url()` is an address.** The `#` in `url(#gradient-primary)` is a fragment
- *   identifier, and reading it as a hex colour was a false positive in the old linter.
+ *   identifier, not a hex colour.
  * - **`var()` is a reference**, which is the correct answer rather than a violation.
  * - **`color-mix()` and `light-dark()` compose.** They are a colour only when an argument is
  *   one, so `light-dark(#000,#fff)` reports and
- *   `light-dark(var(--a),var(--b))` does not — the distinction decision B5 turns on.
+ *   `light-dark(var(--a),var(--b))` does not. The call itself, tokens or not, is
+ *   `no-dark-variant`'s to report.
  * - **Other functions are transparent.** `linear-gradient(#fff, #000)` is not itself a
  *   colour literal, but it contains two, and a gradient is where a colour most often hides
  *   from a property-name check.
@@ -278,8 +278,8 @@ function keywordColor(word, { namedColors, ignored }) {
  * A `#`-prefixed word that is a hex colour, or `null`.
  *
  * The length check is the whole point. `#app-root`, `#pricing` and `#1234567` all begin
- * with a `#` and none is a colour, and the old linter's `\b`-anchored pattern reported the
- * last of them — a seven-digit hex is not a colour in any CSS that has ever shipped.
+ * with a `#` and none is a colour — a seven-digit hex is not a colour in any CSS that has
+ * ever shipped, whatever a `\b`-anchored pattern makes of it.
  */
 function hexColor(word) {
   const digits = word.slice(1);

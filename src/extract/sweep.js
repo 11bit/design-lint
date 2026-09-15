@@ -2,7 +2,7 @@ import { sourceOf } from "./sources.js";
 
 /**
  * The broad sweep: every string literal and every static template-literal segment in the
- * file, context-free (decision **A7**).
+ * file, context-free.
  *
  * The six token rules are context-free themselves — they ask "is this string a forbidden
  * class?" and never need to know which element it lands on — so extraction precision buys

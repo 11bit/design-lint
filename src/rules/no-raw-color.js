@@ -38,9 +38,9 @@ import { parseClass } from "../policy/variants.js";
  * ## Where each surface's strings come from
  *
  * The class surface uses `sweepVisitors` — every string literal and every static template
- * segment in the file (decision **A7**). Breadth is the point: a `cn()` argument, a `cva()`
- * variant map and a `.ts` object-literal constants file are one string each, and the
- * object-literal map was the known coverage regression the migration plan recorded.
+ * segment in the file. Breadth is the point: a `cn()` argument, a `cva()` variant map and a
+ * `.ts` object-literal constants file are one string each, and an extractor that followed
+ * only `className` would never see the last of them.
  *
  * The backstop does **not** use the sweep. It is driven by the positions where a value is
  * written down — a declarator's initialiser, an object property's value, an array element, a

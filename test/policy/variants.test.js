@@ -14,8 +14,7 @@ describe("splitVariants", () => {
     expect(splitVariants("bg-primary")).toEqual({ variants: [], base: "bg-primary" });
   });
 
-  // The regression that motivated a real parser: the proof of concept split on the last
-  // colon and turned this into `var(--x)]`.
+  // Why this is a parser: splitting on the last colon turns this into `var(--x)]`.
   it("does not split inside an arbitrary value", () => {
     expect(splitVariants("bg-[image:var(--x)]")).toEqual({
       variants: [],

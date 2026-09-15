@@ -6,8 +6,8 @@ import { sweepProbe } from "./probe.js";
 /**
  * The broad sweep, route by route.
  *
- * These are the same routes the evasion matrix enumerates, asked of extraction rather than
- * of a rule: not "is this reported?" but "is this string in front of the rule at all?".
+ * These are the routes a class string can take — literal, template, helper call, object
+ * map, concatenation, spread — asked of extraction rather than of a rule: not "is this reported?" but "is this string in front of the rule at all?".
  * Every token rule's coverage rests on the answers, which is why they are asserted here
  * once instead of nine times through nine sets of rule logic.
  */

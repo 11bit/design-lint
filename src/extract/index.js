@@ -2,12 +2,12 @@
  * Class-string extraction.
  *
  * Four of the nine rules share one hard problem — which class strings are there, and for
- * three of them, which ones reach *this* element — and the proof of concept solved it three
- * separate times, which is exactly why its coverage differed from rule to rule. It is
- * solved once here, so the rules become thin predicates over a trustworthy input.
+ * three of them, which ones reach *this* element. Solved once per rule, it would be solved
+ * slightly differently each time, and coverage would differ from rule to rule with it. It
+ * is solved once here, so the rules become thin predicates over a trustworthy input.
  *
  * There are two extractors rather than one, because the rule families ask different
- * questions and want opposite failure modes (decision **A7**):
+ * questions and want opposite failure modes:
  *
  * - {@link sweepVisitors} — context-free, for the six token rules. Every string literal and
  *   every static template segment in the file. Breadth is the point: `cn()` arguments,

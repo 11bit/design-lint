@@ -18,12 +18,11 @@ import { parseClass, stripGroupName } from "../policy/variants.js";
  * `dark:bg-card` is a theme fork in a `cva()` variant map and in a `.ts` constants file
  * exactly as much as on a `className`, and none of those need parsing to see it. That is
  * why it runs over `sweepVisitors` — every string literal and every static template segment
- * in the file — and gets every wrapper on the evasion matrix for free.
+ * in the file — and gets every wrapper, from `cn()` to an object map, for free.
  *
  * ## Why segmentation rather than a regex
  *
- * The proof of concept tested the raw class against `/(?:^|:)dark:/`, which is right for
- * the wrong reason: it allows `bg-dark-muted` because a `-` precedes `dark:`, and misses
+ * Testing the raw class against `/(?:^|:)dark:/` is right for the wrong reason: it allows `bg-dark-muted` because a `-` precedes `dark:`, and misses
  * `not-dark:` for the same reason. Here `dark` is matched as a **variant segment** — split
  * on `:` at bracket depth zero by `/policy`, group name stripped — so `bg-dark-muted` is a
  * utility body, `[@media(prefers-color-scheme:dark)]:` is one arbitrary segment, and

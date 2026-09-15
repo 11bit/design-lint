@@ -3,9 +3,9 @@
  *
  * Three rules need to know things that only Tailwind can answer — which utility prefixes
  * carry a colour, whether a class generates any CSS at all, and whether a *particular*
- * class sets a colour. The proof of concept answered the first with a hand-written
- * seventeen-entry list and never asked the third, which is why `text-sm/6` and
- * `inset-ring-primary` were wrong in opposite directions: one reported, one invisible.
+ * class sets a colour. A hand-written prefix list answers the first and never asks the
+ * third, and it is wrong in both directions: `text-sm/6` reports, because `text-` is a
+ * colour prefix, and `inset-ring-primary` is invisible, because nobody listed `inset-ring`.
  *
  * Everything here is **derived by probing the design system**. Nothing is a list someone
  * has to remember to update when Tailwind adds a utility family.

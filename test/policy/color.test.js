@@ -16,7 +16,7 @@ import {
  * `shorthandProperties: "value"` mode will ask it about a fifth — so its behaviour is
  * pinned here rather than only through the contracts that happen to exercise it today. The
  * cases below are grouped by the distinction each one exists to draw, because almost every
- * one of them is a place the proof of concept's single regex was wrong.
+ * one of them is a place a single regex gets wrong.
  */
 
 describe("the generated keyword sets", () => {
@@ -60,8 +60,8 @@ describe("rawColorsIn — a value known to carry a colour", () => {
     }
   });
 
-  // The old linter's `#[0-9a-fA-F]{3,8}\b` reported a seven-digit hex, which is not a colour
-  // in any CSS that has shipped, and the contract lists it as a false positive to lose.
+  // `#[0-9a-fA-F]{3,8}\b` would report a seven-digit hex, which is not a colour in any CSS
+  // that has shipped.
   it("refuses a hex length that is not a colour", () => {
     for (const notHex of ["#ff", "#fffff", "#1234567", "#fffffffff", "#zz", "#app-root"]) {
       expect(rawColorsIn(notHex)).toEqual([]);
@@ -119,8 +119,7 @@ describe("rawColorsIn — a value known to carry a colour", () => {
   });
 
   describe("the things that look like colours and are not", () => {
-    // Every `#` inside `url()` is a fragment identifier. Reading one as a colour was a
-    // false positive in the old linter, on both the CSS and the TSX side.
+    // Every `#` inside `url()` is a fragment identifier, never a colour.
     it("treats url() as an address", () => {
       expect(rawColorsIn("url(#gradient-primary)")).toEqual([]);
       expect(rawColorsIn("url('/img/hero.png#anchor')")).toEqual([]);
@@ -144,9 +143,8 @@ describe("rawColorsIn — a value known to carry a colour", () => {
   });
 
   describe("composition", () => {
-    // Decision B5's distinction, and the reason `color-mix` and `light-dark` cannot simply
-    // join the colour-function set: the mechanism is `no-dark-variant`'s, the literal is
-    // this matcher's.
+    // Why `color-mix` and `light-dark` cannot simply join the colour-function set: the
+    // mechanism is `no-dark-variant`'s, the literal is this matcher's.
     it("is a colour when an argument is one", () => {
       expect(rawColorsIn("light-dark(#fff,#000)")).toEqual(["light-dark(#fff,#000)"]);
       expect(rawColorsIn("color-mix(in oklch, #fff 50%, #000)")).toEqual([

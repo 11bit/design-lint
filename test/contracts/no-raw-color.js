@@ -748,7 +748,7 @@ export default {
     {
       kind: "allowed",
       group: "Comments",
-      code: `/* was rgb(255, 0, 0) before the token migration */
+      code: `/* was rgb(255, 0, 0) before the rebrand */
 <div className="bg-danger" />`,
     },
 

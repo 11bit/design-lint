@@ -2,11 +2,10 @@
  * Variant parsing, shared by every rule that reads a class.
  *
  * A class decomposes as `variant:variant:[!]prefix-colorPart[!][/opacity]`, and getting the
- * decomposition wrong is the single most productive source of bugs in the proof of concept:
- * `hover:` matched as a substring also matched `group-hover:`, `peer-hover:` and
- * `[@media(hover:hover)]:`, while splitting on the *last* colon turned
- * `bg-[image:var(--x)]` into `var(--x)]`. One parser, four symptoms, so there is one parser
- * here (decision **A1**).
+ * decomposition wrong is easy and quiet: `hover:` matched as a substring also matches
+ * `group-hover:`, `peer-hover:` and `[@media(hover:hover)]:`, and splitting on the *last*
+ * colon turns `bg-[image:var(--x)]` into `var(--x)]`. One parser, four symptoms, so there
+ * is one parser here, shared.
  *
  * The rule that makes it work is that a colon inside brackets is not a segment boundary. An
  * arbitrary value and an arbitrary variant both use them, and both are common enough that
@@ -72,7 +71,7 @@ export function stripGroupName(segment) {
 /**
  * Does a variant segment belong to a family?
  *
- * A policy key ending in `:` names a **family**, not an exact segment (decision **A3**), so
+ * A policy key ending in `:` names a **family**, not an exact segment, so
  * `"hover:"` governs `hover`, `group-hover`, `peer-hover` and `has-hover` alike. Which
  * element is hovered is irrelevant to the question a token policy asks — which token a
  * hover-triggered colour may use.

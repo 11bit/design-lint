@@ -195,14 +195,12 @@ function requiredSet(value, name) {
 }
 
 /**
- * The `recommended` preset's spectral→semantic map, in the shape
- * `design-system/lint/colors.json` already stores it: keyed by utility prefix, then a list
- * of `{ "<family>-<lo>...<hi>": "<token>" }` entries.
+ * The `recommended` preset's spectral→semantic map: keyed by utility prefix, then a list of
+ * `{ "<family>-<lo>...<hi>": "<token>" }` entries.
  *
  * The list-of-single-key-objects shape is not one anybody would choose from scratch — a
- * single object per prefix would do — but it is the shape the policy file has, and the
- * packaging step should be able to lift the map out of that file unchanged rather than
- * transform it on the way through.
+ * single object per prefix would do — but it is the `replacement` option's public shape,
+ * and changing it is a major.
  *
  * Built fresh on each call rather than shared as a constant: `meta.defaultOptions` and the
  * destructuring fallback both hand it out, and a mutable default two rule instances share

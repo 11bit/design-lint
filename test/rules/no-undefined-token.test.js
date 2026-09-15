@@ -22,10 +22,10 @@ const create = (options) => rule.create({ options: [options] });
 
 describe("refusing to run", () => {
   /**
-   * The failure mode the proof of concept had backwards. It built its resolver with
-   * `.catch(() => null)` and returned early, so a missing dependency or an unresolvable
-   * `@import` turned the rule off with no output and exit code 0 — indistinguishable from a
-   * codebase with no violations, and quietly weakening `token-constraints` with it.
+   * The failure mode to refuse. A resolver built with `.catch(() => null)` and an early
+   * return turns a missing dependency or an unresolvable `@import` into a rule that is off,
+   * with no output and exit code 0 — indistinguishable from a codebase with no violations,
+   * and quietly weakening `token-constraints` with it.
    *
    * The design system is bound rather than passed as an option, so a severity-only
    * override cannot remove it; what reaches this check is the rule run outside the plugin.
@@ -56,9 +56,8 @@ describe("refusing to run", () => {
 
 /**
  * Suggestions do not render in any CLI output format and `meta.docs.url` is dead under
- * Oxlint, so the message text is the only channel this rule has. The retired Phase 4 left
- * behind one acceptance criterion — the typo candidate must reach that text — and this is
- * where it is checked: `locations.test.js` asserts the suggestion payload, which is the
+ * Oxlint, so the message text is the only channel this rule has. The typo candidate must
+ * reach that text, and this is where it is checked: `locations.test.js` asserts the suggestion payload, which is the
  * half a terminal never sees.
  */
 RuleTester.describe = describe;

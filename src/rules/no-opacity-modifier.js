@@ -25,8 +25,8 @@ import { parseClass } from "../policy/variants.js";
  * 3. **The utility sits under a derived colour prefix**, so `w-1/2` and `aspect-16/9` are
  *    never looked at twice.
  * 4. **The body is not a resolvable non-colour.** This is the gate that separates
- *    `text-primary/50` from `text-sm/6` — the same shape, opposite verdicts, and the one
- *    false positive the proof of concept had. See {@link isColorBody} for why the test is
+ *    `text-primary/50` from `text-sm/6` — the same shape, opposite verdicts, and the false
+ *    positive a prefix check alone would produce. See {@link isColorBody} for why the test is
  *    written as a double negative rather than as `isColorClass` alone.
  */
 export default {

@@ -1,8 +1,6 @@
 ---
 rule: no-opacity-modifier
-legacy-id: 3
 status: implemented
-disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---

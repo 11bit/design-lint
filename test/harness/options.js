@@ -8,11 +8,11 @@ import { projectTokens } from "../../src/policy/tokens.js";
 import { rules } from "../../src/rules/index.js";
 
 /**
- * Rule options the corpus is written against.
+ * Rule options the contracts are written against.
  *
- * These are fixtures, not the `recommended` preset. The preset is built in Phase 5 from
- * the contents of `design-system/lint/colors.json`, and at that point this file becomes a
- * thin override layer over it rather than a hand-written map.
+ * These are fixtures, not the `recommended` preset. A rule's recommended policy is its own
+ * default; this file supplies only what a consumer's config would, and the inputs the
+ * factory would resolve from it.
  *
  * ## Resolved inputs, not paths
  *
@@ -33,7 +33,7 @@ import { rules } from "../../src/rules/index.js";
  * the other half, the JSON a consumer actually writes.
  *
  * Which means the corpus can vary either one per case without inventing a stylesheet per
- * variation — the requirement Phase 2 found the hard way — and `RuleTester` never touches a
+ * variation, and `RuleTester` never touches a
  * filesystem.
  */
 

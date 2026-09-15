@@ -9,11 +9,11 @@ import { contracts, runnable, sourceOf } from "../contracts/index.js";
  * The extraction-shaped subset of the contracts in `test/contracts/`.
  *
  * `test/extract/sweep.test.js` and `element.test.js` assert exactly which tokens come out
- * of a given shape. This file asserts something coarser and, for the migration, more
- * important: that for every case a rule *promises to catch*, extraction puts at least one
- * class token in front of it. A rule cannot report what it never sees, so a promise whose
- * string never arrives is a hole in the extractor rather than in the rule — and this is
- * where that shows up, before any rule exists to be blamed.
+ * of a given shape. This file asserts something coarser and more important: that for every
+ * case a rule *promises to catch*, extraction puts at least one class token in front of it.
+ * A rule cannot report what it never sees, so a promise whose string never arrives is a hole
+ * in the extractor rather than in the rule — and this is where that shows up, before the
+ * rule is blamed for it.
  *
  * Two rules are outside it, and not because they are hard. `no-style-color` reads a `style`
  * object, and `no-raw-color` reads values — SVG attributes, style values, string constants —

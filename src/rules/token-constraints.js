@@ -152,8 +152,8 @@ export default {
  * `bg-[image:var(--x)]` survives intact.
  *
  * There is one report per class, against the first failure in resolution order — the prefix
- * policy, then the variant policies left to right. Fixing it surfaces the second, which is
- * the behaviour the proof of concept had by accident and this contract keeps deliberately.
+ * policy, then the variant policies left to right. Fixing it surfaces the second: one class,
+ * one report, however many policies it breaks.
  */
 function judge(className, { policy, prefixes, tokens, designSystem }) {
   const { variants, base, important, opacity } = parseClass(className);
@@ -292,8 +292,8 @@ function matches(pattern, value) {
  *
  * Both refusals throw when the rule is created, which is where the configuration actually
  * arrives; the contract describes them as such. A key in both lists is either redundant or contradictory —
- * an allow list already denies everything not on it — and silently discarding one of the two,
- * which the proof of concept did, is the worst of the three available answers.
+ * an allow list already denies everything not on it — and silently discarding one of the two
+ * is the worst of the three available answers.
  */
 function compilePolicy({ allowed = {}, denied = {} }) {
   const both = Object.keys(allowed).filter((key) => Object.hasOwn(denied, key));
@@ -351,9 +351,9 @@ function requiredTokens(tokens) {
 
 /**
  * The colour-prefix set, which is derived from the resolved Tailwind design system and never
- * hand-maintained — a hand-written list is a permanent source of silent holes, and the one
- * the proof of concept carried omitted every per-side border family, `inset-ring`,
- * `inset-shadow` and `text-shadow`.
+ * hand-maintained — a hand-written list is a permanent source of silent holes. The obvious
+ * seventeen names omit every per-side border family, `inset-ring`, `inset-shadow` and
+ * `text-shadow`.
  */
 function requiredPrefixes(designSystem) {
   const prefixes = designSystem?.colorPrefixes;

@@ -187,9 +187,9 @@ export default {
  * The one rule in the set that must fall over rather than fall silent. Its entire output is
  * an absence, so "the design system failed to load" and "this codebase is clean" produce
  * the same empty report and the same exit code — and it gates `token-constraints`, so the
- * silence costs coverage in two rules rather than one. The proof of concept built its
- * resolver with `.catch(() => null)` and returned early; that is the behaviour this
- * replaces.
+ * silence costs coverage in two rules rather than one. A resolver built with
+ * `.catch(() => null)` and an early return is exactly that failure, which is why this
+ * throws instead.
  *
  * Binding closes the likelier route: a consumer writing `"design/no-undefined-token": "error"`
  * to bump a severity drops every option the preset supplied, but the design system is not

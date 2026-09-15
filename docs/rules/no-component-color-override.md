@@ -1,8 +1,6 @@
 ---
 rule: no-component-color-override
-legacy-id: 11
 status: implemented
-disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.jsx"]
 ---

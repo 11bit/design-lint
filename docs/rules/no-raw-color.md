@@ -1,8 +1,6 @@
 ---
 rule: no-raw-color
-legacy-id: 2
 status: implemented
-disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---

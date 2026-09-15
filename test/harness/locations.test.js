@@ -7,25 +7,13 @@ import { optionsFor, ruleFor } from "./options.js";
 /**
  * Where a rule points.
  *
- * The corpus asserts counts and nothing else — `errors: c.count` — so a rule that reported
- * every violation on line 1 would be green across all 732 cases. Locations are asserted
- * here instead of in the contracts, for four reasons that are properties of Oxlint's
- * `RuleTester` rather than preferences:
+ * Every `caught` contract case asserts its message id and full span, but almost every case
+ * is one line long, where a line assertion says little. The risk lives in code that spans
+ * lines and reports more than once, so each rule also has a fixture here that a lazy rule
+ * could not satisfy.
  *
- * 1. An expectation carrying a location must also carry a `messageId` or a `message`;
- *    `errors: [{ line }]` is rejected outright. Putting locations in the contracts would
- *    therefore put message ids in them too, and a contract is a specification that ships —
- *    message ids are rule internals.
- * 2. Expectations are positional, so a `count=3` case would need three ordered entries and
- *    a defined report order to match them against.
- * 3. Most cases in the corpus are one line long, where a line assertion says nothing. The
- *    risk lives in the cases that span lines or report more than once.
- * 4. Contracts with a `preamble` have it prepended to every case, so any line number
- *    written in one would be an offset into harness plumbing rather than into the case.
- *
- * The weakness of keeping them outside is that nothing makes anyone write them. The meta
- * test at the bottom is that obligation: a rule whose contract says `status: implemented`
- * must have a fixture here, and the fixture must be one no line-1 rule could satisfy.
+ * The meta test at the bottom makes that an obligation: every rule with a contract must
+ * have a fixture here, and the fixture must be one no line-1 rule could satisfy.
  */
 
 /**

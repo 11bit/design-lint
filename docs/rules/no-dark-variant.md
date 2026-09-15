@@ -1,8 +1,6 @@
 ---
 rule: no-dark-variant
-legacy-id: 9
 status: implemented
-disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---

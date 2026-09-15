@@ -1,8 +1,6 @@
 ---
 rule: token-constraints
-legacy-id: 5
 status: implemented
-disposition: custom
 bias: false-positives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---

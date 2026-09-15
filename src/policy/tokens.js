@@ -11,10 +11,9 @@
  *
  * Yours is whatever your namespace holds that a bare `@import "tailwindcss"` does not. The
  * question is put to Tailwind instead of being answered from which file a name came from,
- * and that is the whole difference. A scan of the token files' text — the earlier approach,
- * and the proof of concept's — misses every token defined in a stylesheet those files
- * import, so `no-spectral-color` reported them as palette and `token-constraints` skipped
- * them. Following the imports instead needs a line drawn at `node_modules`, because the
+ * and that is the whole difference. A scan of the token files' text misses every token
+ * defined in a stylesheet those files import, so `no-spectral-color` would report them as
+ * palette and `token-constraints` would skip them. Following the imports instead needs a line drawn at `node_modules`, because the
  * palette is itself a stylesheet there, and any such line misfiles a shared token package.
  * Subtraction needs neither: a token package counts as yours because it is not Tailwind's
  * palette, and the palette is excluded because it is exactly what is subtracted.
@@ -37,9 +36,8 @@ export function projectTokens(designSystem, palette) {
 
 /**
  * An already-resolved set, in whatever iterable shape it arrived: a `Set` the plugin module
- * bound, or a JSON list a contract fixture wrote to vary the token set per case. Phase 2's
- * requirement, still standing — a corpus case must be able to hand a token set over
- * without inventing a stylesheet for it.
+ * bound, or a JSON list a contract case wrote to vary the token set. A case must be able to
+ * hand a token set over without inventing a stylesheet for it.
  *
  * @param {{ tokens?: Iterable<string> }} source
  * @returns {Set<string>}

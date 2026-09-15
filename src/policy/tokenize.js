@@ -8,9 +8,9 @@
  * *inside* a token and neither neighbour is a class at all. Every rule needs that
  * distinction and none of them should have to derive it, so it is drawn once, here.
  *
- * A dynamic token keeps its static pieces: `head` is the text before the first hole, which
- * is what a rule tests when it asks "is this a colour prefix against an interpolation?"
- * (decision **A7b**), and `tail` is the text after the last one.
+ * A dynamic token keeps its static pieces: `head` is the text before the first hole — in
+ * `` `bg-${tone}-500` ``, the only part known to be written — and `tail` is the text after
+ * the last one.
  *
  * A token also carries `range`, the span of the class itself in the file, so a diagnostic
  * lands on `bg-red-500` and not on the string that happens to hold it. Every rule wants

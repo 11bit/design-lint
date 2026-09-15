@@ -1,8 +1,6 @@
 ---
 rule: no-undefined-token
-legacy-id: 12
 status: implemented
-disposition: custom
 bias: false-negatives
 files: ["*.tsx", "*.ts", "*.jsx", "*.js"]
 ---

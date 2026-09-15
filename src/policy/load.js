@@ -9,10 +9,9 @@
  * **The loading itself is Tailwind's.** `@tailwindcss/node` is the integration that
  * `@tailwindcss/vite`, `@tailwindcss/postcss` and the CLI are built on, and its loader
  * resolves `@import` and `@plugin` exactly as the build does — through the `style` export
- * condition, `NODE_PATH`, `jiti` for a TypeScript plugin. This file used to carry its own
- * resolver, and it was wrong in the way every re-derived resolver is eventually wrong:
- * `@import "tw-animate-css"` killed the lint run because that package does not export its
- * own manifest. A linter that resolves stylesheets differently from the build will
+ * condition, `NODE_PATH`, `jiti` for a TypeScript plugin. A resolver of our own would be
+ * wrong in the way every re-derived resolver eventually is — `@import "tw-animate-css"`
+ * fails, because that package does not export its own manifest. A linter that resolves stylesheets differently from the build will
  * disagree with it about what a class means, so this file finds the engine and does
  * nothing else.
  */
@@ -38,9 +37,9 @@ const BUILD_TOOLS = ["@tailwindcss/vite", "@tailwindcss/postcss", "@tailwindcss/
  *
  * @param {string} entryCss The stylesheet's contents — not its path. A caller that has a
  *   path writes an `@import` of it; a caller that has the text (a test, the corpus) is not
- *   forced to invent a file for it. Phase 2 found this requirement the hard way: a policy
- *   that can only be handed a filename cannot be varied per case, and a corpus that cannot
- *   vary it cannot express the cases that matter.
+ *   forced to invent a file for it. A policy that can only be handed a filename cannot be
+ *   varied per case, and a contract that cannot vary it cannot express the cases that
+ *   matter.
  * @param {{ base?: string }} [options] Directory the project, and so the engine and every
  *   bare `@import`, is resolved from.
  * @returns {Promise<object>} The resolved design system.
