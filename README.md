@@ -96,6 +96,32 @@ The package uses `@tailwindcss/node` to read the same design system your Tailwin
 npm install --save-dev @tailwindcss/node
 ```
 
+## ESLint
+
+The rules can also run in ESLint v9 flat config. Resolve the design system first, then import the plugin:
+
+```js
+// eslint.config.mjs
+import { designLint } from "@evil-martians/design-lint/preset";
+
+const design = await designLint({
+  tokenFiles: ["src/styles.css"],
+  componentSources: ["@/components/ui/*"],
+});
+
+const designPlugin = (await import("@evil-martians/design-lint/oxlint")).default;
+
+export default [
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    plugins: { design: designPlugin },
+    rules: design.rules,
+  },
+];
+```
+
+Use a dynamic `import()` for the plugin. The `designLint()` call prepares the token data the rules need, and the plugin reads it when it loads.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
