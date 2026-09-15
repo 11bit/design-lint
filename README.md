@@ -127,7 +127,7 @@ Stated plainly, because a linter's gaps matter more than its catches:
 
 ## Requirements
 
-Node 20+ and `oxlint` 1.82+. The design system is built by **`@tailwindcss/node`**, the engine `@tailwindcss/vite`, `@tailwindcss/postcss` and the Tailwind CLI run on, found from your project so the linter and your build agree on which classes exist. If you use one of those, it is already installed — under pnpm too, where it is found through the build tool. Otherwise add it: `npm install --save-dev @tailwindcss/node`. JS plugins load under `jsPlugins`;
+Node 22.18+ and `oxlint` 1.82+. Node runs `oxlint.config.ts` as TypeScript without a build step from 22.18 on. The design system is built by **`@tailwindcss/node`**, the engine `@tailwindcss/vite`, `@tailwindcss/postcss` and the Tailwind CLI run on, found from your project so the linter and your build agree on which classes exist. If you use one of those, it is already installed — under pnpm too, where it is found through the build tool. Otherwise add it: `npm install --save-dev @tailwindcss/node`. JS plugins load under `jsPlugins`;
 `plugins` is reserved for Oxlint's built-in Rust rules and rejects this package.
 
 ## Contributing
