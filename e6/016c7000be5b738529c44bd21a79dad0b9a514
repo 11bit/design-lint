@@ -1,0 +1,20 @@
+README.md
+  s_1ee7ca2b3d2bae::t_e03d1b1d951a9e 99-123
+  s_1ee7ca2b3d2bae::t_234c36cafe41e5 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e6016c7000be5b738529c44bd21a79dad0b9a514",
+  "prompts": {},
+  "sessions": {
+    "s_1ee7ca2b3d2bae": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0911f-4c36-7058-a95d-a68f0533651d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Ivan Buryak <ivan.buryak@gmail.com>"
+    }
+  }
+}
